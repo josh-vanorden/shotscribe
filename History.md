@@ -86,3 +86,13 @@ the v0.6.0 tag: the Keep block, the pickers and the session grid all render.
 ## 2026-09-04 — QA pass
 
 A review agent read the Keep commit against its own design intent. Fixed: the clean-up plan is scoped to the watched folder and names it (it reached every folder ever watched); the preview lists every row; Cancel is disabled once moves are under way; the archive folder may not be the watched one; undo is withheld while ShotScribe.app watches the folder; the index serialises writes and the sweep merges onto the freshest store (a record made mid-sweep, and its original name, used to be overwritten); the watcher keys seen files by name and closes its descriptor by value (one leaked fd per toggle). Left: the eight-row preview nit became the scrolling list. 50 tests green.
+
+## 2026-09-06 — shipped as its own app, v0.6.1
+
+- `scripts/package-app.sh` takes its version from the latest tag — it had
+  said an older number as a literal — and signs a plain (non-notarized) run
+  with the Developer ID too, so macOS permission grants survive rebuilds
+  instead of being re-asked after every ad-hoc signature.
+- Built, signed, notarized and stapled: `dist/*.app` and
+  `dist/*-0.6.1.dmg`, both accepted by Gatekeeper. The same box the belt
+  mounts, standing alone; the belt's Toolbox installs and uninstalls it.
