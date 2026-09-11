@@ -69,9 +69,12 @@ Keep it mechanical.
 
 ### Invariants worth not breaking
 
-- **Only macOS default capture names get renamed.** `Naming.isRawCapture` gates on the
-  `"Screenshot "` / `"Screen Shot "` prefix, enforced in `Renamer.rename` before anything
-  else. A file the user named is never touched unless `force`.
+- **Only macOS default capture names get renamed.** `Naming.isRawCapture(at:)`, enforced in
+  `Renamer.rename` before anything else. The English prefix (`"Screenshot "` / `"Screen Shot "`)
+  matches on the name alone; any other language needs the default-name shape *and* the
+  `com.apple.metadata:kMDItemIsScreenCapture` xattr. Never let the xattr decide alone: it
+  survives renames, so it's on every shot ShotScribe named and every capture the user renamed.
+  A file the user named is never touched unless `force`.
 - **Date first in the filename**, so name-sort stays chronological and truncating UIs keep
   the meaningful tail.
 - **The OCR text is untrusted** — it's whatever was on screen, possibly a malicious page.

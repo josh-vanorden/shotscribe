@@ -96,3 +96,29 @@ A review agent read the Keep commit against its own design intent. Fixed: the cl
 - Built, signed, notarized and stapled: `dist/*.app` and
   `dist/*-0.6.1.dmg`, both accepted by Gatekeeper. The same box the belt
   mounts, standing alone; the belt's Toolbox installs and uninstalls it.
+
+## 2026-09-11 — Captures are recognised in any language
+
+`Naming.isRawCapture` matched only "Screenshot " / "Screen Shot ", so on a
+German, French or Japanese Mac — or with a custom `com.apple.screencapture
+name` — ShotScribe renamed nothing, silently. It mattered once the repo went
+public.
+
+- **The rule now.** The English prefix still matches on the name alone.
+  Anything else needs two signals: a name shaped like macOS's default (a word,
+  the ISO date, a dotted time, maybe AM/PM and a counter) *and* macOS's own
+  capture flag, the xattr `com.apple.metadata:kMDItemIsScreenCapture`, read
+  with `getxattr` — no Spotlight involved.
+- **Why not the flag alone.** It was the plan until the folder was counted:
+  all 218 images in `~/Pictures/Screenshots` carry the flag, including the 125
+  ShotScribe had already renamed. The flag survives renames, so on its own it
+  would re-rename ShotScribe's output and every capture the user named
+  themselves. "Raw" stays a question about the name.
+- `canUndo` reads a history row's name with no file behind it, so it gets the
+  name-only `looksLikeDefaultCaptureName`.
+- Evidence: 58 tests green (8 new, on temp files carrying the real xattr); both
+  wrong rules — English-only and flag-only — fail the new tests; old and new
+  rules agree on all 218 real captures (93 raw either way), so English users
+  see no change. Unverified live: that the flag is on the file when the
+  watcher fires. The non-English fixtures are reconstructed formats, not files
+  from a non-English Mac.

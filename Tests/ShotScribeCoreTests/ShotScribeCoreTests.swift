@@ -2,11 +2,11 @@ import XCTest
 @testable import ShotScribeCore
 
 final class NamingTests: XCTestCase {
-    func testOnlyRawCapturesAreRenameable() {
-        XCTAssertTrue(Naming.isRawCapture("Screenshot 2026-08-11 at 3.41.07 PM.png"))
-        XCTAssertTrue(Naming.isRawCapture("Screen Shot 2019-01-02 at 1.00.00 PM.png"))
-        XCTAssertFalse(Naming.isRawCapture("Quarterly Review.png"))
-        XCTAssertFalse(Naming.isRawCapture("IMG_2043.png"))
+    func testOnlyDefaultCaptureNamesLookRaw() {
+        XCTAssertTrue(Naming.looksLikeDefaultCaptureName("Screenshot 2026-08-11 at 3.41.07 PM.png"))
+        XCTAssertTrue(Naming.looksLikeDefaultCaptureName("Screen Shot 2019-01-02 at 1.00.00 PM.png"))
+        XCTAssertFalse(Naming.looksLikeDefaultCaptureName("Quarterly Review.png"))
+        XCTAssertFalse(Naming.looksLikeDefaultCaptureName("IMG_2043.png"))
     }
 
     func testSanitizeStripsIllegalCharsAndCollapsesSpace() {

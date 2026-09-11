@@ -19,7 +19,8 @@ When invoked, immediately:
    gave no accompanying words, describe what's notable and ask nothing unless
    truly ambiguous.
 4. **Housekeeping (ShotScribe bonus):** if the file still wears a raw
-   `Screenshot …` name and the ShotScribe tools are available, rename it via
+   `Screenshot …` name (or macOS's default in another language, e.g.
+   `Bildschirmfoto …`) and the ShotScribe tools are available, rename it via
    `rename_screenshot` with a 2–3 word Title Case `title` composed from what
    you actually SAW — you have the full image, so your title can beat the
    OCR-only one. Mention the new name in passing; don't make it the headline.

@@ -8,8 +8,8 @@ findable later.
 with Apple's **on-device Vision OCR** (nothing leaves your machine), asks a
 local LLM for a 2–3 word title, and renames the file: **date first** (so
 name-sort stays chronological) then a scannable label. macOS default capture
-names are the only ones it touches — a file you named yourself is never
-renamed.
+names, in any language, are the only ones it touches — a file you named
+yourself is never renamed.
 
 It's one small, single-purpose tool. The logic lives in a reusable core
 (`ShotScribeCore`) so the same engine backs the CLI today and — next — an MCP

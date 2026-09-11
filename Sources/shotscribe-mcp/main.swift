@@ -89,7 +89,8 @@ let toolDefs: [[String: Any]] = [
         "description": """
         Rename a screenshot to "<date> <time> <Label>.<ext>" — date first so \
         name-sort stays chronological. Only macOS default capture names \
-        ("Screenshot ...") are renamed unless `force` is true, so user-named \
+        ("Screenshot ...", in any macOS language) are renamed unless `force` \
+        is true, so user-named \
         files are never touched. Provide `title` (2-3 word Title Case, e.g. \
         "AWS Billing Console"); if omitted, an offline keyword title from the \
         image's own text is used.

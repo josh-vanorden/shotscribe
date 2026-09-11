@@ -268,7 +268,7 @@ public final class ShotScribeModel: ObservableObject {
         // an undo can warn is this copy's, and the other app would rename the
         // restored file straight back (QA, 2026-09-04).
         !otherInstanceRunning
-            && Naming.isRawCapture(e.from)
+            && Naming.looksLikeDefaultCaptureName(e.from)
             && FileManager.default.fileExists(atPath: folder.appendingPathComponent(e.to).path)
     }
 
@@ -508,7 +508,7 @@ public final class ShotScribeModel: ObservableObject {
             at: folder, includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles])) ?? [])
             .filter { imageExts.contains($0.pathExtension.lowercased()) }
-            .filter { Naming.isRawCapture($0.lastPathComponent) }
+            .filter { Naming.isRawCapture(at: $0) }
         let newest = candidates.max {
             let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
             let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast

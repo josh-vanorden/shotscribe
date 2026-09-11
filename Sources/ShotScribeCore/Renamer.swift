@@ -43,8 +43,7 @@ public struct Renamer: Sendable {
                        force: Bool = false, dryRun: Bool = false) async throws -> RenameOutcome {
         guard fileManager.fileExists(atPath: url.path) else { return .fileMissing(url) }
 
-        let current = url.lastPathComponent
-        guard force || Naming.isRawCapture(current) else { return .skippedNotRawCapture(url) }
+        guard force || Naming.isRawCapture(at: url) else { return .skippedNotRawCapture(url) }
 
         let label: String
         if let explicitLabel, !explicitLabel.trimmingCharacters(in: .whitespaces).isEmpty {
