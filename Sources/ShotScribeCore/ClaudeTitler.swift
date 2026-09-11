@@ -57,6 +57,30 @@ public struct ClaudeTitler: Titler {
         return LabelCleaner.clean(raw)
     }
 
+    /// Title and tags from the one call. An empty vocabulary means the caller
+    /// wants no tags, and the prompt goes back to asking for a label alone.
+    public func labelling(forOCRText text: String, vocabulary: [String]) async throws -> Labelling {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= TitlerPrompt.minOCRChars else { return Labelling(title: "Screenshot") }
+        guard !vocabulary.isEmpty else { return Labelling(title: try await title(forOCRText: trimmed)) }
+        let raw = try await complete(
+            prompt: "OCR text:\n\(trimmed)\n\nLabel:",
+            system: TitlerPrompt.system(taggedFrom: vocabulary)
+        )
+        return Self.parseLabelling(raw, vocabulary: vocabulary)
+    }
+
+    /// "AWS Billing Console | dashboard, browser" → the name and the filing. A
+    /// reply with no "|" is taken as all label, which is what a literal-minded
+    /// model gives back.
+    static func parseLabelling(_ raw: String, vocabulary: [String]) -> Labelling {
+        let line = raw.split(whereSeparator: \.isNewline).first.map(String.init) ?? raw
+        let parts = line.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+        let proposed = parts.count > 1 ? parts[1].split(separator: ",").map(String.init) : []
+        return Labelling(title: LabelCleaner.clean(String(parts.first ?? "")),
+                         tags: Tagging.accepted(proposed, vocabulary: vocabulary))
+    }
+
     // MARK: - Binary resolution (memoized)
 
     private static let binaryHolder = ResolvedValue()

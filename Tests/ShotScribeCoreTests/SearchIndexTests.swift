@@ -9,6 +9,12 @@ final class SearchIndexTests: XCTestCase {
                     indexed: Date(), size: 1, text: text)
     }
 
+    private func tagged(_ name: String, _ text: String, _ tags: [String]) -> IndexedShot {
+        var shot = self.shot(name, text)
+        shot.tags = tags
+        return shot
+    }
+
     private func store(_ shots: [IndexedShot]) -> ShotIndex.Store {
         var s = ShotIndex.Store()
         for x in shots { s.shots[x.path] = x }
@@ -23,6 +29,37 @@ final class SearchIndexTests: XCTestCase {
         XCTAssertEqual(hits.count, 1)
         XCTAssertEqual(hits.first?.shot.name, "Real Belt Rail")
         XCTAssertFalse(hits.first!.matchedInName)
+    }
+
+    /// Filing is findable: the tag is nowhere in the name or the text.
+    func testATagIsSearchable() {
+        let s = store([tagged("Console output", "nothing relevant in this body", ["error"])])
+        XCTAssertEqual(ShotIndex.search("error", in: s).count, 1)
+    }
+
+    /// A tag was chosen for the shot; body text merely crossed the screen.
+    func testATagOutranksAPassingMentionInTheBody() {
+        let s = store([
+            tagged("Filed shot", "unrelated body text of a reasonable length", ["error"]),
+            shot("Other shot", "an error appears somewhere in this long body text"),
+        ])
+        XCTAssertEqual(ShotIndex.search("error", in: s).first?.shot.name, "Filed shot")
+    }
+
+    /// An index written before tags existed has to load. A non-optional `tags`
+    /// would throw here, and `load`'s `try?` would turn that into an empty
+    /// store — the whole searchable history, silently gone.
+    func testAnIndexWrittenBeforeTagsStillDecodes() throws {
+        let json = Data("""
+        {"version":1,"shots":{"/tmp/a.png":{"path":"/tmp/a.png","name":"a",\
+        "captured":"2026-08-11T15:41:00Z","indexed":"2026-08-11T15:41:00Z",\
+        "size":1,"text":"hello"}}}
+        """.utf8)
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        let store = try dec.decode(ShotIndex.Store.self, from: json)
+        XCTAssertEqual(store.shots["/tmp/a.png"]?.text, "hello")
+        XCTAssertNil(store.shots["/tmp/a.png"]?.tags)
     }
 
     /// A hit in the name outranks a hit in the body: the name is the one part
@@ -148,6 +185,33 @@ final class ReindexSweepTests: XCTestCase {
             0x05,0x00,0x01,0x0D,0x0A,0x2D,0xB4,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,0x44,0xAE,
             0x42,0x60,0x82]
         try Data(png).write(to: url)
+    }
+
+    /// Filing a shot by hand in Finder changes no bytes, so the sweep skips the
+    /// file — but the tag still has to arrive, or the app would never see what
+    /// the operator filed until something forced a whole re-read.
+    func testASweepPicksUpATagAddedByHand() throws {
+        let dir = try makeFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("one.png")
+        try writeImage(url)
+        XCTAssertEqual(ShotIndex.reindex(folder: dir).indexed, 1)
+        XCTAssertEqual(ShotIndex.load().shots[url.path]?.tags ?? [], [])
+
+        Tagging.add(["error"], to: url)
+        let second = ShotIndex.reindex(folder: dir)
+        XCTAssertEqual(second.skipped, 1, "unchanged bytes, so the OCR is still skipped")
+        XCTAssertEqual(ShotIndex.load().shots[url.path]?.tags ?? [], ["error"])
+    }
+
+    func testRecordingARenameCarriesTheFilesTags() throws {
+        let dir = try makeFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("2026-08-11 1541 Some Shot.png")
+        try writeImage(url)
+        Tagging.add(["dashboard"], to: url)
+        ShotIndex.record(url, original: "Screenshot 2026-08-11 at 3.41.07 PM.png")
+        XCTAssertEqual(ShotIndex.load().shots[url.path]?.tags ?? [], ["dashboard"])
     }
 
     /// The whole point: images already sitting in the folder get indexed.

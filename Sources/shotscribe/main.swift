@@ -24,7 +24,9 @@ func expand(_ path: String) -> URL {
 func describe(_ outcome: RenameOutcome) -> String {
     switch outcome {
     case .renamed(let from, let to):
-        return "renamed  \(from.lastPathComponent)\n      →  \(to.lastPathComponent)"
+        let tags = Tagging.finderTags(of: to)
+        let filed = tags.isEmpty ? "" : "\n   tags  \(tags.joined(separator: ", "))"
+        return "renamed  \(from.lastPathComponent)\n      →  \(to.lastPathComponent)\(filed)"
     case .wouldRename(let from, let to):
         return "would rename  \(from.lastPathComponent)\n           →  \(to.lastPathComponent)"
     case .skippedNotRawCapture(let url):
@@ -50,6 +52,7 @@ USAGE:
 
 FLAGS:
   --no-claude   Use the offline keyword titler instead of `claude -p`
+  --no-tags     Don't file the shot under Finder tags
   --dry-run     Show the new name without moving the file
   --force       Rename even files you named yourself (default: macOS captures only)
                 For `index`: re-read files already indexed
@@ -66,20 +69,24 @@ guard let command = args.first else {
 args.removeFirst()
 
 let noClaude = args.contains("--no-claude")
+let noTags   = args.contains("--no-tags")
 let dryRun   = args.contains("--dry-run")
 let force    = args.contains("--force")
 let positional = args.filter { !$0.hasPrefix("--") }
 
 let titler = makeTitler(noClaude: noClaude)
-let renamer = Renamer(titler: titler, template: ShotScribeDefaults.nameTemplate())
+let renamer = Renamer(titler: titler,
+                      template: ShotScribeDefaults.nameTemplate(),
+                      vocabulary: noTags ? [] : ShotScribeDefaults.vocabulary())
 
 switch command {
 case "label":
     guard let file = positional.first else {
         FileHandle.standardError.write(Data("error: `label` needs a file path.\n".utf8)); exit(2)
     }
-    let title = await renamer.label(fileAt: expand(file))
-    print(title)
+    let proposed = await renamer.labelling(fileAt: expand(file))
+    print(proposed.title)
+    if !proposed.tags.isEmpty { print("tags: \(proposed.tags.joined(separator: ", "))") }
 
 case "rename":
     guard let file = positional.first else {
@@ -138,7 +145,9 @@ case "find":
     let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
     for h in hits.prefix(20) {
         let mark = h.matchedInName ? "*" : " "
-        print("\(mark) \(fmt.string(from: h.shot.captured))  \(h.shot.name)")
+        let tags = h.shot.tags ?? []
+        let filed = tags.isEmpty ? "" : "  [\(tags.joined(separator: "] ["))]"
+        print("\(mark) \(fmt.string(from: h.shot.captured))  \(h.shot.name)\(filed)")
         if !h.snippet.isEmpty { print("     \(h.snippet)") }
         print("     \(h.shot.path)")
     }

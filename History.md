@@ -156,3 +156,62 @@ next.
   `2026-09-11 1704 Screenshot.png` under the default, unchanged. Not yet built:
   the pane, so nothing but `defaults write` can set a template today — and the
   operator's own domain was never written to during any of this.
+
+## 2026-09-11 — Tags, filed where macOS already looks
+
+Tags go on the capture as **Finder tags**, so they show in Finder, sort in the
+sidebar and answer a Spotlight search with no ShotScribe surface at all. That
+is why tags came before the template pane: the operating system is the UI, so
+the feature is reachable the day it lands.
+
+- **A closed vocabulary, not the model's imagination.** Sixteen general tags
+  about what kind of thing a shot is; the title already carries the subject.
+  A proposal outside the list is dropped, so a page that was on screen cannot
+  invent its own filing, and the list cannot sprawl into hundreds of one-offs.
+  Two tags per shot.
+- **One model call, not two.** `Titler` grew `labelling(forOCRText:vocabulary:)`
+  returning title *and* tags; `ClaudeTitler` asks for `Name | tag, tag` in the
+  same `claude -p` it already made. `KeywordTitler` tags offline on whole-word
+  matches, so `--no-claude` files things too.
+- **Found by running it, not by testing it.** `labelling` started as an
+  extension method only. Every door holds a `Titler` existential, so the call
+  dispatched statically to the default implementation and nothing was ever
+  tagged — while 70 unit tests passed, because they held concrete titlers. It
+  is a protocol requirement now, with the default alongside, and a test holds
+  the existential on purpose.
+- **The user's own tags are kept.** Setting `tagNames` replaces the whole set,
+  so `Tagging.add` merges. `URLResourceValues.tagNames`' setter is macOS 26+ and
+  this package floors at 13, so the write goes through `NSURL`.
+- Evidence: 71 tests green, 13 new. End to end on a generated PNG, the CLI
+  renamed it to `2026-09-11 1727 Terminal Error Connection.png` and wrote
+  `com.apple.metadata:_kMDItemUserTags` holding `terminal` and `error` in
+  Finder's own format. Spotlight itself is unconfirmed — the scratch file sat
+  in `/private/tmp`, which Spotlight does not index.
+
+## 2026-09-11 — Tags reach the search and the tiles
+
+The filing was on the files but invisible to ShotScribe's own surfaces. Now the
+index carries it, search ranks it, and the tiles wear it.
+
+- **The file is the record, the index is a cache.** `record` and `reindex` read
+  the Finder tags off the file, so a tag added by hand in Finder arrives on the
+  next sweep — including through the skip-unchanged branch, since tags change
+  without the bytes changing and re-reading them is one syscall against the OCR
+  that branch exists to avoid.
+- **`IndexedShot.tags` is optional** so an index written before tags still
+  decodes. A throw there would hit `load`'s `try?` and hand back an empty store:
+  the operator's entire searchable history, gone quietly.
+- **A tag ranks just under the filename** and above body text. Both were chosen
+  deliberately; the text merely crossed the screen.
+- **On a tile and on a list row**, each tag is a chip, and clicking one searches
+  for it — filtering is a query, so there is no second code path and the field
+  shows what is being asked.
+- **`SHOTSCRIBE_INDEX`** points the index elsewhere. Without it, trying the CLI
+  against a scratch folder writes those files into the real searchable history,
+  which is exactly what the sweep tests once did to it.
+- Evidence: 76 tests green, 5 new. Through the built CLI against a scratch
+  index, `find error` returned the tagged capture and printed
+  `[terminal] [error]`, and `~/.shotscribe/index.json` was untouched. The chips
+  themselves are compile-checked only — rendering them needs the app running,
+  which would put a menu bar item and a folder watcher on the operator's
+  machine, so that check waits for them.

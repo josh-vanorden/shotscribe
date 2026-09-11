@@ -68,7 +68,23 @@ shotscribe watch ~/Pictures/Screenshots
 
 # Skip Claude, use the offline keyword titler:
 shotscribe label --no-claude "~/Desktop/Screenshot ....png"
+
+# Rename without filing it under Finder tags:
+shotscribe rename --no-tags "~/Desktop/Screenshot ....png"
 ```
+
+## Tags
+
+A renamed capture is also filed under up to two **Finder tags** — so it shows in
+Finder, sorts in the sidebar, and answers a Spotlight search without ShotScribe
+running at all.
+
+Tags come from a fixed list (`terminal`, `code`, `error`, `browser`, `docs`,
+`chat`, `email`, `calendar`, `design`, `dashboard`, `settings`, `logs`,
+`ticket`, `meeting`, `diagram`, `receipt`). That is deliberate: the text on your
+screen is not always text you wrote, so a screenshot never gets to invent a tag
+of its own — anything off the list is dropped. Tags you added by hand are kept.
+`--no-tags` turns filing off.
 
 ## MCP server (Claude Code / Cowork integration)
 
@@ -193,10 +209,19 @@ called — a three-word title is a thin hook a month later.
 ```bash
 shotscribe index            # read the watched folder into the index
 shotscribe find "NXDOMAIN"  # search what they say
+shotscribe find error       # …or how they are filed
 ```
 
 The search field in the app does the same thing, and new captures index
-themselves the moment they are renamed.
+themselves the moment they are renamed. Tags are searched alongside the text and
+rank with the filename, since a tag was chosen deliberately and body text merely
+crossed the screen. In the app the tags sit on each tile; clicking one shows
+everything filed the same way. A tag you add by hand in Finder is picked up by
+the next sweep.
+
+`SHOTSCRIBE_INDEX=/tmp/scratch.json shotscribe …` points the index somewhere
+else, which is how to try the CLI against a folder without writing into your own
+searchable history.
 
 Two deliberate choices:
 

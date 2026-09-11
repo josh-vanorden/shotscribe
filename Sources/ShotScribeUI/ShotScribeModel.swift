@@ -206,6 +206,29 @@ public final class ShotScribeModel: ObservableObject {
         return nil
     }
 
+    /// The closed list a tag may come from. Stored, so the CLI and the MCP
+    /// server file things the same way this app does.
+    @Published public private(set) var vocabulary: [String] = ShotScribeDefaults.vocabulary()
+
+    /// Save an edited vocabulary. An empty one goes back to the shipped list —
+    /// turning filing off is a different question from having no words for it.
+    public func setVocabulary(_ tags: [String]) {
+        ShotScribeDefaults.setVocabulary(tags)
+        vocabulary = ShotScribeDefaults.vocabulary()
+    }
+
+    /// File a shot that is already named — the only way to reach an older
+    /// capture, since the vocabulary otherwise only applies at rename time.
+    public func tag(_ shot: IndexedShot, with tag: String) {
+        guard Tagging.add(Tagging.accepted([tag], vocabulary: vocabulary), to: shot.url) else {
+            lastError = "Couldn't tag \(shot.name)."
+            return
+        }
+        ShotIndex.record(shot.url, original: shot.original)
+        loadIndex()
+        runSearch()
+    }
+
     /// The plan the user is looking at. nil = no preview open.
     @Published public private(set) var cleanupPlan: Cleanup.Plan?
     @Published public private(set) var cleaning = false
@@ -495,16 +518,21 @@ public final class ShotScribeModel: ObservableObject {
             }.value
             Log.write("new capture \(url.lastPathComponent): ocr=\(ocr.count) chars")
             var label: String?
+            var tags: [String] = []
             do {
-                label = try await titler.title(forOCRText: ocr)
-                Log.write("title: \(label ?? "nil")")
+                let proposed = try await titler.labelling(forOCRText: ocr,
+                                                          vocabulary: vocabulary)
+                label = proposed.title
+                tags = proposed.tags
+                Log.write("title: \(label ?? "nil")  tags: \(tags.joined(separator: ", "))")
             } catch {
                 Log.write("titler FAILED: \(error)")
                 lastError = "Titling failed — used the offline label. (\(error.localizedDescription))"
             }
             // label == nil → Renamer falls back to its own titler (offline).
-            let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate)
-                .rename(fileAt: url, label: label)
+            let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate,
+                                            vocabulary: vocabulary)
+                .rename(fileAt: url, label: label, tags: tags)
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {
                 record(from: from.lastPathComponent, to: to.lastPathComponent)
@@ -654,6 +682,13 @@ public final class ShotScribeModel: ObservableObject {
             // Search results are ranked by relevance; re-sorting them by date
             // would throw away the ranking that made them results.
             : (sort == .newest ? hits.map(\.shot) : Self.sorted(hits.map(\.shot), by: sort))
+    }
+
+    /// Show everything filed the same way. Tags are indexed, so a filter is just
+    /// a search — no second code path, and the field shows what is being asked.
+    func filter(tag: String) {
+        query = tag
+        runSearch()
     }
 
     func snippet(for shot: IndexedShot) -> String? {

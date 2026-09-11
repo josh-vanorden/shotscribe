@@ -6,6 +6,7 @@ import Foundation
 public enum ShotScribeDefaults {
     public static let appBundleID = "com.joshvanorden.shotscribe"
     public static let nameTemplateKey = "shotscribe.nameTemplate"
+    public static let vocabularyKey = "shotscribe.tagVocabulary"
 
     /// ShotScribe's own preferences domain, reached by name from anything that
     /// is not ShotScribe.app: a host with its own bundle id would otherwise
@@ -32,6 +33,22 @@ public enum ShotScribeDefaults {
               let stored = try? JSONDecoder().decode(NameTemplate.self, from: data),
               Naming.validate(stored) == nil else { return .default }
         return stored
+    }
+
+    /// The tags a capture may be filed under. Stored so the pane can edit it and
+    /// every door agrees on the same closed list; the shipped list stands in
+    /// when nothing is stored, or when what is stored comes back empty.
+    public static func vocabulary() -> [String] {
+        let stored = Tagging.normalised(suite.stringArray(forKey: vocabularyKey) ?? [])
+        return stored.isEmpty ? Tagging.defaultVocabulary : stored
+    }
+
+    /// An empty list resets to the shipped one rather than turning filing off —
+    /// "no tags at all" is a switch, not an empty vocabulary.
+    public static func setVocabulary(_ tags: [String]) {
+        let cleaned = Tagging.normalised(tags)
+        if cleaned.isEmpty { suite.removeObject(forKey: vocabularyKey) }
+        else { suite.set(cleaned, forKey: vocabularyKey) }
     }
 
     /// Saves only a template that validates, and hands back the problem when it
