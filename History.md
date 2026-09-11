@@ -215,3 +215,39 @@ index carries it, search ranks it, and the tiles wear it.
   themselves are compile-checked only — rendering them needs the app running,
   which would put a menu bar item and a folder watcher on the operator's
   machine, so that check waits for them.
+
+## 2026-09-11 — The settings pane, and the two branches meet
+
+The template engine had been parked since this morning with no way to reach it,
+and the tag vocabulary was a shipped constant. Both wanted the same pane, so
+`filename-templates` came back onto main first — five conflicts, all of them the
+two features touching the same rename path — and then the pane.
+
+- **`Renamer` now carries a template and a vocabulary side by side**, and the
+  vocabulary moved out of `Tagging.defaultVocabulary` into
+  `ShotScribeDefaults.vocabulary()`, so the CLI, the MCP server and the app all
+  file from the same stored list. The MCP tool description lists whatever is
+  stored, not the shipped list.
+- **A Name block and a File block**, in the shape the Keep block set. Styles
+  apply as you pick them — a picker cannot spell an unusable name. The layout
+  field and the vocabulary field are drafts with a "Use" button, because
+  half-typed text is invalid text. Under the layout sits either the sample it
+  would produce or the reason it cannot be used.
+- **An empty vocabulary resets to the shipped list** rather than meaning "file
+  nothing" — that is a different question, and answering it that way would leave
+  no way back.
+- **"File as" on a shot's context menu** reaches every capture from before
+  today, which the vocabulary otherwise could not: it only applied at rename
+  time.
+- **Seen, not assumed.** SwiftUI renders off-screen through an `NSHostingView`
+  in an unordered window, against a scratch settings domain and a scratch index,
+  so the pane could be looked at without putting a menu bar item or a folder
+  watcher on the operator's machine. `ImageRenderer` is not enough on its own —
+  it leaves AppKit-backed controls (TextField, Picker) blank. Two things the
+  render caught: a Date row whose caption just repeated its own picker options,
+  and tag chips that were invisible until sessions were switched off, because
+  the fixture shots folded into one tile.
+- Evidence: 99 tests green, 3 new. The rendered pane shows the sample
+  `2026-08-11 1541 AWS Billing Console.png`, all 16 vocabulary tags, and the
+  `terminal` / `error` chips on the tile renamed after the dispatch fix — with
+  none on the one renamed before it.

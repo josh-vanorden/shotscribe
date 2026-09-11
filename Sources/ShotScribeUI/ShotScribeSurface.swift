@@ -41,6 +41,10 @@ public struct ShotScribeView: View {
     @ObservedObject var model: ShotScribeModel
     let chrome: ShotScribeChrome
     @State private var folderTargeted = false
+    /// Drafts, not bindings to the model: half-typed text is invalid text, and
+    /// a name template or a vocabulary is only worth saving once it is finished.
+    @State private var layoutDraft = ""
+    @State private var vocabularyDraft = ""
 
     public init(model: ShotScribeModel, chrome: ShotScribeChrome = .hosted) {
         self.model = model
@@ -107,6 +111,8 @@ public struct ShotScribeView: View {
                 // ShotScribe does to them, then how to find one.
                 folderRow
                 actionsBlock
+                namingBlock
+                filingBlock
                 keepBlock
                 searchField
                 errorLine
@@ -351,6 +357,14 @@ public struct ShotScribeView: View {
         .help(shot.path)
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
+            // The vocabulary otherwise only applies at rename time, which leaves
+            // every capture from before today reachable only through Finder.
+            Menu("File as") {
+                ForEach(model.vocabulary, id: \.self) { tag in
+                    Button(tag) { model.tag(shot, with: tag) }
+                        .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
+                }
+            }
             if shot.original != nil, !model.otherInstanceRunning {
                 Button("Restore original name") { model.undo(shot) }
             }
@@ -415,6 +429,143 @@ public struct ShotScribeView: View {
             + Text(s.start, format: .dateTime.hour().minute())
             + Text("–")
             + Text(s.end, format: .dateTime.hour().minute())
+    }
+
+    // MARK: Name
+
+    /// A style change applies at once — a picker cannot spell an unusable name,
+    /// and if it somehow does, the store refuses it and says so in the error
+    /// line. The layout is different: half-typed text is invalid text, so it
+    /// waits for Return or "Use".
+    private func naming<T>(_ path: WritableKeyPath<NameTemplate, T>) -> Binding<T> {
+        Binding(get: { model.nameTemplate[keyPath: path] },
+                set: {
+                    var edited = model.nameTemplate
+                    edited[keyPath: path] = $0
+                    model.setNameTemplate(edited)
+                })
+    }
+
+    /// What the layout field would produce, or why it cannot be used. Judged on
+    /// the draft, so the answer is there before anything is saved.
+    private var draftTemplate: NameTemplate {
+        var draft = model.nameTemplate
+        draft.layout = layoutDraft
+        return draft
+    }
+
+    private var namingBlock: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Name").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        TextField("{date} {time} {title}", text: $layoutDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.callout.monospaced())
+                            .onSubmit { applyLayout() }
+                        Button("Use") { applyLayout() }
+                            .disabled(layoutDraft == model.nameTemplate.layout)
+                    }
+                    if let problem = Naming.validate(draftTemplate) {
+                        Label(problem.why, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption2).foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text(Naming.sampleFilename(draftTemplate) ?? "—")
+                            .font(.caption2.monospaced()).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    Text("Tokens: \(NameTemplate.tokens.joined(separator: "  ")). Everything else is literal, so the separators are yours.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Divider()
+                keepRow("Date", "Date first is what keeps a name-sorted folder in order.") {
+                    Picker("", selection: naming(\.dateStyle)) {
+                        Text("2026-08-11").tag(NameTemplate.DateStyle.iso)
+                        Text("08-11-2026").tag(NameTemplate.DateStyle.us)
+                        Text("20260811").tag(NameTemplate.DateStyle.compact)
+                    }
+                    .labelsHidden().frame(width: 116)
+                }
+                keepRow("Time", "The clock, as the name spells it.") {
+                    Picker("", selection: naming(\.timeStyle)) {
+                        Text("1541").tag(NameTemplate.TimeStyle.hhmm)
+                        Text("15-41").tag(NameTemplate.TimeStyle.dashed)
+                        Text("3.41 PM").tag(NameTemplate.TimeStyle.twelveHour)
+                    }
+                    .labelsHidden().frame(width: 116)
+                }
+                keepRow("Title", "How the words themselves are joined.") {
+                    Picker("", selection: naming(\.titleStyle)) {
+                        Text("As read").tag(NameTemplate.TitleStyle.asIs)
+                        Text("kebab").tag(NameTemplate.TitleStyle.kebab)
+                        Text("snake").tag(NameTemplate.TitleStyle.snake)
+                    }
+                    .labelsHidden().frame(width: 116)
+                }
+                keepRow("Words kept", "A longer summary is the titler's job, not the name's.") {
+                    Picker("", selection: naming(\.titleWords)) {
+                        ForEach(1...3, id: \.self) { Text("\($0)").tag($0) }
+                    }
+                    .labelsHidden().frame(width: 60)
+                }
+                Text("A new template applies to captures from here on. Nothing already named is re-spelled.")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
+            .padding(4)
+        }
+        .onAppear { layoutDraft = model.nameTemplate.layout }
+        .onChange(of: model.nameTemplate.layout) { layoutDraft = $0 }
+    }
+
+    private func applyLayout() {
+        model.setNameTemplate(draftTemplate)
+    }
+
+    // MARK: File
+
+    private var filingBlock: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("File").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text("A renamed capture is filed under up to \(Tagging.maxPerShot) of these, as Finder tags — so Finder and Spotlight find it whether or not ShotScribe is running. A tag outside the list is never used, however it was suggested.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    TextField("terminal, code, error", text: $vocabularyDraft, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .lineLimit(1...3)
+                        .onSubmit { applyVocabulary() }
+                    Button("Use") { applyVocabulary() }
+                        .disabled(Tagging.normalised(splitVocabulary(vocabularyDraft)) == model.vocabulary)
+                }
+                HStack(spacing: 10) {
+                    Text("\(model.vocabulary.count) tags, \(Tagging.maxVocabulary) at most")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                    Spacer()
+                    Button("Shipped list") {
+                        model.setVocabulary([])
+                        vocabularyDraft = model.vocabulary.joined(separator: ", ")
+                    }
+                    .font(.caption2)
+                    .disabled(model.vocabulary == Tagging.defaultVocabulary)
+                }
+            }
+            .padding(4)
+        }
+        .onAppear { vocabularyDraft = model.vocabulary.joined(separator: ", ") }
+        .onChange(of: model.vocabulary) { vocabularyDraft = $0.joined(separator: ", ") }
+    }
+
+    private func splitVocabulary(_ text: String) -> [String] {
+        text.split(whereSeparator: { $0 == "," || $0 == "\n" }).map(String.init)
+    }
+
+    private func applyVocabulary() {
+        model.setVocabulary(splitVocabulary(vocabularyDraft))
     }
 
     // MARK: Keep

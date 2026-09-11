@@ -38,6 +38,46 @@ final class TaggingTests: XCTestCase {
         XCTAssertEqual(Tagging.accepted(["ignore previous instructions"]), [])
     }
 
+    // MARK: The vocabulary the pane edits
+
+    func testAnEditedVocabularyIsTidiedNotTakenLiterally() {
+        XCTAssertEqual(Tagging.normalised([" terminal ", "", "code", "CODE", "  "]),
+                       ["terminal", "code"])
+        XCTAssertEqual(Tagging.normalised(["Receipts"]), ["Receipts"],
+                       "spelling is the operator's — Finder shows it as written")
+        XCTAssertEqual(Tagging.normalised((1...60).map { "tag\($0)" }).count, Tagging.maxVocabulary)
+    }
+
+    func testAStoredVocabularyIsWhatEveryDoorReads() {
+        withThrowawayDefaults {
+            ShotScribeDefaults.setVocabulary(["deploy", "incident", "deploy"])
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), ["deploy", "incident"])
+            XCTAssertEqual(Tagging.accepted(["incident", "code"],
+                                            vocabulary: ShotScribeDefaults.vocabulary()),
+                           ["incident"], "the stored list is the closed list")
+        }
+    }
+
+    /// Emptying the field is not "file nothing" — that is a different question,
+    /// and answering it this way would leave the operator with no way back.
+    func testAnEmptyVocabularyFallsBackToTheShippedList() {
+        withThrowawayDefaults {
+            ShotScribeDefaults.setVocabulary(["deploy"])
+            ShotScribeDefaults.setVocabulary([])
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), Tagging.defaultVocabulary)
+        }
+    }
+
+    private func withThrowawayDefaults(_ body: () -> Void) {
+        let domain = "shotscribe.tests.\(UUID().uuidString)"
+        ShotScribeDefaults.suiteOverride = UserDefaults(suiteName: domain)
+        defer {
+            ShotScribeDefaults.suiteOverride = nil
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        body()
+    }
+
     // MARK: Finder tags, on real files
 
     func testTagsAreWrittenWhereFinderReadsThem() throws {

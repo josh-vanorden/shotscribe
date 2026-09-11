@@ -129,7 +129,10 @@ Then type `/screenshot` in any Claude Code session.
 `ShotScribe.app` is the always-there face: a menu bar panel with an
 auto-rename watch toggle, a **configurable watch folder** ("Change…" — defaults
 to your macOS screenshot location), a Claude/offline titler switch, **launch at
-login**, "Rename latest capture now", and a history of recent renames. First
+login**, "Rename latest capture now", and a history of recent renames. A **Name**
+block edits the filename template with a live sample under the field, a **File**
+block edits the tag vocabulary, and any shot's context menu can file it after the
+fact. First
 launch (and relaunching from Spotlight) shows a welcome window pointing at the
 menu bar — a menu-bar-only app should never look like "nothing happened."
 Activity logs to `~/Library/Logs/ShotScribe.log`.
