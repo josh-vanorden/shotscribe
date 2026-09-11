@@ -48,6 +48,17 @@ final class KeepingTests: XCTestCase {
         XCTAssertEqual(Sessions.stem(of: "Quarterly Review"), "Quarterly Review", "no date prefix, name untouched")
     }
 
+    /// A session title has to survive the operator's `NameTemplate`: the stamp
+    /// comes off wherever it sits and however it is spelled.
+    func testStemStripsTheStampUnderAnyTemplate() {
+        XCTAssertEqual(Sessions.stem(of: "2026-08-11 1541 AWS Billing Console"), "AWS Billing Console")
+        XCTAssertEqual(Sessions.stem(of: "20260811 1541 AWS Billing Console"), "AWS Billing Console")
+        XCTAssertEqual(Sessions.stem(of: "2026-08-11_1541_aws-billing-console"), "aws-billing-console")
+        XCTAssertEqual(Sessions.stem(of: "aws-billing-console 2026-08-11 1541"), "aws-billing-console")
+        XCTAssertEqual(Sessions.stem(of: "2026-08-11 3.41 PM AWS Billing"), "AWS Billing")
+        XCTAssertEqual(Sessions.stem(of: "2026-08-11 1541"), "2026-08-11 1541", "all stamp, nothing to strip to")
+    }
+
     // MARK: Clean-up plan
 
     private let text = String(repeating: "error NXDOMAIN for host i-0a3f in eu-west-1 ", count: 3)

@@ -181,6 +181,31 @@ public final class ShotScribeModel: ObservableObject {
         }
     }
 
+    // MARK: - Naming
+
+    /// How a rename spells the new name. Read from ShotScribe's own defaults, so
+    /// the CLI and the MCP server agree with the app; `.default` reproduces the
+    /// format ShotScribe has always used.
+    @Published public private(set) var nameTemplate: NameTemplate = ShotScribeDefaults.nameTemplate()
+
+    /// The sample a settings pane shows under the field.
+    public var nameTemplateSample: String {
+        Naming.sampleFilename(nameTemplate) ?? "—"
+    }
+
+    /// Saves a template, or refuses it and says why. A changed template applies
+    /// to captures from here on; it never re-spells what is already named.
+    @discardableResult
+    public func setNameTemplate(_ template: NameTemplate) -> TemplateProblem? {
+        if let problem = ShotScribeDefaults.setNameTemplate(template) {
+            lastError = problem.why
+            return problem
+        }
+        nameTemplate = template
+        lastError = nil
+        return nil
+    }
+
     /// The plan the user is looking at. nil = no preview open.
     @Published public private(set) var cleanupPlan: Cleanup.Plan?
     @Published public private(set) var cleaning = false
@@ -382,11 +407,10 @@ public final class ShotScribeModel: ObservableObject {
     ///
     /// (Reached via `suiteName` only from outside; Apple warns against naming
     /// your own bundle id as a suite from within it, which the branch avoids.)
-    static let defaults: UserDefaults = {
-        Bundle.main.bundleIdentifier == appBundleID
-            ? .standard
-            : (UserDefaults(suiteName: appBundleID) ?? .standard)
-    }()
+    ///
+    /// One implementation, in the engine, because the CLI and the MCP server
+    /// have to resolve the same domain to read the same name template.
+    static let defaults: UserDefaults = ShotScribeDefaults.suite
 
     private func refreshOtherInstance() {
         let me = Bundle.main.bundleIdentifier
@@ -479,7 +503,7 @@ public final class ShotScribeModel: ObservableObject {
                 lastError = "Titling failed — used the offline label. (\(error.localizedDescription))"
             }
             // label == nil → Renamer falls back to its own titler (offline).
-            let outcome = try await Renamer(titler: KeywordTitler())
+            let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate)
                 .rename(fileAt: url, label: label)
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {

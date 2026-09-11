@@ -87,7 +87,8 @@ let toolDefs: [[String: Any]] = [
     [
         "name": "rename_screenshot",
         "description": """
-        Rename a screenshot to "<date> <time> <Label>.<ext>" — date first so \
+        Rename a screenshot to the name template the user has configured — by \
+        default "<date> <time> <Label>.<ext>", date first so \
         name-sort stays chronological. Only macOS default capture names \
         ("Screenshot ...", in any macOS language) are renamed unless `force` \
         is true, so user-named \
@@ -122,7 +123,7 @@ let toolDefs: [[String: Any]] = [
 
 // MARK: - Tool implementations
 
-let renamer = Renamer(titler: KeywordTitler())
+let renamer = Renamer(titler: KeywordTitler(), template: ShotScribeDefaults.nameTemplate())
 
 func runLatestScreenshots(_ args: [String: Any]) -> [String: Any] {
     let count = min(max((args["count"] as? Int) ?? 5, 1), 20)

@@ -65,25 +65,97 @@ public enum Naming {
     }
 
     /// Strip characters that break paths or read badly, collapse spaces, cap length.
-    public static func sanitize(_ label: String) -> String {
+    public static func sanitize(_ label: String, maxChars: Int = 60) -> String {
         let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\n\t")
         let cleaned = label.components(separatedBy: illegal).joined(separator: " ")
         let collapsed = cleaned.split(separator: " ").joined(separator: " ")
-        return String(collapsed.prefix(60)).trimmingCharacters(in: .whitespaces)
+        return String(collapsed.prefix(maxChars)).trimmingCharacters(in: .whitespaces)
     }
 
-    /// "2026-08-11 1541 AWS Billing Console.png" — sortable, scannable.
-    /// nil when there's no usable label, so the caller leaves the file alone.
-    public static func filename(label: String, capturedAt: Date, ext: String) -> String? {
-        let clean = sanitize(label)
-        guard !clean.isEmpty else { return nil }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd HHmm"
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        let stamp = fmt.string(from: capturedAt)
-        let suffix = ext.isEmpty ? "" : ".\(ext)"
-        return "\(stamp) \(clean)\(suffix)"
+    /// "2026-08-11 1541 AWS Billing Console.png" under the default template —
+    /// sortable, scannable. nil when the template asks for a title and there is
+    /// no usable one, so the caller leaves the file alone.
+    public static func filename(label: String, capturedAt: Date, ext: String,
+                                template: NameTemplate = .default) -> String? {
+        let title = renderedTitle(label, template)
+        if template.layout.contains("{title}") && title.isEmpty { return nil }
+        var stem = template.layout
+        stem = stem.replacingOccurrences(of: "{date}", with: stamp(capturedAt, template.dateStyle.format))
+        stem = stem.replacingOccurrences(of: "{time}", with: stamp(capturedAt, template.timeStyle.format))
+        stem = stem.replacingOccurrences(of: "{title}", with: title)
+        stem = tidy(stem)
+        guard !stem.isEmpty else { return nil }
+        return ext.isEmpty ? stem : "\(stem).\(ext)"
     }
+
+    /// The title as the template spells it: cut to `titleWords`, restyled, and
+    /// capped. Styling happens after the cut so a word is never half-kebabed.
+    static func renderedTitle(_ label: String, _ template: NameTemplate) -> String {
+        let words = sanitize(label, maxChars: .max).split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return "" }
+        let kept = words.prefix(max(1, template.titleWords))
+        let joined: String
+        switch template.titleStyle {
+        case .asIs:  joined = kept.joined(separator: " ")
+        case .kebab: joined = kept.joined(separator: "-").lowercased()
+        case .snake: joined = kept.joined(separator: "_").lowercased()
+        }
+        return String(joined.prefix(max(1, template.maxTitleChars)))
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -_"))
+    }
+
+    /// A rendered name, tidied: nothing a path cannot hold, no double spaces,
+    /// and no separator left dangling where a token rendered empty.
+    static func tidy(_ stem: String) -> String {
+        sanitize(stem, maxChars: .max)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -_"))
+    }
+
+    private static func stamp(_ date: Date, _ format: String) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = format
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        return fmt.string(from: date)
+    }
+
+    // MARK: - Judging a template
+
+    /// What a settings pane shows under the field, and what `validate` judges.
+    public static func sampleFilename(_ template: NameTemplate) -> String? {
+        filename(label: sampleLabel, capturedAt: sampleDate, ext: "png", template: template)
+    }
+
+    static let sampleLabel = "AWS Billing Console"
+    static let sampleDate: Date = {
+        var c = DateComponents()
+        c.year = 2026; c.month = 8; c.day = 11; c.hour = 15; c.minute = 41
+        return Calendar.current.date(from: c) ?? Date(timeIntervalSince1970: 1_786_000_000)
+    }()
+
+    /// nil when the template is usable. Checked before it is saved, never at
+    /// rename time — a rename must not be the thing that discovers a bad name.
+    public static func validate(_ template: NameTemplate) -> TemplateProblem? {
+        let braced = tokenPattern
+            .matches(in: template.layout, range: NSRange(template.layout.startIndex..., in: template.layout))
+            .compactMap { Range($0.range, in: template.layout).map { String(template.layout[$0]) } }
+        if let unknown = braced.first(where: { !NameTemplate.tokens.contains($0) }) {
+            return .unknownToken(unknown)
+        }
+        guard NameTemplate.tokens.contains(where: { template.layout.contains($0) }) else {
+            return .noTokens
+        }
+        let illegal = template.layout.filter { "/\\:*?\"<>|".contains($0) }
+        if !illegal.isEmpty {
+            return .illegalCharacters(illegal.map(String.init).joined(separator: " "))
+        }
+        guard let sample = sampleFilename(template), !sample.isEmpty else { return .rendersEmpty }
+        // The idempotency guard: a template that spells a name macOS would give
+        // a fresh capture turns the watcher loose on ShotScribe's own output.
+        if looksLikeDefaultCaptureName(sample) { return .looksLikeACapture }
+        return nil
+    }
+
+    private static let tokenPattern = try! NSRegularExpression(pattern: #"\{[^}]*\}"#)
 
     /// Resolve a collision by suffixing " (2)", " (3)", … Pure: the caller
     /// supplies the existence check so this stays testable.

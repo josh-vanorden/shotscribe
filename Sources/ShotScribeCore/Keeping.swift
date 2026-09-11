@@ -94,13 +94,41 @@ public enum Sessions {
         return newestFirst ? built.reversed() : built
     }
 
-    /// "2026-08-11 1541 AWS Billing Console" → "AWS Billing Console". A name
-    /// without the date prefix is returned as it is.
+    /// "2026-08-11 1541 AWS Billing Console" → "AWS Billing Console", however
+    /// the operator's `NameTemplate` spells the stamp and wherever it sits:
+    /// stamp-looking parts come off the front and the back, and what is left is
+    /// returned with its own spacing intact. A name with no stamp, and a name
+    /// that is nothing but stamp, are both returned as they are.
     public static func stem(of name: String) -> String {
-        let parts = name.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
-        guard parts.count == 3, parts[0].count == 10, parts[0].filter({ $0 == "-" }).count == 2,
-              parts[1].count == 4, parts[1].allSatisfy(\.isNumber) else { return name }
-        return String(parts[2])
+        let parts = stampSeparated(name)
+        guard parts.count > 1, parts.contains(where: { !isStampPart($0) }) else { return name }
+        var first = 0, last = parts.count - 1
+        while first < last, isStampPart(parts[first]) { first += 1 }
+        while last > first, isStampPart(parts[last]) { last -= 1 }
+        return String(name[parts[first].startIndex..<parts[last].endIndex])
+    }
+
+    /// The name's parts, split on the separators a template can put between
+    /// tokens, each keeping its place in the original string.
+    private static func stampSeparated(_ name: String) -> [Substring] {
+        var parts: [Substring] = []
+        var start = name.startIndex
+        for i in name.indices where name[i] == " " || name[i] == "_" {
+            if start < i { parts.append(name[start..<i]) }
+            start = name.index(after: i)
+        }
+        if start < name.endIndex { parts.append(name[start...]) }
+        return parts
+    }
+
+    /// A date, a clock time or an AM/PM marker — never a word.
+    private static func isStampPart(_ part: Substring) -> Bool {
+        if part.count <= 2, part.allSatisfy(\.isLetter) {
+            let marker = part.lowercased()
+            return marker == "am" || marker == "pm"
+        }
+        return part.contains(where: \.isNumber)
+            && part.allSatisfy { $0.isNumber || $0 == "-" || $0 == "." }
     }
 
     /// The title most of the burst wears; on a tie, the earliest.

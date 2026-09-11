@@ -52,7 +52,13 @@ ShotScribeCore ──┬── shotscribe          CLI: label / rename / watch
 ```
 
 Pipeline: `OCR.recognizeText` → `Titler.title(forOCRText:)` → `LabelCleaner.clean`
-→ `Naming.filename` → `Renamer` moves the file. `FolderWatcher` feeds it new captures.
+→ `Naming.filename(…template:)` → `Renamer` moves the file. `FolderWatcher` feeds it new
+captures.
+
+Settings live in one place for all four doors: `ShotScribeDefaults` (the
+`com.joshvanorden.shotscribe` domain, `.standard` from inside the app itself). That is how
+the CLI and MCP server spell names the same way the app does — `ShotScribeModel.defaults`
+delegates to it rather than resolving the domain a second time.
 
 ### The Titler seam, and why its direction flips
 
@@ -75,8 +81,15 @@ Keep it mechanical.
   `com.apple.metadata:kMDItemIsScreenCapture` xattr. Never let the xattr decide alone: it
   survives renames, so it's on every shot ShotScribe named and every capture the user renamed.
   A file the user named is never touched unless `force`.
-- **Date first in the filename**, so name-sort stays chronological and truncating UIs keep
-  the meaningful tail.
+- **`NameTemplate.default` must keep spelling today's name**, `"2026-08-11 1541 AWS Billing
+  Console.png"` — date first, so name-sort stays chronological and truncating UIs keep the
+  meaningful tail. The repo is public: an upgrade that renames differently than yesterday is
+  a bug. `NameTemplateTests` pins it.
+- **A template is validated before it is stored, never at rename time.** `Naming.validate`
+  refuses unknown tokens, a layout with no token, path-illegal characters, and — the
+  load-bearing one — any template whose sample passes `looksLikeDefaultCaptureName`, which
+  would set the watcher renaming ShotScribe's own output. `ShotScribeDefaults` is the gate;
+  a stored template that no longer validates is ignored in favour of the default.
 - **The OCR text is untrusted** — it's whatever was on screen, possibly a malicious page.
   `ClaudeTitler` therefore runs `--strict-mcp-config` with a hard `--disallowedTools`
   denylist (Bash, Read, Write, Edit, WebFetch, Task, …). Don't loosen it to "help" the model.

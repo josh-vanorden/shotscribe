@@ -15,9 +15,14 @@ public enum RenameOutcome: Sendable, Equatable {
 /// renamed unless `force` is set.
 public struct Renamer: Sendable {
     public let titler: Titler
+    /// How the new name is spelled. The doors load the operator's stored one
+    /// (`ShotScribeDefaults.nameTemplate()`); the default reproduces the format
+    /// ShotScribe has always used.
+    public let template: NameTemplate
 
-    public init(titler: Titler) {
+    public init(titler: Titler, template: NameTemplate = .default) {
         self.titler = titler
+        self.template = template
     }
 
     private var fileManager: FileManager { .default }
@@ -54,7 +59,8 @@ public struct Renamer: Sendable {
             label = LabelCleaner.clean(rawTitle)
         }
 
-        guard let desired = Naming.filename(label: label, capturedAt: capturedAt(of: url), ext: url.pathExtension) else {
+        guard let desired = Naming.filename(label: label, capturedAt: capturedAt(of: url),
+                                            ext: url.pathExtension, template: template) else {
             return .skippedNoLabel(url)
         }
 

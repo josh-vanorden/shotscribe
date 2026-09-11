@@ -46,6 +46,7 @@ USAGE:
   shotscribe index  [--force] [dir]                 Read every screenshot into the search index
   shotscribe find   <query>                         Search what your screenshots SAY, not just
                                                     what they are called
+  shotscribe name                                   Show the name template renames use
 
 FLAGS:
   --no-claude   Use the offline keyword titler instead of `claude -p`
@@ -70,7 +71,7 @@ let force    = args.contains("--force")
 let positional = args.filter { !$0.hasPrefix("--") }
 
 let titler = makeTitler(noClaude: noClaude)
-let renamer = Renamer(titler: titler)
+let renamer = Renamer(titler: titler, template: ShotScribeDefaults.nameTemplate())
 
 switch command {
 case "label":
@@ -142,6 +143,17 @@ case "find":
         print("     \(h.shot.path)")
     }
     if hits.count > 20 { print("… and \(hits.count - 20) more") }
+
+case "name":
+    // Read-only on purpose: the menu bar panel is where a template is edited,
+    // and this is how the CLI shows which one it will use.
+    let t = renamer.template
+    print("layout   \(t.layout)")
+    print("date     \(t.dateStyle.rawValue)")
+    print("time     \(t.timeStyle.rawValue)")
+    print("title    \(t.titleStyle.rawValue), \(t.titleWords) words, max \(t.maxTitleChars) chars")
+    print("example  \(Naming.sampleFilename(t) ?? "—")")
+    if t == .default { print("\n(the shipped default — nothing custom stored)") }
 
 case "-h", "--help", "help":
     print(usage)

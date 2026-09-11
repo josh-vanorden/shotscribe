@@ -122,3 +122,37 @@ public.
   see no change. Unverified live: that the flag is on the file when the
   watcher fires. The non-English fixtures are reconstructed formats, not files
   from a non-English Mac.
+
+## 2026-09-11 — The name is a template, not a constant
+
+`Naming.filename` held one hardcoded format. It is now rendered from a
+`NameTemplate`, and `NameTemplate.default` spells exactly what ShotScribe has
+always spelled — the repo is public, so an upgrade that renamed differently
+than yesterday would be a bug. This slice is the engine; the settings pane is
+next.
+
+- **The layout carries the separators.** `{date} {time} {title}` by default,
+  and `{date}_{time}_{title}` is how somebody gets underscores, so there is no
+  separator setting. Styles cover the rest: date (iso / us / compact), time
+  (hhmm / dashed / twelveHour), title (asIs / kebab / snake), plus title words
+  and a cap. "Summary off" is a layout without `{title}`, not a feature.
+- **`{app}` is absent deliberately.** A capture's metadata records its type and
+  screen rect, never the app it came from.
+- **Validated before it is stored, never at rename time.** `Naming.validate`
+  refuses unknown tokens, a layout with no tokens, path-illegal characters, and
+  any template whose sample reads as a fresh capture name — that last one is
+  the idempotency guard, without which the watcher renames its own output.
+  `ShotScribeDefaults` is the gate, and ignores a stored template that no
+  longer validates.
+- **One settings domain, four doors.** `ShotScribeDefaults` owns the
+  `com.joshvanorden.shotscribe` lookup that `ShotScribeModel` used to do alone,
+  so the CLI and the MCP server spell names the way the app does.
+  `shotscribe name` prints the template in force.
+- **`Sessions.stem` was coupled to the old format** — it stripped "10-char
+  date, 4-digit time" to title a burst. It now takes stamp-looking parts off
+  the front and the back whatever the template spells them as, so a session
+  under `{title} {date}` is still titled by its title.
+- Evidence: 78 tests green, 20 new. The CLI binary renames a capture to
+  `2026-09-11 1704 Screenshot.png` under the default, unchanged. Not yet built:
+  the pane, so nothing but `defaults write` can set a template today — and the
+  operator's own domain was never written to during any of this.
