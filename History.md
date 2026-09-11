@@ -122,3 +122,34 @@ public.
   see no change. Unverified live: that the flag is on the file when the
   watcher fires. The non-English fixtures are reconstructed formats, not files
   from a non-English Mac.
+
+## 2026-09-11 — Tags, filed where macOS already looks
+
+Tags go on the capture as **Finder tags**, so they show in Finder, sort in the
+sidebar and answer a Spotlight search with no ShotScribe surface at all. That
+is why tags came before the template pane: the operating system is the UI, so
+the feature is reachable the day it lands.
+
+- **A closed vocabulary, not the model's imagination.** Sixteen general tags
+  about what kind of thing a shot is; the title already carries the subject.
+  A proposal outside the list is dropped, so a page that was on screen cannot
+  invent its own filing, and the list cannot sprawl into hundreds of one-offs.
+  Two tags per shot.
+- **One model call, not two.** `Titler` grew `labelling(forOCRText:vocabulary:)`
+  returning title *and* tags; `ClaudeTitler` asks for `Name | tag, tag` in the
+  same `claude -p` it already made. `KeywordTitler` tags offline on whole-word
+  matches, so `--no-claude` files things too.
+- **Found by running it, not by testing it.** `labelling` started as an
+  extension method only. Every door holds a `Titler` existential, so the call
+  dispatched statically to the default implementation and nothing was ever
+  tagged — while 70 unit tests passed, because they held concrete titlers. It
+  is a protocol requirement now, with the default alongside, and a test holds
+  the existential on purpose.
+- **The user's own tags are kept.** Setting `tagNames` replaces the whole set,
+  so `Tagging.add` merges. `URLResourceValues.tagNames`' setter is macOS 26+ and
+  this package floors at 13, so the write goes through `NSURL`.
+- Evidence: 71 tests green, 13 new. End to end on a generated PNG, the CLI
+  renamed it to `2026-09-11 1727 Terminal Error Connection.png` and wrote
+  `com.apple.metadata:_kMDItemUserTags` holding `terminal` and `error` in
+  Finder's own format. Spotlight itself is unconfirmed — the scratch file sat
+  in `/private/tmp`, which Spotlight does not index.

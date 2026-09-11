@@ -7,6 +7,19 @@ import Foundation
 public struct KeywordTitler: Titler {
     public init() {}
 
+    /// Offline tagging: a vocabulary word that appears in the shot's own text,
+    /// whole, counts. No cleverness — but it means `--no-claude` files things
+    /// too, and a tag it proposes can always be pointed at in the text.
+    public func labelling(forOCRText text: String, vocabulary: [String]) async throws -> Labelling {
+        let title = try await title(forOCRText: text)
+        guard !vocabulary.isEmpty else { return Labelling(title: title) }
+        let words = Set(text.lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init))
+        let present = vocabulary.filter { words.contains($0.lowercased()) }
+        return Labelling(title: title, tags: Tagging.accepted(present, vocabulary: vocabulary))
+    }
+
     public func title(forOCRText text: String) async throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= TitlerPrompt.minOCRChars else { return "Screenshot" }

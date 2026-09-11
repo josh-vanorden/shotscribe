@@ -471,16 +471,21 @@ public final class ShotScribeModel: ObservableObject {
             }.value
             Log.write("new capture \(url.lastPathComponent): ocr=\(ocr.count) chars")
             var label: String?
+            var tags: [String] = []
             do {
-                label = try await titler.title(forOCRText: ocr)
-                Log.write("title: \(label ?? "nil")")
+                let proposed = try await titler.labelling(forOCRText: ocr,
+                                                          vocabulary: Tagging.defaultVocabulary)
+                label = proposed.title
+                tags = proposed.tags
+                Log.write("title: \(label ?? "nil")  tags: \(tags.joined(separator: ", "))")
             } catch {
                 Log.write("titler FAILED: \(error)")
                 lastError = "Titling failed — used the offline label. (\(error.localizedDescription))"
             }
             // label == nil → Renamer falls back to its own titler (offline).
-            let outcome = try await Renamer(titler: KeywordTitler())
-                .rename(fileAt: url, label: label)
+            let outcome = try await Renamer(titler: KeywordTitler(),
+                                            vocabulary: Tagging.defaultVocabulary)
+                .rename(fileAt: url, label: label, tags: tags)
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {
                 record(from: from.lastPathComponent, to: to.lastPathComponent)

@@ -15,20 +15,30 @@ public enum RenameOutcome: Sendable, Equatable {
 /// renamed unless `force` is set.
 public struct Renamer: Sendable {
     public let titler: Titler
+    /// The closed list a tag must come from. Empty — the default — means this
+    /// renamer files nothing, which is how it behaved before tags existed.
+    public let vocabulary: [String]
 
-    public init(titler: Titler) {
+    public init(titler: Titler, vocabulary: [String] = []) {
         self.titler = titler
+        self.vocabulary = vocabulary
     }
 
     private var fileManager: FileManager { .default }
 
     /// OCR + title only — the `label` command. Never touches the file.
     public func label(fileAt url: URL) async -> String {
+        await labelling(fileAt: url).title
+    }
+
+    /// OCR + title + the filing this renamer would give it. Touches nothing.
+    public func labelling(fileAt url: URL) async -> Labelling {
         let ocr = OCR.recognizeText(atPath: url.path)
-        if let title = try? await titler.title(forOCRText: ocr), !title.isEmpty {
-            return title
+        if let proposed = try? await titler.labelling(forOCRText: ocr, vocabulary: vocabulary),
+           !proposed.title.isEmpty {
+            return proposed
         }
-        return "Screenshot"
+        return Labelling(title: "Screenshot")
     }
 
     /// Rename `url` in place. `force` renames even files the user named
@@ -40,18 +50,23 @@ public struct Renamer: Sendable {
     /// and use it directly.
     @discardableResult
     public func rename(fileAt url: URL, label explicitLabel: String? = nil,
+                       tags explicitTags: [String] = [],
                        force: Bool = false, dryRun: Bool = false) async throws -> RenameOutcome {
         guard fileManager.fileExists(atPath: url.path) else { return .fileMissing(url) }
 
         guard force || Naming.isRawCapture(at: url) else { return .skippedNotRawCapture(url) }
 
         let label: String
+        var tags = Tagging.accepted(explicitTags, vocabulary: vocabulary.isEmpty
+                                    ? Tagging.defaultVocabulary : vocabulary)
         if let explicitLabel, !explicitLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             label = LabelCleaner.clean(explicitLabel)
         } else {
             let ocr = OCR.recognizeText(atPath: url.path)
-            let rawTitle = (try? await titler.title(forOCRText: ocr)) ?? "Screenshot"
-            label = LabelCleaner.clean(rawTitle)
+            let labelling = (try? await titler.labelling(forOCRText: ocr, vocabulary: vocabulary))
+                ?? Labelling(title: "Screenshot")
+            label = LabelCleaner.clean(labelling.title)
+            if tags.isEmpty { tags = labelling.tags }
         }
 
         guard let desired = Naming.filename(label: label, capturedAt: capturedAt(of: url), ext: url.pathExtension) else {
@@ -67,6 +82,9 @@ public struct Renamer: Sendable {
 
         if dryRun { return .wouldRename(from: url, to: target) }
         try fileManager.moveItem(at: url, to: target)
+        // After the move, and never fatal: a Finder tag is a nicety, a rename is
+        // the job. Tags the user put on by hand are kept.
+        if !tags.isEmpty { Tagging.add(tags, to: target) }
         return .renamed(from: url, to: target)
     }
 

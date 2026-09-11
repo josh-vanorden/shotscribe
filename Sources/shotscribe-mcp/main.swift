@@ -106,6 +106,16 @@ let toolDefs: [[String: Any]] = [
                     "type": "string",
                     "description": "2-3 word Title Case label to name the file with",
                 ],
+                "tags": [
+                    "type": "array",
+                    "items": ["type": "string"] as [String: Any],
+                    "description": """
+                    Up to \(Tagging.maxPerShot), written as macOS Finder tags so \
+                    Finder and Spotlight can find the shot. Only these are \
+                    accepted, anything else is dropped: \
+                    \(Tagging.defaultVocabulary.joined(separator: ", ")).
+                    """,
+                ] as [String: Any],
                 "dry_run": [
                     "type": "boolean",
                     "description": "Compute the new name without moving the file",
@@ -174,13 +184,20 @@ func runRenameScreenshot(_ args: [String: Any]) async -> [String: Any] {
     }
     let url = expand(path)
     let title = args["title"] as? String
+    let tags = args["tags"] as? [String] ?? []
     let dryRun = (args["dry_run"] as? Bool) ?? false
     let force = (args["force"] as? Bool) ?? false
     do {
-        let outcome = try await renamer.rename(fileAt: url, label: title, force: force, dryRun: dryRun)
+        let outcome = try await renamer.rename(fileAt: url, label: title, tags: tags,
+                                               force: force, dryRun: dryRun)
         switch outcome {
         case .renamed(let from, let to):
-            return textResult("Renamed \"\(from.lastPathComponent)\" → \"\(to.lastPathComponent)\" (in \(to.deletingLastPathComponent().path)).")
+            // Report the tags actually on the file, not the ones asked for: any
+            // tag outside the list was dropped, and saying so keeps the caller
+            // from believing in filing that does not exist.
+            let filed = Tagging.finderTags(of: to)
+            let tagged = filed.isEmpty ? "" : " Tagged: \(filed.joined(separator: ", "))."
+            return textResult("Renamed \"\(from.lastPathComponent)\" → \"\(to.lastPathComponent)\" (in \(to.deletingLastPathComponent().path)).\(tagged)")
         case .wouldRename(let from, let to):
             return textResult("Dry run: would rename \"\(from.lastPathComponent)\" → \"\(to.lastPathComponent)\".")
         case .skippedNotRawCapture(let u):

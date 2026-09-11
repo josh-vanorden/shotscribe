@@ -68,7 +68,23 @@ shotscribe watch ~/Pictures/Screenshots
 
 # Skip Claude, use the offline keyword titler:
 shotscribe label --no-claude "~/Desktop/Screenshot ....png"
+
+# Rename without filing it under Finder tags:
+shotscribe rename --no-tags "~/Desktop/Screenshot ....png"
 ```
+
+## Tags
+
+A renamed capture is also filed under up to two **Finder tags** — so it shows in
+Finder, sorts in the sidebar, and answers a Spotlight search without ShotScribe
+running at all.
+
+Tags come from a fixed list (`terminal`, `code`, `error`, `browser`, `docs`,
+`chat`, `email`, `calendar`, `design`, `dashboard`, `settings`, `logs`,
+`ticket`, `meeting`, `diagram`, `receipt`). That is deliberate: the text on your
+screen is not always text you wrote, so a screenshot never gets to invent a tag
+of its own — anything off the list is dropped. Tags you added by hand are kept.
+`--no-tags` turns filing off.
 
 ## MCP server (Claude Code / Cowork integration)
 

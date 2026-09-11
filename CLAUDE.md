@@ -67,7 +67,25 @@ hands back raw text for the caller to title, and `rename_screenshot` takes the c
 `title` (which routes through `Renamer`'s `label:` short-circuit, skipping OCR entirely).
 Keep it mechanical.
 
+### Tags
+
+Tags are **Finder tags** on the file (`com.apple.metadata:_kMDItemUserTags`), which is why
+they need no UI: Finder and Spotlight are the surface. `Tagging.add` merges rather than
+replaces — setting `tagNames` overwrites the whole set, including what the user filed by
+hand — and writes through `NSURL`, since the `URLResourceValues.tagNames` setter is macOS
+26+ against this package's macOS 13 floor.
+
+`Titler.labelling(forOCRText:vocabulary:)` returns title *and* tags from one model call.
+It is a **protocol requirement with a default implementation**, never an extension method
+alone: every door holds a `Titler` existential, and extension-only methods dispatch
+statically, so overrides would be silently skipped (they were — see `History.md`, 2026-09-11).
+
 ### Invariants worth not breaking
+
+- **A tag only ever comes from the vocabulary.** `Tagging.accepted` filters every proposal,
+  wherever it came from — the model, an MCP caller, anywhere. OCR text is attacker-reachable,
+  so a screenshot must not be able to invent its own filing; this is the same boundary as the
+  `ClaudeTitler` tool denylist, not a tidiness rule.
 
 - **Only macOS default capture names get renamed.** `Naming.isRawCapture(at:)`, enforced in
   `Renamer.rename` before anything else. The English prefix (`"Screenshot "` / `"Screen Shot "`)
