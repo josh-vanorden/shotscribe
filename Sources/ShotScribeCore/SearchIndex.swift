@@ -38,6 +38,15 @@ public struct IndexedShot: Codable, Identifiable, Equatable, Sendable {
     /// it — what an undo puts back. nil for a shot that was never renamed here.
     public var original: String? = nil
 
+    /// The Finder tags on the file when it was last read. A cache, not the
+    /// record: the file carries the tags, and a sweep re-reads them, so a tag
+    /// added by hand in Finder turns up here too.
+    ///
+    /// Optional so an index written before tags existed still decodes — a
+    /// non-optional would throw, and `load`'s `try?` would quietly hand back an
+    /// empty store, costing the operator their whole index.
+    public var tags: [String]? = nil
+
     public var url: URL { URL(fileURLWithPath: path) }
 }
 
@@ -73,7 +82,14 @@ public enum ShotIndex {
     private static let lock = NSLock()
 
     public static var indexURL: URL {
-        storeOverride ?? FileManager.default.homeDirectoryForCurrentUser
+        if let override = storeOverride { return override }
+        // An escape hatch for trying the CLI against a scratch folder: without
+        // it, one exploratory `shotscribe index /tmp/…` writes those files into
+        // the operator's real searchable history, where they linger.
+        if let path = ProcessInfo.processInfo.environment["SHOTSCRIBE_INDEX"], !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".shotscribe/index.json")
     }
 
@@ -143,7 +159,16 @@ public enum ShotIndex {
             progress?(i + 1, files.count)
             let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
             let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+            let tags = Tagging.finderTags(of: url)
             if !force, let existing = snapshot.shots[url.path], existing.size == size {
+                // Tags change without the bytes changing — somebody files a shot
+                // in Finder — and re-reading them is one syscall against the OCR
+                // this branch exists to skip. So they refresh even here.
+                if existing.tags ?? [] != tags {
+                    var refreshed = existing
+                    refreshed.tags = tags
+                    updates[url.path] = refreshed
+                }
                 skipped += 1; continue
             }
             let text = searchText(atPath: url.path)
@@ -152,7 +177,7 @@ public enum ShotIndex {
             updates[url.path] = IndexedShot(
                 path: url.path, name: url.deletingPathExtension().lastPathComponent,
                 captured: captured, indexed: Date(), size: size, text: text,
-                original: nil)
+                original: nil, tags: tags)
             indexed += 1
         }
 
@@ -211,7 +236,8 @@ public enum ShotIndex {
             path: path, name: url.deletingPathExtension().lastPathComponent,
             captured: (attrs?[.creationDate] as? Date) ?? Date(), indexed: Date(),
             size: (attrs?[.size] as? NSNumber)?.int64Value ?? 0,
-            text: searchText(atPath: url.path), original: original)
+            text: searchText(atPath: url.path), original: original,
+            tags: Tagging.finderTags(of: url))
         save(store)
     }
 
@@ -255,16 +281,22 @@ public enum ShotIndex {
         for shot in store.shots.values {
             let name = shot.name.lowercased()
             let body = shot.text.lowercased()
+            // A tag was chosen for this shot deliberately, so it ranks with the
+            // name rather than with text that merely passed across the screen.
+            let tags = (shot.tags ?? []).map { $0.lowercased() }
             var score = 0.0
             var matchedName = false
 
             if name.contains(q) { score += 100; matchedName = true }
+            if tags.contains(q) { score += 90 }
             if body.contains(q) { score += 40 }
             let inName = terms.filter { name.contains($0) }.count
+            let inTags = terms.filter { tags.contains($0) }.count
             let inBody = terms.filter { body.contains($0) }.count
             if inName == terms.count { score += 50; matchedName = true }
+            if inTags == terms.count { score += 45 }
             if inBody == terms.count { score += 25 }
-            score += Double(inName) * 8 + Double(inBody) * 3
+            score += Double(inName) * 8 + Double(inTags) * 8 + Double(inBody) * 3
 
             guard score > 0 else { continue }
             hits.append(SearchHit(shot: shot, score: score,

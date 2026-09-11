@@ -209,10 +209,19 @@ called — a three-word title is a thin hook a month later.
 ```bash
 shotscribe index            # read the watched folder into the index
 shotscribe find "NXDOMAIN"  # search what they say
+shotscribe find error       # …or how they are filed
 ```
 
 The search field in the app does the same thing, and new captures index
-themselves the moment they are renamed.
+themselves the moment they are renamed. Tags are searched alongside the text and
+rank with the filename, since a tag was chosen deliberately and body text merely
+crossed the screen. In the app the tags sit on each tile; clicking one shows
+everything filed the same way. A tag you add by hand in Finder is picked up by
+the next sweep.
+
+`SHOTSCRIBE_INDEX=/tmp/scratch.json shotscribe …` points the index somewhere
+else, which is how to try the CLI against a folder without writing into your own
+searchable history.
 
 Two deliberate choices:
 

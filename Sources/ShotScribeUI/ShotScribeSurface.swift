@@ -258,6 +258,7 @@ public struct ShotScribeView: View {
                                 .lineLimit(1).truncationMode(.tail)
                         }
                         Spacer(minLength: 8)
+                        tagChips(shot)
                         Text(shot.captured, format: .dateTime.year().month().day())
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     }
@@ -328,8 +329,11 @@ public struct ShotScribeView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(shot.name).font(.caption.weight(.medium))
                         .lineLimit(1).truncationMode(.middle)
-                    Text(shot.captured, format: .dateTime.year().month().day())
-                        .font(.caption2).foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        Text(shot.captured, format: .dateTime.year().month().day())
+                            .font(.caption2).foregroundStyle(.secondary)
+                        tagChips(shot)
+                    }
                 }
                 .padding(.horizontal, 8).padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -352,6 +356,23 @@ public struct ShotScribeView: View {
             }
             Divider()
             Button("Move to Trash", role: .destructive) { model.trash(shot) }
+        }
+    }
+
+    /// The filing, on the shot. Tapping one searches for it — the shortest path
+    /// from "this one" to "everything like this one".
+    @ViewBuilder
+    private func tagChips(_ shot: IndexedShot) -> some View {
+        ForEach(shot.tags ?? [], id: \.self) { tag in
+            Button { model.filter(tag: tag) } label: {
+                Text(tag)
+                    .font(.system(size: 9, weight: .medium))
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(ShotPalette.accent.opacity(0.16), in: Capsule())
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Find everything tagged \(tag)")
         }
     }
 

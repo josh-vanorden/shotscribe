@@ -142,7 +142,9 @@ case "find":
     let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
     for h in hits.prefix(20) {
         let mark = h.matchedInName ? "*" : " "
-        print("\(mark) \(fmt.string(from: h.shot.captured))  \(h.shot.name)")
+        let tags = h.shot.tags ?? []
+        let filed = tags.isEmpty ? "" : "  [\(tags.joined(separator: "] ["))]"
+        print("\(mark) \(fmt.string(from: h.shot.captured))  \(h.shot.name)\(filed)")
         if !h.snippet.isEmpty { print("     \(h.snippet)") }
         print("     \(h.shot.path)")
     }

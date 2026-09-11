@@ -637,6 +637,13 @@ public final class ShotScribeModel: ObservableObject {
             : (sort == .newest ? hits.map(\.shot) : Self.sorted(hits.map(\.shot), by: sort))
     }
 
+    /// Show everything filed the same way. Tags are indexed, so a filter is just
+    /// a search — no second code path, and the field shows what is being asked.
+    func filter(tag: String) {
+        query = tag
+        runSearch()
+    }
+
     func snippet(for shot: IndexedShot) -> String? {
         hits.first { $0.shot.path == shot.path }?.snippet
     }

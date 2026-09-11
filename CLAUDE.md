@@ -75,6 +75,12 @@ replaces — setting `tagNames` overwrites the whole set, including what the use
 hand — and writes through `NSURL`, since the `URLResourceValues.tagNames` setter is macOS
 26+ against this package's macOS 13 floor.
 
+The file is the record; `IndexedShot.tags` is a cache of it, refreshed on every sweep —
+including the skip-unchanged branch, since a tag added in Finder changes no bytes. It is
+`[String]?` so an index written before tags still decodes (a throw there means `load`'s
+`try?` silently returns an empty store — the whole history). `ShotIndex.search` ranks a tag
+hit just under a name hit.
+
 `Titler.labelling(forOCRText:vocabulary:)` returns title *and* tags from one model call.
 It is a **protocol requirement with a default implementation**, never an extension method
 alone: every door holds a `Titler` existential, and extension-only methods dispatch
