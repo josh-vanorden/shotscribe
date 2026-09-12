@@ -459,3 +459,27 @@ could not be dragged into Mail or Jira from the window.
   strings from a rendered image, and the discipline, and stays plain ASCII
   punctuation since it is pasted into a terminal. The app was rebuilt and
   relaunched; the drag and the paste are Josh's to try.
+
+## 2026-09-12 — Send to Claude: a chosen shot into the session you are in
+
+From the punch list: "send to Claude session". `/screenshot` already did it
+from the Claude Code side, but only for the newest capture; the window had no
+way to point a session at the shot in front of you.
+
+- **`/screenshot` takes a path.** `skills/screenshot/SKILL.md` (and the
+  installed copy in `~/.claude/skills`) read a quoted path argument as *the*
+  capture and skip the search; `N` still works, and both work after `code`. A
+  `.mov` path goes to `ocr_screenshot`, since Read cannot show a movie.
+- **Send to Claude, in the app.** On the hero and in every shot's menu. It
+  copies `/screenshot "<path>"` (`SendToClaude.line`) and the line under the
+  grid says: paste into any Claude Code session; /screenshot reads this shot
+  there. Chosen over launching a session (ruled out with stage two) and over
+  copying the image itself (whether the composer would take the image or the
+  text from one pasteboard is unknown). Drag-out stays the wordless version.
+- The note under the grid became one thing, `HandoffNote` (text and symbol),
+  and a brief still reading its layout no longer overwrites the pasteboard
+  after a later Send to Claude.
+- Evidence: 122 tests green, 2 new: the line's quoting, and that the shipped
+  skill documents the exact form the app copies. The app was repackaged at
+  18:01; the paste is Josh's to try. The composer taking a pasted
+  `/screenshot …` as a command on submit is expected, not yet seen.
