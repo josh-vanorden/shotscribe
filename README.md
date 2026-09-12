@@ -152,7 +152,15 @@ curl -fsSL https://raw.githubusercontent.com/josh-vanorden/shotscribe/main/skill
   -o ~/.claude/skills/screenshot/SKILL.md
 ```
 
-Then type `/screenshot` in any Claude Code session.
+Then type `/screenshot` in any Claude Code session. `/screenshot 2` reads the
+second-newest; `/screenshot "<path>"` reads that one.
+
+The app's **Send to Claude** (on the hero, or any shot's context menu) copies
+that second form for the shot you picked, so the gesture works on a capture
+from last week as well as the one from a minute ago: paste it into whatever
+session you are in and Claude reads the shot there. Nothing can push into a
+running session, so the pasteboard is the honest bridge; dragging a tile into
+the composer does the same without words.
 
 `/screenshot code` goes one step further: it rebuilds the newest capture as
 code in the project you are standing in — your stack, your components, a diff

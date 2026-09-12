@@ -1,14 +1,20 @@
 ---
 name: screenshot
-description: Look at the newest screenshot and address it — the "see my newest screenshot" gesture as one word. Pairs with ShotScribe when its MCP server is registered. Optional argument N = the Nth-newest instead.
+description: Look at the newest screenshot and address it — the "see my newest screenshot" gesture as one word. Pairs with ShotScribe when its MCP server is registered. Optional argument N = the Nth-newest instead; a quoted path = that capture (what ShotScribe's "Send to Claude" pastes).
 ---
 
 # /screenshot — read the newest screenshot
 
 When invoked, immediately:
 
-1. **Find the newest capture.**
-   - If the ShotScribe MCP tools are available, call `latest_screenshots`
+1. **Find the capture.**
+   - If the argument is a path — `/screenshot "~/Pictures/Screenshots/2026-09-11
+     2244 Name Folder.png"` — that is the capture; skip the search. ShotScribe's
+     **Send to Claude** puts exactly this line on the pasteboard, so a pasted
+     line means the shot the person chose in the app, not the newest one. A
+     `.mov` is a screen recording: the Read tool cannot show it, so take its
+     text from `ocr_screenshot` (ShotScribe reads two frames) and say so.
+   - Otherwise, if the ShotScribe MCP tools are available, call `latest_screenshots`
      with `{"count": 1}` (or N for the optional argument) — it already knows
      the right folder.
    - Otherwise, resolve the folder yourself: `defaults read
@@ -28,7 +34,9 @@ When invoked, immediately:
 Notes:
 - Screenshots you take yourself (during testing, verification) belong in the
   session scratchpad, NOT the user's capture folder.
-- Optional argument: a number N = read the Nth-newest instead ("/screenshot 2").
+- Arguments: a number N = read the Nth-newest instead (`/screenshot 2`); a
+  quoted path = that capture. Either also works after `code`
+  (`/screenshot code "<path>"`).
 
 ## `/screenshot code [stack]` — rebuild the newest capture as code, here
 
@@ -37,7 +45,7 @@ reviewable change, not as a demo page. (The working discipline is borrowed
 from `abi/screenshot-to-code`; the difference is where the result lands: your
 repo, your stack, your Claude, a diff.)
 
-1. **Find and read it** as above. If ShotScribe's MCP tools are registered,
+1. **Find and read it** as above (a path argument names it). If ShotScribe's MCP tools are registered,
    also call `layout_screenshot` on it: every text line with its position, in
    percent, top-left origin. Positions say what is a title, a row of buttons, a
    sidebar; the strings are exact, use them verbatim. The image is for colour,

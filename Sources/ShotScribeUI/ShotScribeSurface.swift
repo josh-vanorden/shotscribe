@@ -296,6 +296,11 @@ public struct ShotScribeView: View {
                             Label("Reveal in Finder", systemImage: "arrow.up.forward.square")
                         }
                         .buttonStyle(CapsuleButtonStyle())
+                        Button { model.sendToClaude(shot) } label: {
+                            Label("Send to Claude", systemImage: "paperplane")
+                        }
+                        .buttonStyle(CapsuleButtonStyle())
+                        .help("Copies a /screenshot line for this shot. Paste it into any Claude Code session and Claude reads the shot there.")
                         Button { model.copyCodeBrief(for: shot) } label: {
                             Label("Rebuild as code", systemImage: "curlybraces")
                         }
@@ -328,8 +333,8 @@ public struct ShotScribeView: View {
                  ? "\(model.visibleShots.count) screenshots"
                  : "\(model.visibleShots.count) match\(model.visibleShots.count == 1 ? "" : "es")")
                 .font(.caption.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
-            if let note = model.briefNote {
-                Label(note, systemImage: "curlybraces")
+            if let handoff = model.handoffNote {
+                Label(handoff.text, systemImage: handoff.symbol)
                     .font(.caption).foregroundStyle(ShotPalette.accent)
                     .lineLimit(1)
                     .transition(.opacity)
@@ -530,6 +535,7 @@ public struct ShotScribeView: View {
     @ViewBuilder
     func shotMenu(_ shot: IndexedShot) -> some View {
         Button("Reveal in Finder") { model.reveal(shot) }
+        Button("Send to Claude") { model.sendToClaude(shot) }
         Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
         Menu("File as") {
             ForEach(model.vocabulary, id: \.self) { tag in
@@ -1288,6 +1294,7 @@ private struct GalleryTile: View {
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
+            Button("Send to Claude") { model.sendToClaude(shot) }
             Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
             Menu("File as") {
                 ForEach(model.vocabulary, id: \.self) { tag in

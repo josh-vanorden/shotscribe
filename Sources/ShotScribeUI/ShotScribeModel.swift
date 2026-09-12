@@ -226,26 +226,56 @@ public final class ShotScribeModel: ObservableObject {
         taggingEnabled = on
     }
 
-    /// Stage two, as far as the app can take it: the shot as a brief for Claude
-    /// Code, on the pasteboard, and one line saying where to paste it. The agent
-    /// and the repo live there; the app hands over everything it knows.
-    @Published public private(set) var briefNote: String?
-    private var briefGeneration = 0
+    /// What the app just put on the pasteboard, for one line under the grid
+    /// head: the pasteboard is silent, so the surface says what is on it and
+    /// where it goes. The agent and the repo live in Claude Code; the app hands
+    /// over what it knows and points there.
+    public struct HandoffNote: Equatable {
+        public let text: String
+        public let symbol: String
+    }
+    @Published public private(set) var handoffNote: HandoffNote?
+    private var handoffGeneration = 0
 
+    /// Stage two, as far as the app can take it: the shot as a brief for Claude
+    /// Code, to paste inside the project the code should land in.
     public func copyCodeBrief(for shot: IndexedShot) {
         let path = shot.path
-        briefGeneration += 1
-        let generation = briefGeneration
-        briefNote = "Reading the layout…"
+        let generation = show(HandoffNote(text: "Reading the layout…", symbol: "curlybraces"))
         Task { @MainActor [weak self] in
             let brief = await Task.detached(priority: .userInitiated) { CodeBrief.text(forImageAt: path) }.value
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(brief, forType: .string)
-            self?.briefNote = "Copied. Paste into Claude Code inside the project the code should land in."
-            try? await Task.sleep(nanoseconds: 9_000_000_000)
-            if self?.briefGeneration == generation { self?.briefNote = nil }
+            // A later hand-off (another shot, or Send to Claude) owns the pasteboard.
+            guard let self, self.handoffGeneration == generation else { return }
+            self.handOver(brief, saying: HandoffNote(
+                text: "Copied. Paste into Claude Code inside the project the code should land in.", symbol: "curlybraces"))
         }
+    }
+
+    /// The shot to a Claude Code session. Nothing can push into a running
+    /// session, so this is `/screenshot "<path>"` on the pasteboard: pasted
+    /// anywhere Claude Code is listening, the skill reads this shot rather than
+    /// the newest. Dragging the tile into the composer is the wordless version.
+    public func sendToClaude(_ shot: IndexedShot) {
+        handOver(SendToClaude.line(forImageAt: shot.path), saying: HandoffNote(
+            text: "Copied. Paste into any Claude Code session; /screenshot reads this shot there.", symbol: "paperplane"))
+    }
+
+    private func handOver(_ text: String, saying note: HandoffNote) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        let generation = show(note)
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 9_000_000_000)
+            if self?.handoffGeneration == generation { self?.handoffNote = nil }
+        }
+    }
+
+    @discardableResult
+    private func show(_ note: HandoffNote) -> Int {
+        handoffGeneration += 1
+        handoffNote = note
+        return handoffGeneration
     }
 
     /// File a shot that is already named — the only way to reach an older
