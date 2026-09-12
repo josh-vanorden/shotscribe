@@ -273,6 +273,8 @@ public struct ShotScribeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
                     .frame(maxWidth: .infinity)
+                    .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
+                    .help("Drag to attach a copy elsewhere.")
                 VStack(alignment: .leading, spacing: 6) {
                     // foregroundColor, not foregroundStyle: on a concatenated Text the
                     // latter is macOS 14+, and this package floors at 13.
@@ -481,7 +483,8 @@ public struct ShotScribeView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(shot.path)
+                .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
+                .help("\(shot.path)\nDrag to attach a copy elsewhere.")
                 .contextMenu { shotMenu(shot) }
                 Divider()
             }
@@ -493,15 +496,7 @@ public struct ShotScribeView: View {
     @ViewBuilder
     func tagChips(_ shot: IndexedShot) -> some View {
         ForEach(shot.tags ?? [], id: \.self) { tag in
-            Button { model.filter(tag: tag) } label: {
-                Text(tag)
-                    .font(.system(size: 10, weight: .semibold))
-                    .padding(.horizontal, 7).padding(.vertical, 2)
-                    .background(ShotPalette.accent.opacity(0.18), in: Capsule())
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Find everything tagged \(tag)")
+            TagChip(tag: tag) { model.filter(tag: tag) }
         }
     }
 
@@ -1231,9 +1226,7 @@ private struct GalleryTile: View {
                             Text(shot.captured, format: .dateTime.hour().minute())
                                 .font(.caption2).monospacedDigit()
                             ForEach(shot.tags ?? [], id: \.self) { tag in
-                                Text(tag).font(.system(size: 10, weight: .semibold))
-                                    .padding(.horizontal, 7).padding(.vertical, 2)
-                                    .background(.white.opacity(0.18), in: Capsule())
+                                TagChip(tag: tag, onImage: true) { model.filter(tag: tag) }
                             }
                         }
                         .foregroundStyle(.white.opacity(0.78))
@@ -1276,8 +1269,11 @@ private struct GalleryTile: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Drag it out as the file itself: Mail, Jira, Slack get a copy, the
+        // way they would from Finder.
+        .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
         .onHover { hovered = $0 }
-        .help(shot.path)
+        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
             Menu("File as") {
@@ -1341,8 +1337,36 @@ private struct GallerySessionTile: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onDrag { NSItemProvider(contentsOf: (session.representative ?? session.shots[0]).url) ?? NSItemProvider() }
         .onHover { hovered = $0 }
         .help("\(session.count) captures within \(model.keepPolicy.sessionGapMinutes) minutes of each other — click to open them out")
+    }
+}
+
+// MARK: - Tag chips
+
+/// A tag, drawn as a tag: the glyph, the word, and a tooltip that says what it
+/// is and what clicking does. It was a bare pill, and a pill that says "code"
+/// beside a feature called code reads as a button. Nothing here runs anything;
+/// it filters.
+private struct TagChip: View {
+    let tag: String
+    var onImage = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: "tag").font(.system(size: 8, weight: .semibold))
+                Text(tag).font(.system(size: 10, weight: .semibold))
+            }
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(onImage ? AnyShapeStyle(.white.opacity(0.18)) : AnyShapeStyle(ShotPalette.accent.opacity(0.18)),
+                        in: Capsule())
+            .foregroundStyle(onImage ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+        }
+        .buttonStyle(.plain)
+        .help("Filed under “\(tag)” (a Finder tag). Click to see everything filed the same way.")
     }
 }
 
