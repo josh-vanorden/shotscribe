@@ -378,3 +378,31 @@ panel each kept their own list of image extensions, none with a movie in it.
   `Renamer` (dry run: `.mov` kept, name from the frames). The built CLI
   labelled the real 49-second recording "Adobe Benefits Membership" with the
   offline titler in 0.63s, without touching it.
+
+## 2026-09-12 — `shotscribe eval`: the folder is the test set
+
+Borrowed from screenshot-to-code's `Evaluation.md` in shape (a fixed set, a
+score, runs compared) and not in substance: ShotScribe needs no fixture set,
+because every capture already named is a judged answer and its Finder tags a
+judged filing. `Evals.cases(in:)` reads them off the folder, raw captures
+skipped; `Evals.score` gives exact match, title recall (the share of expected
+words that came back) and tag precision and recall; the CLI prints a row per
+capture and a summary, and names a titler that never ran rather than scoring
+its silence.
+
+- **The first run was a finding, not a score.** Against the newest twelve
+  kept names the offline titler scored 92% exact, because those names were
+  its own: Claude has been signed out since the 10th, auto-rename kept going,
+  and nobody looked. Names like "Progr8Ss User Compl8Ted" had been kept for a
+  fortnight. The README says so: the number is a regression check when the
+  kept names came from the titler under test, a quality score only when
+  somebody judged them.
+- **The finding fixed one thing on the spot.** A digit wedged between two
+  letters is a misread glyph, never a title word; `KeywordTitler.isOCRNoise`
+  drops those, digits at the edges kept ("ec2", "3d", "iphone15"). Re-run:
+  exact 75%, recall 90%, and "Progr8Ss User Compl8Ted" now titles as
+  "User 1000H Progress". Lower is honest here.
+- Evidence: 113 tests green, 6 new. Two real runs of `shotscribe eval
+  --no-claude --limit 12` on `~/Pictures/Screenshots`, read-only, before and
+  after the filter; and a run with Claude selected reporting "2 of 2 never
+  reached the titler: Claude is signed out" instead of a zero.

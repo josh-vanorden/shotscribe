@@ -73,6 +73,19 @@ final class KeywordTitlerTests: XCTestCase {
         XCTAssertLessThanOrEqual(title.split(separator: " ").count, 3)
     }
 
+    /// A digit between two letters is a misread glyph, not a word. Digits at
+    /// the edges are real identifiers and stay.
+    func testMisreadWordsNeverBecomeTitles() async throws {
+        XCTAssertTrue(KeywordTitler.isOCRNoise("Progr8Ss"))
+        XCTAssertTrue(KeywordTitler.isOCRNoise("Compl8Ted"))
+        XCTAssertFalse(KeywordTitler.isOCRNoise("ec2"))
+        XCTAssertFalse(KeywordTitler.isOCRNoise("iphone15"))
+        XCTAssertFalse(KeywordTitler.isOCRNoise("3d"))
+        let title = try await KeywordTitler().title(forOCRText: "Progr8Ss Progr8Ss Progr8Ss user compl8ted deploy finished")
+        XCTAssertFalse(title.lowercased().contains("progr8ss"), "got: \(title)")
+        XCTAssertTrue(title.lowercased().contains("deploy") || title.lowercased().contains("user"), "got: \(title)")
+    }
+
     func testTinyTextIsGenericScreenshot() async throws {
         let title = try await KeywordTitler().title(forOCRText: "ok")
         XCTAssertEqual(title, "Screenshot")

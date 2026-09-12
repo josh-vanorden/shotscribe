@@ -31,7 +31,7 @@ public struct KeywordTitler: Titler {
         for rawWord in trimmed.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }) {
             let w = String(rawWord)
             guard w.count >= 3, w.count <= 18, !Self.stopwords.contains(w),
-                  !(w.allSatisfy { $0.isNumber }) else { continue }
+                  !(w.allSatisfy { $0.isNumber }), !Self.isOCRNoise(w) else { continue }
             if counts[w] == nil { order.append(w) }
             counts[w, default: 0] += 1
         }
@@ -41,6 +41,20 @@ public struct KeywordTitler: Titler {
         let ranked = order.sorted { (counts[$0] ?? 0) > (counts[$1] ?? 0) }
         let picked = ranked.prefix(3).map { $0.capitalized }
         return LabelCleaner.clean(picked.joined(separator: " "))
+    }
+
+    /// "Progr8Ss", "Compl8Ted", "Softwarelm3Dcbp": a digit wedged between two
+    /// letters is fast OCR misreading a glyph, never a word anyone would file
+    /// under. Digits at either end stay — "ec2", "3d", "iphone15" are real.
+    /// Surfaced by the first `shotscribe eval` run, 2026-09-12: a fortnight of
+    /// names like these had been kept while Claude was signed out.
+    static func isOCRNoise(_ w: String) -> Bool {
+        let chars = Array(w)
+        guard chars.count >= 3 else { return false }
+        for i in 1..<(chars.count - 1) where chars[i].isNumber {
+            if chars[i - 1].isLetter && chars[i + 1].isLetter { return true }
+        }
+        return false
     }
 
     /// Small, boring English stoplist — enough to keep "the login page" from

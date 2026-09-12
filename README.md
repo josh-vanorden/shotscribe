@@ -75,7 +75,20 @@ shotscribe label --no-claude "~/Desktop/Screenshot ....png"
 
 # Rename without filing it under Finder tags:
 shotscribe rename --no-tags "~/Desktop/Screenshot ....png"
+
+# How good is the titler? Score it against the names you kept:
+shotscribe eval --limit 25
 ```
+
+`eval` treats your own folder as the test set: every capture that is already
+named is a judged answer, and its Finder tags a judged filing. It re-titles each
+one and reports exact matches, title recall and tag precision and recall, so a
+prompt change or a different titler gets a number instead of a feeling. (The
+shape is borrowed from screenshot-to-code's evals; the twist is that no fixture
+set is needed.) One honest caveat: the names it judges against are only as good
+as whoever kept them. If the offline titler named a fortnight of captures while
+Claude was signed out, it will agree with itself; the number is a regression
+check then, not a quality score.
 
 ## Tags
 

@@ -49,6 +49,7 @@ USAGE:
   shotscribe find   <query>                         Search what your screenshots SAY, not just
                                                     what they are called
   shotscribe name                                   Show the name template renames use
+  shotscribe eval   [--no-claude] [--limit N] [dir]  Score the titler against names you kept
 
 FLAGS:
   --no-claude   Use the offline keyword titler instead of `claude -p`
@@ -72,6 +73,11 @@ let noClaude = args.contains("--no-claude")
 let noTags   = args.contains("--no-tags")
 let dryRun   = args.contains("--dry-run")
 let force    = args.contains("--force")
+var limit = 25
+if let i = args.firstIndex(of: "--limit"), i + 1 < args.count, let n = Int(args[i + 1]) {
+    limit = n
+    args.removeSubrange(i...(i + 1))
+}
 let positional = args.filter { !$0.hasPrefix("--") }
 
 let titler = makeTitler(noClaude: noClaude)
@@ -152,6 +158,39 @@ case "find":
         print("     \(h.shot.path)")
     }
     if hits.count > 20 { print("… and \(hits.count - 20) more") }
+
+case "eval":
+    // The folder is the set: every capture that is already named is a judged
+    // answer, and its Finder tags a judged filing. Raw captures are skipped.
+    let dir = positional.first.map(expand) ?? FolderWatcher.defaultScreenshotDirectory()
+    let cases = Array(Evals.cases(in: dir).suffix(limit))   // newest names sort last
+    guard !cases.isEmpty else {
+        print("no named captures in \(dir.path) to judge against"); exit(0)
+    }
+    let which = noClaude || !ClaudeTitler.isAvailable() ? "offline titler" : "Claude"
+    print("judging \(cases.count) named capture\(cases.count == 1 ? "" : "s") in \(dir.lastPathComponent) with the \(which)")
+    var scores: [Evals.Score] = []
+    var failures: [String] = []   // a titler that cannot run is not a titler that named badly
+    for (i, c) in cases.enumerated() {
+        FileHandle.standardError.write(Data("  \(i + 1)/\(cases.count)\r".utf8))
+        let ocr = OCR.recognizeText(atPath: c.url.path)
+        let got: Labelling
+        do { got = try await titler.labelling(forOCRText: ocr, vocabulary: renamer.vocabulary) }
+        catch { failures.append(error.localizedDescription); got = Labelling(title: "Screenshot") }
+        let s = Evals.score(got, against: c)
+        scores.append(s)
+        let mark = s.exact ? "=" : s.recall >= 0.5 ? "~" : " "
+        print("\(mark) \(String(format: "%3.0f%%", s.recall * 100))  \(s.expected)  →  \(s.actual)"
+              + (got.tags.isEmpty ? "" : "  [\(got.tags.joined(separator: "] ["))]"))
+    }
+    FileHandle.standardError.write(Data("\n".utf8))
+    let sum = Evals.summarize(scores)
+    let pct = { (d: Double?) in d.map { String(format: "%.0f%%", $0 * 100) } ?? "n/a" }
+    print("exact \(pct(sum.exactRate)) · title recall \(pct(sum.meanRecall)) · tag precision \(pct(sum.tagPrecision)) · tag recall \(pct(sum.tagRecall))")
+    print("= same title   ~ half or more of its words   (blank) missed")
+    if !failures.isEmpty {
+        print("\(failures.count) of \(cases.count) never reached the titler: \(failures[0])")
+    }
 
 case "name":
     // Read-only on purpose: the menu bar panel is where a template is edited,
