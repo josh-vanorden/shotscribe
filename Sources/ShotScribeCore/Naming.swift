@@ -78,7 +78,7 @@ public enum Naming {
     /// "2026-08-11 1541 AWS Billing Console.png" under the default template —
     /// sortable, scannable. nil when the template asks for a title and there is
     /// no usable one, so the caller leaves the file alone.
-    public static func filename(label: String, capturedAt: Date, ext: String,
+    public static func filename(label: String, app: String? = nil, capturedAt: Date, ext: String,
                                 template: NameTemplate = .default) -> String? {
         let title = renderedTitle(label, template)
         if template.layout.contains("{title}") && title.isEmpty { return nil }
@@ -86,6 +86,8 @@ public enum Naming {
         stem = stem.replacingOccurrences(of: "{date}", with: stamp(capturedAt, template.dateStyle.format))
         stem = stem.replacingOccurrences(of: "{time}", with: stamp(capturedAt, template.timeStyle.format))
         stem = stem.replacingOccurrences(of: "{title}", with: title)
+        // No app read off the chrome leaves the slot empty; `tidy` closes the gap.
+        stem = stem.replacingOccurrences(of: "{app}", with: app.map { sanitize($0, maxChars: 30) } ?? "")
         stem = tidy(stem)
         guard !stem.isEmpty else { return nil }
         return ext.isEmpty ? stem : "\(stem).\(ext)"
@@ -125,7 +127,7 @@ public enum Naming {
 
     /// What a settings pane shows under the field, and what `validate` judges.
     public static func sampleFilename(_ template: NameTemplate) -> String? {
-        filename(label: sampleLabel, capturedAt: sampleDate, ext: "png", template: template)
+        filename(label: sampleLabel, app: "Safari", capturedAt: sampleDate, ext: "png", template: template)
     }
 
     static let sampleLabel = "AWS Billing Console"

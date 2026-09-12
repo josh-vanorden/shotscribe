@@ -523,7 +523,7 @@ public final class ShotScribeModel: ObservableObject {
             // silently falling back to the generic label.
             let path = url.path
             let ocr = await Task.detached(priority: .utility) {
-                OCR.recognizeText(atPath: path)
+                OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: path)))
             }.value
             Log.write("new capture \(url.lastPathComponent): ocr=\(ocr.count) chars")
             var label: String?

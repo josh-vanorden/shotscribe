@@ -406,3 +406,30 @@ its silence.
   --no-claude --limit 12` on `~/Pictures/Screenshots`, read-only, before and
   after the filter; and a run with Claude selected reporting "2 of 2 never
   reached the titler: Claude is signed out" instead of a zero.
+
+## 2026-09-12 — `{app}`, read off the capture's own chrome
+
+The one template token the metadata could not supply. A full-screen shot
+starts with the menu bar, whose first item after the Apple mark is the app; a
+window shot starts with its title bar. `Chrome.app(in:)` reads either off the
+positioned lines the fast OCR pass now keeps (`OCR.recognizeLines`), so the
+title and the app come from one Vision call. Best effort, and the README says
+so: a browser's title bar names the tab.
+
+- **`{app}` is a known token.** Rendered from the chrome, empty when there is
+  none, the gap closed by `tidy`. The sample under the layout field shows
+  "Safari". A caller that brought its own title (the MCP door, the app) pays
+  for the read only when the template actually spells `{app}`.
+- **The menu bar was in the titles.** Found by the end-to-end test: the offline
+  titler had been reading "Shell Edit View Window Help" along with the body,
+  and on a shot whose words all occur once, the first three win. `Chrome.body`
+  now hands the titler everything below the chrome when there is chrome; the
+  model's own rename path uses it too.
+- **Two wrong turns, both caught by the real image, not the synthetic lines.**
+  Vision's fast boxes for a 15pt bar are taller than the 4% a 28px strip
+  works out to on paper, so the strip filter missed them; and the menu-word
+  list had "terminal" in it, so Terminal's own name was read as a menu and
+  dropped. The list now holds only words that can follow an app name.
+- Evidence: 118 tests green, 5 new, one of them a rendered 1200×700 image with
+  a drawn menu bar that comes out as "<date> Terminal Deploy Finished
+  Warnings" under `{date} {app} {title}`, no "Shell" anywhere in it.

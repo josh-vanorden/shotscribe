@@ -11,16 +11,29 @@ public enum OCR {
     /// the main thread. Returns up to `maxChars` of joined text ("" on failure
     /// or an image with no text).
     public static func recognizeText(atPath path: String, maxChars: Int = 900) -> String {
-        var lines: [String] = []
+        text(of: recognizeLines(atPath: path), maxChars: maxChars)
+    }
+
+    /// The fast pass, with positions kept. One Vision call serves both the
+    /// title and `Chrome.app`, which reads the menu bar or title bar off it.
+    public static func recognizeLines(atPath path: String) -> [TextLine] {
+        var lines: [TextLine] = []
         for cg in frames(atPath: path) {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .fast        // a label doesn't need .accurate
             request.usesLanguageCorrection = false
             let handler = VNImageRequestHandler(cgImage: cg, options: [:])
             guard (try? handler.perform([request])) != nil else { continue }
-            lines += (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            lines += (request.results ?? []).compactMap { obs in
+                obs.topCandidates(1).first.map { TextLine(text: $0.string, box: obs.boundingBox) }
+            }
         }
-        let joined = lines.joined(separator: " ")
+        return lines
+    }
+
+    /// What the titlers read: the lines joined, trimmed, capped.
+    public static func text(of lines: [TextLine], maxChars: Int = 900) -> String {
+        let joined = lines.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return String(joined.prefix(maxChars))
     }

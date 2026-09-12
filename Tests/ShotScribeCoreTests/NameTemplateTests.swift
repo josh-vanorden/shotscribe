@@ -81,7 +81,7 @@ final class NameTemplateTests: XCTestCase {
     }
 
     func testUnknownAndMissingTokensAreRefused() {
-        XCTAssertEqual(Naming.validate(NameTemplate(layout: "{date} {app}")), .unknownToken("{app}"))
+        XCTAssertEqual(Naming.validate(NameTemplate(layout: "{date} {window}")), .unknownToken("{window}"))
         XCTAssertEqual(Naming.validate(NameTemplate(layout: "shot")), .noTokens)
     }
 

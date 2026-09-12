@@ -38,7 +38,7 @@ public struct Renamer: Sendable {
 
     /// OCR + title + the filing this renamer would give it. Touches nothing.
     public func labelling(fileAt url: URL) async -> Labelling {
-        let ocr = OCR.recognizeText(atPath: url.path)
+        let ocr = OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: url.path)))
         if let proposed = try? await titler.labelling(forOCRText: ocr, vocabulary: vocabulary),
            !proposed.title.isEmpty {
             return proposed
@@ -55,6 +55,7 @@ public struct Renamer: Sendable {
     /// and use it directly.
     @discardableResult
     public func rename(fileAt url: URL, label explicitLabel: String? = nil,
+                       app explicitApp: String? = nil,
                        tags explicitTags: [String] = [],
                        force: Bool = false, dryRun: Bool = false) async throws -> RenameOutcome {
         guard fileManager.fileExists(atPath: url.path) else { return .fileMissing(url) }
@@ -62,19 +63,26 @@ public struct Renamer: Sendable {
         guard force || Naming.isRawCapture(at: url) else { return .skippedNotRawCapture(url) }
 
         let label: String
+        var app = explicitApp
         var tags = Tagging.accepted(explicitTags, vocabulary: vocabulary.isEmpty
                                     ? Tagging.defaultVocabulary : vocabulary)
         if let explicitLabel, !explicitLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             label = LabelCleaner.clean(explicitLabel)
         } else {
-            let ocr = OCR.recognizeText(atPath: url.path)
-            let labelling = (try? await titler.labelling(forOCRText: ocr, vocabulary: vocabulary))
+            let lines = OCR.recognizeLines(atPath: url.path)
+            let labelling = (try? await titler.labelling(forOCRText: OCR.text(of: Chrome.body(of: lines)), vocabulary: vocabulary))
                 ?? Labelling(title: "Screenshot")
             label = LabelCleaner.clean(labelling.title)
             if tags.isEmpty { tags = labelling.tags }
+            if app == nil { app = Chrome.app(in: lines) }
+        }
+        // A caller that brought its own title skipped the read; do it only when
+        // the template actually spells the app.
+        if app == nil, template.layout.contains("{app}") {
+            app = Chrome.app(in: OCR.recognizeLines(atPath: url.path))
         }
 
-        guard let desired = Naming.filename(label: label, capturedAt: capturedAt(of: url),
+        guard let desired = Naming.filename(label: label, app: app, capturedAt: capturedAt(of: url),
                                             ext: url.pathExtension, template: template) else {
             return .skippedNoLabel(url)
         }

@@ -69,9 +69,10 @@ public struct NameTemplate: Codable, Equatable, Sendable {
     /// Today's format, exactly: "2026-08-11 1541 AWS Billing Console.png".
     public static let `default` = NameTemplate()
 
-    /// Every token a layout may use. `{app}` is deliberately absent: a capture
-    /// records its type and screen rect, never the app it came from.
-    public static let tokens = ["{date}", "{time}", "{title}"]
+    /// Every token a layout may use. `{app}` is best effort: the capture's
+    /// metadata never records the app, so it is read off the menu bar or
+    /// title bar in the image (`Chrome`), and is empty when neither is there.
+    public static let tokens = ["{date}", "{time}", "{title}", "{app}"]
 
     /// Decoded field by field so that adding a setting later leaves a stored
     /// template loadable. The synthesised decoder would throw on the missing

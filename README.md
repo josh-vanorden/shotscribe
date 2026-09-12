@@ -90,6 +90,18 @@ as whoever kept them. If the offline titler named a fortnight of captures while
 Claude was signed out, it will agree with itself; the number is a regression
 check then, not a quality score.
 
+## Naming
+
+The name is a template. `{date} {time} {title}` is the default and spells
+exactly what ShotScribe has always spelled, so an upgrade changes nobody's
+names. Edit it in the window's **Name** tab: the layout carries the separators
+(`{date}_{time}_{title}` is how you get underscores), and pickers cover the
+date style, the time style, how the title's words are joined, and how many are
+kept. A fourth token, `{app}`, is the app or window name read off the capture's
+own menu bar or title bar; it is best effort and simply empty when the shot has
+no chrome. A template that would spell a name macOS uses for a fresh capture is
+refused, because the watcher would then rename its own output forever.
+
 ## Tags
 
 A renamed capture is also filed under up to two **Finder tags** — so it shows in
