@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-12 17:05 — Menu bar words in titles: the offline titler read the chrome
+- **Bug/Issue:** A rendered capture with a menu bar ("Terminal Shell Edit View Window Help") and a body ("deploy finished with warnings") was titled "Terminal Shell Edit" under `{date} {app} {title}`, in `ChromeTests.testARenameReadsTheAppOffTheImage`. Every full-screen capture titled by the offline titler had been exposed to the same words.
+- **RCA:** The titler was handed the whole OCR text. On a shot whose words each occur once, `KeywordTitler` picks the first three non-stopwords in reading order, and the menu bar is read first. Nothing separated chrome from content.
+- **Evidence:** The test's own failure message, listing the recognised lines with positions: `Terminal@top0`, `Shell Edit View Window Help@top0`, `deploy finished with warnings@top46`. Reproduced on the built package before the fix.
+- **Fix/Repair:** `Chrome.body(of:)` drops lines in the top strip when the capture has chrome; `Renamer` (both paths) and `ShotScribeModel.rename` hand the titler that body. Commit `82aaf00`.
+- **Related PR:** none — committed on `settings-pane` (`josh-vanorden/shotscribe@82aaf00`)
+
 ### 2026-09-11 17:27 — Nothing was tagged: `labelling` dispatched to its default
 - **Bug/Issue:** The first end-to-end run of tagging, `shotscribe rename --no-claude` on a generated capture, renamed the file and wrote no Finder tags, while all 70 tests passed.
 - **RCA:** `Titler.labelling(forOCRText:vocabulary:)` was declared only in a protocol extension. Every door holds a `Titler` existential, and an extension-only method dispatches statically, so the `KeywordTitler` and `ClaudeTitler` overrides were never reached and the default returned no tags. The tests held concrete titlers, so they took the override and stayed green.

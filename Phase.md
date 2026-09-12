@@ -36,7 +36,16 @@ Done locally on `settings-pane` (11 commits, unpushed): capture detection in
 any language, name templates, Finder tags end to end with a switch, a Dock
 window beside the menu bar item, and the glass window. 100 tests green.
 
+## 2026-09-12, later — four borrows from screenshot-to-code, all landed
+`layout_screenshot` + `/screenshot code`; screen recordings as captures;
+`shotscribe eval` (whose first run exposed a fortnight of OCR-noise names and
+fixed the offline titler); `{app}` off the capture's chrome, which also found
+the menu bar leaking into titles. 118 tests. Still unshipped; the gate below
+stands, one item longer.
+
 ## Gate to ship 0.7.0
+- [ ] `claude` signed in, then `shotscribe eval --limit 25` with Claude: the
+      first real quality number, against names that were not the titler's own.
 - [ ] Josh's live verdict on the glass window. It was rendered off-screen in
       both appearances; hover captions and the inspector animation are unseen.
 - [ ] Merge `settings-pane` into `main` and push (`MANUAL_PUSH=1`).
