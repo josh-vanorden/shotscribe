@@ -163,6 +163,11 @@ borrowed from [abi/screenshot-to-code](https://github.com/abi/screenshot-to-code
 what ShotScribe changes is where the result lands, and that no key or second
 app is involved.
 
+From the app, **Rebuild as code** on any shot (the hero's button, or a shot's
+context menu) copies the same brief with the layout already in it, and says
+where to paste it: into Claude Code, inside the project the code should land
+in. That is stage two; stage one was the name and the filing.
+
 ## Menu bar app
 
 `ShotScribe.app` is the always-there face: a menu bar panel with an

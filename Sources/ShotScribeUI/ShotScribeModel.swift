@@ -226,6 +226,28 @@ public final class ShotScribeModel: ObservableObject {
         taggingEnabled = on
     }
 
+    /// Stage two, as far as the app can take it: the shot as a brief for Claude
+    /// Code, on the pasteboard, and one line saying where to paste it. The agent
+    /// and the repo live there; the app hands over everything it knows.
+    @Published public private(set) var briefNote: String?
+    private var briefGeneration = 0
+
+    public func copyCodeBrief(for shot: IndexedShot) {
+        let path = shot.path
+        briefGeneration += 1
+        let generation = briefGeneration
+        briefNote = "Reading the layout…"
+        Task { @MainActor [weak self] in
+            let brief = await Task.detached(priority: .userInitiated) { CodeBrief.text(forImageAt: path) }.value
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(brief, forType: .string)
+            self?.briefNote = "Copied. Paste into Claude Code inside the project the code should land in."
+            try? await Task.sleep(nanoseconds: 9_000_000_000)
+            if self?.briefGeneration == generation { self?.briefNote = nil }
+        }
+    }
+
     /// File a shot that is already named — the only way to reach an older
     /// capture, since the vocabulary otherwise only applies at rename time.
     public func tag(_ shot: IndexedShot, with tag: String) {

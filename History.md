@@ -433,3 +433,29 @@ so: a browser's title bar names the tab.
 - Evidence: 118 tests green, 5 new, one of them a rendered 1200×700 image with
   a drawn menu bar that comes out as "<date> Terminal Deploy Finished
   Warnings" under `{date} {app} {title}`, no "Shell" anywhere in it.
+
+## 2026-09-12 — Stage two in the app: Rebuild as code, tags drawn as tags, drag-out
+
+Josh, looking at the new window: the tag pills read as buttons ("what does
+the terminal button do?"), "code" beside a feature called code read as an
+action ("stage two, the user hits code, then what?"), and a named capture
+could not be dragged into Mail or Jira from the window.
+
+- **Tags are drawn as tags.** One `TagChip` everywhere: the tag glyph, the
+  word, and a hover that says "Filed under code (a Finder tag). Click to see
+  everything filed the same way." Nothing in a chip runs anything.
+- **Any shot drags out as a copy.** `NSItemProvider(contentsOf:)` on tiles,
+  stacks, the hero and list rows, so a drop into Mail, Jira or Slack attaches
+  the file the way Finder would.
+- **Stage two, as far as the app can take it.** "Rebuild as code" on the hero
+  and in every shot's menu copies a self-contained brief for Claude Code: the
+  file, its text with positions (the layout read inline, so it works with or
+  without the MCP server), and the working discipline. One line under the
+  grid says where to paste it: into Claude Code, inside the project the code
+  should land in. The agent and the repo live there; the app does not pretend
+  otherwise. Chosen over "open a Terminal on it" and over "just say where to
+  go".
+- Evidence: 120 tests green, 2 new: the brief carries the file, the exact
+  strings from a rendered image, and the discipline, and stays plain ASCII
+  punctuation since it is pasted into a terminal. The app was rebuilt and
+  relaunched; the drag and the paste are Josh's to try.
