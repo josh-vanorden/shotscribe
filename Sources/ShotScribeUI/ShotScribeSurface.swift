@@ -45,8 +45,14 @@ public struct ShotScribeView: View {
     /// a name template or a vocabulary is only worth saving once it is finished.
     @State private var layoutDraft = ""
     @State private var vocabularyDraft = ""
+    /// Supplied by a host that has a window to show — the menu bar app. The
+    /// popover cannot open one itself: this package has no idea what is hosting
+    /// it, and must never grow one.
+    private let onOpenWindow: (() -> Void)?
 
-    public init(model: ShotScribeModel, chrome: ShotScribeChrome = .hosted) {
+    public init(model: ShotScribeModel, chrome: ShotScribeChrome = .hosted,
+                onOpenWindow: (() -> Void)? = nil) {
+        self.onOpenWindow = onOpenWindow
         self.model = model
         self.chrome = chrome
     }
@@ -83,6 +89,11 @@ public struct ShotScribeView: View {
             HStack {
                 Button("Open folder") { NSWorkspace.shared.open(model.folder) }
                     .buttonStyle(.link).font(.caption)
+                if let onOpenWindow {
+                    Spacer()
+                    Button("Open ShotScribe") { onOpenWindow() }
+                        .buttonStyle(.link).font(.caption)
+                }
                 Spacer()
                 Button("Quit") { NSApplication.shared.terminate(nil) }
                     .buttonStyle(.link).font(.caption)

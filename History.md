@@ -251,3 +251,30 @@ two features touching the same rename path — and then the pane.
   `2026-08-11 1541 AWS Billing Console.png`, all 16 vocabulary tags, and the
   `terminal` / `error` chips on the tile renamed after the dispatch fix — with
   none on the one renamed before it.
+
+## 2026-09-11 — A window and a Dock icon, with the menu bar item kept
+
+ShotScribe was menu-bar-only (`LSUIElement`), so the roomy surface with Keep,
+Name, File, search and the tiles had no home outside Toolbelt, and Toolbelt is
+pinned to 0.6.1 from GitHub. Josh expected an app like Understand: a window,
+in the Dock.
+
+- **A `Window` scene hosting `ShotScribeView(chrome: .hosted)`**, 900 by 860
+  by default, plus the `MenuBarExtra` as before. Closing the window does not
+  quit (`applicationShouldTerminateAfterLastWindowClosed` is false): a watcher
+  that dies with its window defeats the point. Dock click and Spotlight
+  relaunch bring the window back.
+- **"Open ShotScribe" in the popover footer.** The library cannot open a window
+  itself, since it must never know what is hosting it, so `ShotScribeView`
+  takes an optional `onOpenWindow` and the app target passes `openWindow(id:)`.
+- **The welcome window is gone.** Its job was telling you a menu-bar-only app
+  had not vanished; a window does that. Its "install Claude Code" guidance
+  already lives in the pane's Claude toggle.
+- **`LSUIElement` removed** from the generated Info.plist in
+  `scripts/package-app.sh`.
+- Evidence: Launch Services reports `type="Foreground"`; a
+  `CGWindowListCopyWindowInfo` sweep found the window at 900 by 794, layer 0;
+  Josh saw it open to the front. Seen from the app itself: the popover has
+  never shown Keep, and now does not show Name or File either; those live in
+  the window. Found in the same pass: `claude` was signed out since Sep 10,
+  which is why recent titles came from the offline titler.

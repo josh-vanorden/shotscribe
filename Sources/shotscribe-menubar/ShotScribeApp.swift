@@ -10,119 +10,66 @@ import ShotScribeUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = ShotScribeModel()
-    private var welcome: NSWindow?
 
-    /// First launch: a menu-bar-only app looks like "nothing happened" from
-    /// Spotlight/Finder — the welcome window says where the app lives.
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        if !UserDefaults.standard.bool(forKey: "shotscribe.welcomed") {
-            UserDefaults.standard.set(true, forKey: "shotscribe.welcomed")
-            showWelcome()
-        }
-    }
-
-    /// Launched again while running (double-click in Finder, Spotlight ↩) —
-    /// same answer: point at the menu bar instead of doing nothing.
+    /// Clicking the Dock icon, or launching again from Spotlight, brings the
+    /// window back. SwiftUI keeps a closed `Window` scene around, so ordering
+    /// the existing one front is enough; returning true lets AppKit restore it
+    /// on the first launch after a quit, when there is nothing to order yet.
     func applicationShouldHandleReopen(_ sender: NSApplication,
                                        hasVisibleWindows: Bool) -> Bool {
-        showWelcome()
+        if !hasVisibleWindows {
+            NSApp.windows.first { $0.canBecomeMain }?.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
         return true
     }
 
-    func showWelcome() {
-        if welcome == nil {
-            let host = NSHostingController(
-                rootView: WelcomeView(model: model) { [weak self] in
-                    self?.welcome?.close()
-                })
-            let w = NSWindow(contentViewController: host)
-            w.styleMask = [.titled, .closable, .fullSizeContentView]
-            w.titleVisibility = .hidden
-            w.titlebarAppearsTransparent = true
-            w.isReleasedWhenClosed = false
-            w.title = "ShotScribe"
-            welcome = w
-        }
-        welcome?.center()
-        welcome?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+    /// Closing the window is not quitting: the whole point is a watcher that
+    /// outlives the window it is configured from. Quit is Cmd-Q, the app menu,
+    /// or "Quit" in the menu bar panel.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }
 
-/// "You just launched a menu bar app" — shown on first run and on reopen.
-struct WelcomeView: View {
-    @ObservedObject var model: ShotScribeModel
-    var onClose: () -> Void
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Image(nsImage: NSApp.applicationIconImage ?? NSImage())
-                .resizable().frame(width: 84, height: 84)
-            Text("ShotScribe lives in your menu bar")
-                .font(.title2.weight(.semibold))
-            Label {
-                Text("Look for this icon at the top-right of your screen — click it for settings and history.")
-            } icon: {
-                Image(systemName: "text.viewfinder")
-            }
-            .font(.callout)
-            .frame(maxWidth: 360, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 8) {
-                row(icon: "folder",
-                    text: "Watching **\(model.folder.lastPathComponent)** — new screenshots get renamed to “date + what they show.”")
-                row(icon: model.claudeAvailable ? "sparkles" : "keyboard",
-                    text: model.claudeAvailable
-                        ? "Titles use **your own Claude Code account** — ShotScribe ships no keys and sends only the text read off the image."
-                        : "Titles come from the offline titler. Install **Claude Code** and sign in for sharper ones — on your own account, no keys involved.")
-                if !model.claudeAvailable {
-                    HStack {
-                        Spacer().frame(width: 26)
-                        Link("Get Claude Code →",
-                             destination: URL(string: "https://claude.com/claude-code")!)
-                            .font(.caption)
-                    }
-                }
-            }
-            .frame(maxWidth: 360, alignment: .leading)
-
-            HStack {
-                Button("Choose another folder…") { model.chooseFolder() }
-                Spacer()
-                Button("Got it") { onClose() }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .frame(maxWidth: 360)
-        }
-        .padding(28)
-        .frame(width: 430)
-    }
-
-    private func row(icon: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary)
-            Text(.init(text)).font(.caption)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-/// ShotScribe — the menu bar face of the engine. A small always-there panel:
-/// watch toggle, titler preference, rename-latest, and recent history.
+/// ShotScribe — a window you can actually look at, and a menu bar item that
+/// keeps watching once you close it.
+///
+/// It was menu-bar-only until 2026-09-11, which meant the roomy surface (Keep,
+/// Name, File, search, the tiles) had no home outside a host like Toolbelt: the
+/// popover only ever showed the toggles and the recent list.
 @main
 struct ShotScribeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
-    init() {
-        // Accessory: no Dock icon even when run unbundled (`swift run`);
-        // the bundle's LSUIElement covers the packaged case.
-        NSApplication.shared.setActivationPolicy(.accessory)
-    }
+    static let mainWindowID = "shotscribe.main"
 
     var body: some Scene {
+        Window("ShotScribe", id: Self.mainWindowID) {
+            ShotScribeView(model: delegate.model, chrome: .hosted)
+                .frame(minWidth: 620, minHeight: 520)
+        }
+        .defaultSize(width: 900, height: 860)
+
         MenuBarExtra("ShotScribe", systemImage: "text.viewfinder") {
-            ShotScribeView(model: delegate.model, chrome: .menuBar)
+            MenuBarPanel(model: delegate.model)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+/// The popover, plus the one thing it cannot do for itself: open the window.
+/// `openWindow` is an environment value, so it has to be read inside a view —
+/// and it stays in the app target, since `ShotScribeUI` must never know what is
+/// hosting it.
+private struct MenuBarPanel: View {
+    @ObservedObject var model: ShotScribeModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        ShotScribeView(model: model, chrome: .menuBar) {
+            openWindow(id: ShotScribeApp.mainWindowID)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }
