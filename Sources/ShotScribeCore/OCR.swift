@@ -29,4 +29,53 @@ public enum OCR {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return String(joined.prefix(maxChars))
     }
+
+    /// One recognised line and where it sits. The box is what Vision reports:
+    /// normalised 0–1, origin bottom-left. Enough to say "this is the title, up
+    /// top", "these four are a row", "that column is a sidebar" — the structure
+    /// of a screen, read off it on-device, without the pixels going anywhere.
+    public struct TextLine: Sendable, Equatable {
+        public var text: String
+        public var box: CGRect
+
+        public init(text: String, box: CGRect) {
+            self.text = text
+            self.box = box
+        }
+
+        /// The same box the way a person or a page reads it: top-left origin,
+        /// in percent of the image.
+        public var top: Double { (1 - box.maxY) * 100 }
+        public var left: Double { box.minX * 100 }
+        public var width: Double { box.width * 100 }
+        public var height: Double { box.height * 100 }
+    }
+
+    /// The text of a screenshot with its layout, in reading order — top to
+    /// bottom, then left to right. Accurate recognition, since the point is to
+    /// rebuild what the shot shows; a title does not need this, a layout does.
+    public static func recognizeLayout(atPath path: String, maxLines: Int = 200) -> (size: CGSize, lines: [TextLine]) {
+        guard let image = NSImage(contentsOfFile: path),
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return (.zero, [])
+        }
+        let size = CGSize(width: cg.width, height: cg.height)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false   // labels, IDs and code are not words
+        let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+        guard (try? handler.perform([request])) != nil else { return (size, []) }
+        let lines = (request.results ?? []).compactMap { obs -> TextLine? in
+            guard let text = obs.topCandidates(1).first?.string, !text.isEmpty else { return nil }
+            return TextLine(text: text, box: obs.boundingBox)
+        }
+        // Same row when the vertical centres are within half a line of each
+        // other; then left to right within the row.
+        let ordered = lines.sorted { a, b in
+            let tolerance = min(a.box.height, b.box.height) / 2
+            if abs(a.box.midY - b.box.midY) > tolerance { return a.box.midY > b.box.midY }
+            return a.box.minX < b.box.minX
+        }
+        return (size, Array(ordered.prefix(maxLines)))
+    }
 }

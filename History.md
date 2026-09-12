@@ -320,3 +320,34 @@ hover, and this is the port into `ShotScribeSurface.swift`.
   its `code` tag, Yesterday and Thursday groups, two separate 10:21 and 10:26
   tiles (five minutes apart, three-minute gap), the inspector on Rename showing
   the real stand-down state because ShotScribe.app was running at the time.
+
+## 2026-09-12 — The code bridge: `/screenshot code` and `layout_screenshot`
+
+Josh pointed at `abi/screenshot-to-code` (78.6k stars, since 2023, busy this
+summer) and asked what to borrow. Its craft is an agent loop: create once then
+edit surgically, extract the screenshot's real assets rather than redraw them,
+never embed the screenshot, render the result in headless Chromium and fix what
+it sees, evals with a rating UI. Its output is an `index.html` in a browser tab
+from pasted API keys. ShotScribe's edge is where the result lands.
+
+- **`layout_screenshot`**, a fourth MCP tool. `OCR.recognizeLayout` returns
+  every recognised line with its position (Vision's boxes, turned into percent
+  of the image, top-left origin) in reading order: top to bottom, then left to
+  right within a row, rows judged by vertical centres within half a line. That
+  is the structure half of "extract, don't redraw", done on-device, with no
+  pixel leaving the machine. Accurate recognition, no language correction.
+- **`/screenshot code [stack]`** in the shipped skill: read the capture and
+  its layout, pick the stack from the repo, create once then edit, reference
+  existing assets or leave a labelled slot, render and verify before stopping
+  (`/preview` for web, the off-screen render for SwiftUI), then the usual
+  housekeeping. Credited to screenshot-to-code in the skill and the README.
+- **Not borrowed, on purpose:** the model mix and variants (against the
+  bring-your-own-Claude stance; `LLMPreference` already reads the machine's
+  choice), image generation and background removal, and vision inside the
+  watcher (only extracted text leaves the machine; vision stays on demand).
+- **Found on the way:** Vision reports pixels, and on a Retina display a
+  rendered test image is 2x its point size. The first test asserted points.
+- Evidence: 102 tests green, 2 new. A JSON-RPC round trip into the built
+  `shotscribe-mcp` listed four tools and returned, for a generated 1400×360
+  PNG, one line at `top 44.1 left 3.2 w 69.6 h 14.8  terminal error:
+  connection refused`. The skill itself is prose; its first real run is Josh's.

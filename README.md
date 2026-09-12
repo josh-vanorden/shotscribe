@@ -94,6 +94,7 @@ of its own — anything off the list is dropped. Tags you added by hand are kept
 |---|---|
 | `latest_screenshots` | List the newest captures from your macOS screenshot folder |
 | `ocr_screenshot` | On-device OCR — returns the text (+ an offline suggested title) so the *calling model* composes the label |
+| `layout_screenshot` | The text *with its layout*: every line in reading order with top/left/width/height in percent, so a model can rebuild the screen as code. Still on-device; no pixels leave the machine |
 | `rename_screenshot` | Safe rename to `<date> <time> <Label>.ext`; takes the caller's `title`, protects user-named files (`force` to override), supports `dry_run` |
 
 Register it with Claude Code:
@@ -123,6 +124,15 @@ curl -fsSL https://raw.githubusercontent.com/josh-vanorden/shotscribe/main/skill
 ```
 
 Then type `/screenshot` in any Claude Code session.
+
+`/screenshot code` goes one step further: it rebuilds the newest capture as
+code in the project you are standing in — your stack, your components, a diff
+to review — using `layout_screenshot` for structure and exact strings and the
+image for everything else. The working discipline (create once then edit,
+extract assets rather than redraw them, render and verify before stopping) is
+borrowed from [abi/screenshot-to-code](https://github.com/abi/screenshot-to-code);
+what ShotScribe changes is where the result lands, and that no key or second
+app is involved.
 
 ## Menu bar app
 

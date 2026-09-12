@@ -129,6 +129,28 @@ let toolDefs: [[String: Any]] = [
             "required": ["path"],
         ] as [String: Any],
     ],
+    [
+        "name": "layout_screenshot",
+        "description": """
+        The text of a screenshot with its layout: every recognised line in \
+        reading order, with top/left/width/height as percent of the image \
+        (top-left origin), plus the image size in pixels. Read on-device; no \
+        pixels leave the machine. Use it to rebuild what the shot shows as \
+        code: the positions say what is a title, a row of buttons, a sidebar; \
+        the strings are exact, so use them verbatim. Look at the image itself \
+        for colour, spacing and anything the text cannot say.
+        """,
+        "inputSchema": [
+            "type": "object",
+            "properties": [
+                "path": [
+                    "type": "string",
+                    "description": "Path to the screenshot image (~ allowed)",
+                ],
+            ],
+            "required": ["path"],
+        ] as [String: Any],
+    ],
 ]
 
 // MARK: - Tool implementations
@@ -179,6 +201,26 @@ func runOCRScreenshot(_ args: [String: Any]) async -> [String: Any] {
     }
     let suggested = (try? await KeywordTitler().title(forOCRText: text)) ?? "Screenshot"
     return textResult("Suggested title (offline): \(suggested)\n\nOCR text:\n\(text)")
+}
+
+func runLayoutScreenshot(_ args: [String: Any]) -> [String: Any] {
+    guard let path = args["path"] as? String, !path.isEmpty else {
+        return textResult("`path` is required.", isError: true)
+    }
+    let url = expand(path)
+    guard FileManager.default.fileExists(atPath: url.path) else {
+        return textResult("File not found: \(url.path)", isError: true)
+    }
+    let (size, lines) = OCR.recognizeLayout(atPath: url.path)
+    guard size != .zero else { return textResult("Not an image ShotScribe can read: \(url.path)", isError: true) }
+    guard !lines.isEmpty else {
+        return textResult("Image \(Int(size.width))×\(Int(size.height)) px. No text recognised; work from the image alone.")
+    }
+    // One line per line, positions first so a model can scan the column.
+    let rows = lines.map { l in
+        String(format: "top %5.1f  left %5.1f  w %5.1f  h %4.1f  %@", l.top, l.left, l.width, l.height, l.text)
+    }
+    return textResult("Image \(Int(size.width))×\(Int(size.height)) px. \(lines.count) lines, reading order, percent of image, top-left origin:\n" + rows.joined(separator: "\n"))
 }
 
 func runRenameScreenshot(_ args: [String: Any]) async -> [String: Any] {
@@ -260,6 +302,8 @@ for try await line in FileHandle.standardInput.bytes.lines {
             reply(id: id, result: await runOCRScreenshot(args))
         case "rename_screenshot":
             reply(id: id, result: await runRenameScreenshot(args))
+        case "layout_screenshot":
+            reply(id: id, result: runLayoutScreenshot(args))
         default:
             replyError(id: id, code: -32602, message: "Unknown tool: \(name)")
         }

@@ -29,3 +29,31 @@ Notes:
 - Screenshots you take yourself (during testing, verification) belong in the
   session scratchpad, NOT the user's capture folder.
 - Optional argument: a number N = read the Nth-newest instead ("/screenshot 2").
+
+## `/screenshot code [stack]` — rebuild the newest capture as code, here
+
+The capture shows a screen; build it in the project you are standing in, as a
+reviewable change, not as a demo page. (The working discipline is borrowed
+from `abi/screenshot-to-code`; the difference is where the result lands: your
+repo, your stack, your Claude, a diff.)
+
+1. **Find and read it** as above. If ShotScribe's MCP tools are registered,
+   also call `layout_screenshot` on it: every text line with its position, in
+   percent, top-left origin. Positions say what is a title, a row of buttons, a
+   sidebar; the strings are exact, use them verbatim. The image is for colour,
+   spacing and everything the text cannot say.
+2. **Pick the stack from the repo** — `package.json`, `Package.swift`,
+   `pyproject.toml` — unless one was given. A repo with a framework gets a
+   component in its own idiom, never a single file of CDN scripts.
+3. **Create once, then edit.** Write the file once; every change after that is
+   an exact-string edit. Never regenerate a file you already wrote.
+4. **Extract, don't redraw.** Logos, photos, icons: reference the project's
+   existing assets, or leave a labelled placeholder slot. Never embed the
+   screenshot, never hand-draw SVG art, never paraphrase a string that
+   `layout_screenshot` gave you exactly.
+5. **Render and verify before you say done.** Web: `/preview` or the project's
+   dev server, side by side with the capture. SwiftUI: the off-screen render
+   in the repo's `CLAUDE.md`. Fix what differs, then stop; do not polish past
+   the capture.
+6. **Housekeeping** as in the base gesture: rename the capture if it is raw.
+7. Say what you built in two sentences and offer the diff.
