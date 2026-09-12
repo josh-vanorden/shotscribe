@@ -278,3 +278,45 @@ in the Dock.
   never shown Keep, and now does not show Name or File either; those live in
   the window. Found in the same pass: `claude` was signed out since Sep 10,
   which is why recent titles came from the offline titler.
+
+## 2026-09-12 — The window becomes the product: glass, tabs, gallery
+
+Three preview pages in the browser narrowed the window down (layout, then a
+visual pass, then the macOS 26 idiom); Josh locked Glass with captions on
+hover, and this is the port into `ShotScribeSurface.swift`.
+
+- **The screenshots get the whole window.** The grid runs edge to edge and
+  scrolls under floating chrome: a status capsule (watching, folder), a search
+  capsule, and an inspector toggle, all on `ultraThinMaterial` with a lit 1pt
+  top edge. The window paints its own background, since a host that draws none
+  would otherwise show the grid over nothing.
+- **A latest-capture hero** on a band tinted by the capture's own colours
+  (the thumbnail, blurred and faded into the window): what it was called, what
+  it is called now, its tags, Reveal, Restore name, File as. Only in the
+  chronological view; a search or a name sort has no "latest".
+- **Groups by day** (Today, Yesterday, a weekday within the week, then the
+  date), only under a chronological sort. `Sessions.stem` titles the hero.
+- **Gallery tiles**: 4:3, 9pt radius, caption over the image on hover, an
+  accent ring on hover, bursts stacked with two edges behind. `AspectThumbnail`
+  sizes by ratio rather than a fixed height, from the same QuickLook cache.
+- **A tabbed inspector that never scrolls**: Folder, Rename, Name, File, Keep as
+  a capsule strip, one pane at a time, floating inset from the window edge on
+  glass. Open on Rename on first launch. The amber notice is gone; any state
+  worth a word is one quiet line under the toggle it concerns.
+- **Tagging is a switch** (`ShotScribeDefaults.taggingEnabled`, on by default).
+  Off, the vocabulary dims but stays, and every door files nothing; the CLI's
+  `--no-tags` still overrides per run. The vocabulary is removable tags with an
+  add field, in a `FlowLayout`, not a comma box.
+- **Recent left the window.** Undo is on the hero and on every tile's context
+  menu; the list would have been the same information twice. The popover
+  keeps it.
+- **Found on the way:** `Text.foregroundStyle` on a concatenated `Text` is
+  macOS 14+; `foregroundColor` is the 13-floor spelling. The off-screen render
+  needs the pane to paint a background and the fixture to keep real creation
+  dates (hard links, not copies), or the "latest" is whichever file was copied
+  last and every shot folds into one burst.
+- Evidence: 100 tests green, 1 new. Rendered off-screen in light and dark
+  against hard links of the six newest captures: the real latest up top with
+  its `code` tag, Yesterday and Thursday groups, two separate 10:21 and 10:26
+  tiles (five minutes apart, three-minute gap), the inspector on Rename showing
+  the real stand-down state because ShotScribe.app was running at the time.

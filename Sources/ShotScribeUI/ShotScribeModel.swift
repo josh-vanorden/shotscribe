@@ -217,6 +217,15 @@ public final class ShotScribeModel: ObservableObject {
         vocabulary = ShotScribeDefaults.vocabulary()
     }
 
+    /// Whether renames file captures at all. Off leaves the vocabulary intact
+    /// and stops new renames being tagged; tags already on files stay.
+    @Published public private(set) var taggingEnabled: Bool = ShotScribeDefaults.taggingEnabled()
+
+    public func setTaggingEnabled(_ on: Bool) {
+        ShotScribeDefaults.setTaggingEnabled(on)
+        taggingEnabled = on
+    }
+
     /// File a shot that is already named — the only way to reach an older
     /// capture, since the vocabulary otherwise only applies at rename time.
     public func tag(_ shot: IndexedShot, with tag: String) {
@@ -521,7 +530,7 @@ public final class ShotScribeModel: ObservableObject {
             var tags: [String] = []
             do {
                 let proposed = try await titler.labelling(forOCRText: ocr,
-                                                          vocabulary: vocabulary)
+                                                          vocabulary: taggingEnabled ? vocabulary : [])
                 label = proposed.title
                 tags = proposed.tags
                 Log.write("title: \(label ?? "nil")  tags: \(tags.joined(separator: ", "))")
@@ -531,7 +540,7 @@ public final class ShotScribeModel: ObservableObject {
             }
             // label == nil → Renamer falls back to its own titler (offline).
             let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate,
-                                            vocabulary: vocabulary)
+                                            vocabulary: taggingEnabled ? vocabulary : [])
                 .rename(fileAt: url, label: label, tags: tags)
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {

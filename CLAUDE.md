@@ -135,6 +135,22 @@ statically, so overrides would be silently skipped (they were — see `History.m
   it throws and the error lands in the panel.
 - No console — debug through `~/Library/Logs/ShotScribe.log` (`Log.write`).
 
+### The window (`.hosted` chrome) and how to see it without launching
+
+The hosted pane is the glass design locked on 2026-09-12: the grid scrolls edge to edge under
+floating capsules, a latest-capture hero sits on a band tinted by its own thumbnail, and the
+settings live in a tabbed inspector (Folder, Rename, Name, File, Keep) floating on
+`ultraThinMaterial`. `glass(in:)` is the one helper for that material and its lit top edge;
+`AspectThumbnail` sizes tiles by ratio. Two gotchas at the macOS 13 floor: `Text.foregroundStyle`
+on a concatenated `Text` is 14+ (use `foregroundColor`), and the pane must paint
+`windowBackgroundColor` itself or a host that draws none shows the grid over black.
+
+To look at the pane without putting a window on the operator's machine: build, then compile a
+throwaway `NSHostingView` in an unordered `NSWindow` against the `.o` files in `.build/debug`,
+with `ShotScribeDefaults.suiteOverride` and `ShotIndex.storeOverride` pointed at scratch and
+`shotscribe.watching` off. `ImageRenderer` is not enough; it leaves AppKit-backed controls blank.
+Fixtures must be hard links of real captures, not copies, or creation dates are all "now".
+
 ### Version strings are hand-maintained
 
 `VERSION` in `scripts/package-app.sh` (feeds the generated Info.plist) and `serverInfo` in

@@ -77,7 +77,7 @@ let positional = args.filter { !$0.hasPrefix("--") }
 let titler = makeTitler(noClaude: noClaude)
 let renamer = Renamer(titler: titler,
                       template: ShotScribeDefaults.nameTemplate(),
-                      vocabulary: noTags ? [] : ShotScribeDefaults.vocabulary())
+                      vocabulary: (noTags || !ShotScribeDefaults.taggingEnabled()) ? [] : ShotScribeDefaults.vocabulary())
 
 switch command {
 case "label":

@@ -38,6 +38,38 @@ final class ThumbnailCache: ObservableObject {
     }
 }
 
+/// The same cache, sized by aspect ratio rather than a fixed height: a gallery
+/// tile is 4:3 whatever its column is, and the hero is 16:10. `pixels` is the
+/// longest edge asked of QuickLook, larger for the hero than for a tile.
+struct AspectThumbnail: View {
+    let path: String
+    var aspect: CGFloat = 4.0 / 3.0
+    var pixels: CGFloat = 480
+    @State private var image: NSImage?
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(aspect, contentMode: .fit)
+            .overlay {
+                if let image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else {
+                    Rectangle().fill(.quaternary)
+                        .overlay(Image(systemName: "photo")
+                            .foregroundStyle(.secondary).font(.system(size: 18)))
+                }
+            }
+            .clipped()
+            .task(id: path) {
+                image = ThumbnailCache.shared.cached(path)
+                if image == nil {
+                    image = await ThumbnailCache.shared.load(
+                        path, size: CGSize(width: pixels, height: pixels / aspect), scale: 2)
+                }
+            }
+    }
+}
+
 struct Thumbnail: View {
     let path: String
     var height: CGFloat = 116

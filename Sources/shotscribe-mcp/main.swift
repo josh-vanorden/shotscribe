@@ -135,7 +135,7 @@ let toolDefs: [[String: Any]] = [
 
 let renamer = Renamer(titler: KeywordTitler(),
                       template: ShotScribeDefaults.nameTemplate(),
-                      vocabulary: ShotScribeDefaults.vocabulary())
+                      vocabulary: ShotScribeDefaults.taggingEnabled() ? ShotScribeDefaults.vocabulary() : [])
 
 func runLatestScreenshots(_ args: [String: Any]) -> [String: Any] {
     let count = min(max((args["count"] as? Int) ?? 5, 1), 20)

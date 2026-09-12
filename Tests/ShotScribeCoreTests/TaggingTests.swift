@@ -68,6 +68,18 @@ final class TaggingTests: XCTestCase {
         }
     }
 
+    /// Off is a switch, not an empty list: the vocabulary survives, so turning
+    /// filing back on costs nothing. On by default, because filing is the feature.
+    func testTaggingIsOnByDefaultAndOffKeepsTheVocabulary() {
+        withThrowawayDefaults {
+            XCTAssertTrue(ShotScribeDefaults.taggingEnabled())
+            ShotScribeDefaults.setVocabulary(["deploy"])
+            ShotScribeDefaults.setTaggingEnabled(false)
+            XCTAssertFalse(ShotScribeDefaults.taggingEnabled())
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), ["deploy"])
+        }
+    }
+
     private func withThrowawayDefaults(_ body: () -> Void) {
         let domain = "shotscribe.tests.\(UUID().uuidString)"
         ShotScribeDefaults.suiteOverride = UserDefaults(suiteName: domain)

@@ -7,6 +7,7 @@ public enum ShotScribeDefaults {
     public static let appBundleID = "com.joshvanorden.shotscribe"
     public static let nameTemplateKey = "shotscribe.nameTemplate"
     public static let vocabularyKey = "shotscribe.tagVocabulary"
+    public static let taggingKey = "shotscribe.tagging"
 
     /// ShotScribe's own preferences domain, reached by name from anything that
     /// is not ShotScribe.app: a host with its own bundle id would otherwise
@@ -49,6 +50,17 @@ public enum ShotScribeDefaults {
         let cleaned = Tagging.normalised(tags)
         if cleaned.isEmpty { suite.removeObject(forKey: vocabularyKey) }
         else { suite.set(cleaned, forKey: vocabularyKey) }
+    }
+
+    /// Whether a rename files the capture under Finder tags at all. On by
+    /// default: filing is the feature. Off is a switch, distinct from an empty
+    /// vocabulary, so turning it back on costs nothing.
+    public static func taggingEnabled() -> Bool {
+        suite.object(forKey: taggingKey) == nil ? true : suite.bool(forKey: taggingKey)
+    }
+
+    public static func setTaggingEnabled(_ on: Bool) {
+        suite.set(on, forKey: taggingKey)
     }
 
     /// Saves only a template that validates, and hands back the problem when it
