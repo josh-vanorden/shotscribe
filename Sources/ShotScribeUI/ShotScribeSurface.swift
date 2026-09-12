@@ -291,11 +291,12 @@ public struct ShotScribeView: View {
                     if !(shot.tags ?? []).isEmpty {
                         HStack(spacing: 6) { tagChips(shot) }.padding(.top, 2)
                     }
-                    HStack(spacing: 6) {
+                    FlowLayout(spacing: 6) {
                         Button { model.reveal(shot) } label: {
                             Label("Reveal in Finder", systemImage: "arrow.up.forward.square")
                         }
                         .buttonStyle(CapsuleButtonStyle())
+                        ShareRow(url: shot.url).id(shot.path)
                         Button { model.sendToClaude(shot) } label: {
                             Label("Send to Claude", systemImage: "paperplane")
                         }
@@ -535,6 +536,7 @@ public struct ShotScribeView: View {
     @ViewBuilder
     func shotMenu(_ shot: IndexedShot) -> some View {
         Button("Reveal in Finder") { model.reveal(shot) }
+        ShareLink(item: shot.url) { Text("Share…") }
         Button("Send to Claude") { model.sendToClaude(shot) }
         Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
         Menu("File as") {
@@ -1294,6 +1296,7 @@ private struct GalleryTile: View {
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
+            ShareLink(item: shot.url) { Text("Share…") }
             Button("Send to Claude") { model.sendToClaude(shot) }
             Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
             Menu("File as") {
@@ -1404,6 +1407,99 @@ private extension View {
                 LinearGradient(colors: [.white.opacity(0.24), .white.opacity(0.05)],
                                startPoint: .top, endPoint: .bottom), lineWidth: 1))
             .shadow(color: .black.opacity(0.22), radius: 22, y: 10)
+    }
+}
+
+/// Share, unfolding in place: one capsule that opens into the Mac's own
+/// destinations for this file — AirDrop, Messages, Mail, Notes, whatever is
+/// installed — each named the moment it is hovered, with the full picker one
+/// click further as "More". The idiom is the pill Josh sent on 2026-09-12 that
+/// becomes a row of icons; here the icons are real services, not logos.
+private struct ShareRow: View {
+    let url: URL
+    @State private var open = false
+    @State private var services: [NSSharingService] = []
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button {
+                if open {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { open = false }
+                } else {
+                    services = Array(ShareRow.destinations(for: url).prefix(6))
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) { open = true }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.up")
+                    if !open { Text("Share") }
+                }
+                .foregroundColor(open ? ShotPalette.accent : .primary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(open ? "Close" : "Share the file: AirDrop, Messages, Mail…")
+
+            if open {
+                ForEach(Array(services.enumerated()), id: \.offset) { _, service in
+                    Button {
+                        service.perform(withItems: [url])
+                        withAnimation(.easeOut(duration: 0.2)) { open = false }
+                    } label: {
+                        Image(nsImage: service.image).resizable().aspectRatio(contentMode: .fit)
+                            .frame(width: 16, height: 16).frame(width: 22, height: 22)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .modifier(NamedOnHover(title: service.title))
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                }
+                // Everything else the Mac can share to: the system picker.
+                ShareLink(item: url) {
+                    Image(systemName: "ellipsis").frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .modifier(NamedOnHover(title: "More…"))
+                .transition(.scale(scale: 0.4).combined(with: .opacity))
+            }
+        }
+        .font(.caption.weight(.medium))
+        .padding(.horizontal, 12).frame(height: 27)
+        .background {
+            Capsule().fill(Color.primary.opacity(open ? 0.1 : 0.08))
+                .overlay(Capsule().strokeBorder(open ? ShotPalette.accent.opacity(0.35) : .white.opacity(0.1), lineWidth: 1))
+        }
+    }
+
+    /// `sharingServices(forItems:)` is deprecated at 13 in favour of a menu item,
+    /// which cannot be laid out as a row. It still answers, and nothing else
+    /// enumerates the destinations with their icons.
+    static func destinations(for url: URL) -> [NSSharingService] {
+        NSSharingService.sharingServices(forItems: [url])
+    }
+}
+
+/// A destination's name, above it the moment it is hovered — the reel's
+/// bubble, without the tooltip's delay.
+private struct NamedOnHover: ViewModifier {
+    let title: String
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering = $0 }
+            .overlay(alignment: .top) {
+                if hovering {
+                    Text(title).font(.caption2.weight(.medium)).fixedSize()
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(.regularMaterial, in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 1))
+                        .offset(y: -30)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
+            .animation(.easeOut(duration: 0.14), value: hovering)
+            .zIndex(hovering ? 1 : 0)
     }
 }
 

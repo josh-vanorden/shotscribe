@@ -184,7 +184,10 @@ to your macOS screenshot location), a Claude/offline titler switch, **launch at
 login**, "Rename latest capture now", and a history of recent renames. A **Name**
 block edits the filename template with a live sample under the field, a **File**
 block edits the tag vocabulary, and any shot's context menu can file it after the
-fact. First
+fact. **Share** on the newest shot unfolds in place into the Mac's own
+destinations for the file (AirDrop, Messages, Mail, Notes…), the full picker one
+click further; any shot also drags out as a copy and hands itself to a Claude
+Code session. First
 launch (and relaunching from Spotlight) shows a welcome window pointing at the
 menu bar — a menu-bar-only app should never look like "nothing happened."
 Activity logs to `~/Library/Logs/ShotScribe.log`.
