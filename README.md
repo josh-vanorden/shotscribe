@@ -11,6 +11,10 @@ name-sort stays chronological) then a scannable label. macOS default capture
 names, in any language, are the only ones it touches — a file you named
 yourself is never renamed.
 
+Screen recordings too: macOS drops `Screen Recording … .mov` into the same
+folder, and ShotScribe names one from a couple of its frames, same OCR, same
+titler, same template, `.mov` kept.
+
 It's one small, single-purpose tool. The logic lives in a reusable core
 (`ShotScribeCore`) so the same engine backs the CLI today and — next — an MCP
 server, a menu-bar app, and a widget.

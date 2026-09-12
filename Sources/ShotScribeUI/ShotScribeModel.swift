@@ -564,11 +564,10 @@ public final class ShotScribeModel: ObservableObject {
     /// The panel's "Rename latest now" — newest raw capture still wearing its
     /// default name. nil-safe: does nothing when everything's already tidy.
     public func renameLatest() {
-        let imageExts: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
         let candidates = ((try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles])) ?? [])
-            .filter { imageExts.contains($0.pathExtension.lowercased()) }
+            .filter(Capture.isCapture)
             .filter { Naming.isRawCapture(at: $0) }
         let newest = candidates.max {
             let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast

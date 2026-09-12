@@ -11,23 +11,28 @@ public enum OCR {
     /// the main thread. Returns up to `maxChars` of joined text ("" on failure
     /// or an image with no text).
     public static func recognizeText(atPath path: String, maxChars: Int = 900) -> String {
-        guard let image = NSImage(contentsOfFile: path),
-              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return ""
+        var lines: [String] = []
+        for cg in frames(atPath: path) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .fast        // a label doesn't need .accurate
+            request.usesLanguageCorrection = false
+            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+            guard (try? handler.perform([request])) != nil else { continue }
+            lines += (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
         }
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .fast        // a label doesn't need .accurate
-        request.usesLanguageCorrection = false
-        let handler = VNImageRequestHandler(cgImage: cg, options: [:])
-        do {
-            try handler.perform([request])
-        } catch {
-            return ""
-        }
-        let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
         let joined = lines.joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return String(joined.prefix(maxChars))
+    }
+
+    /// What to read: a still is one frame, a screen recording is a couple.
+    /// Empty when the file is neither, or cannot be opened.
+    public static func frames(atPath path: String) -> [CGImage] {
+        let url = URL(fileURLWithPath: path)
+        if Capture.isMovie(url) { return Frames.stills(of: url) }
+        guard let image = NSImage(contentsOfFile: path),
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return [] }
+        return [cg]
     }
 
     /// One recognised line and where it sits. The box is what Vision reports:
@@ -55,10 +60,8 @@ public enum OCR {
     /// bottom, then left to right. Accurate recognition, since the point is to
     /// rebuild what the shot shows; a title does not need this, a layout does.
     public static func recognizeLayout(atPath path: String, maxLines: Int = 200) -> (size: CGSize, lines: [TextLine]) {
-        guard let image = NSImage(contentsOfFile: path),
-              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return (.zero, [])
-        }
+        // For a recording, the middle frame: the layout of the point of it.
+        guard let cg = frames(atPath: path).last else { return (.zero, []) }
         let size = CGSize(width: cg.width, height: cg.height)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate

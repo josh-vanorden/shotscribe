@@ -121,25 +121,27 @@ public enum ShotIndex {
 
     /// Accurate OCR for search. Synchronous — call it off the main thread.
     public static func searchText(atPath path: String, maxChars: Int = 8_000) -> String {
-        guard let image = NSImage(contentsOfFile: path),
-              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return "" }
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = false   // hostnames and IDs are not words
-        let handler = VNImageRequestHandler(cgImage: cg, options: [:])
-        guard (try? handler.perform([request])) != nil else { return "" }
-        let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+        // A still is one frame; a recording is a couple, so the text of a
+        // screen someone recorded is as findable as one they captured.
+        var lines: [String] = []
+        for cg in OCR.frames(atPath: path) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = false   // hostnames and IDs are not words
+            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+            guard (try? handler.perform([request])) != nil else { continue }
+            lines += (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+        }
         return String(lines.joined(separator: "\n").prefix(maxChars))
     }
 
     // MARK: - Building
 
     public static func imageFiles(in folder: URL) -> [URL] {
-        let exts: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles])) ?? []
-        return urls.filter { exts.contains($0.pathExtension.lowercased()) }
+        return urls.filter(Capture.isCapture)
     }
 
     /// Index every screenshot in `folder` that is not already current.

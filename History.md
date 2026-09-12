@@ -351,3 +351,30 @@ from pasted API keys. ShotScribe's edge is where the result lands.
   `shotscribe-mcp` listed four tools and returned, for a generated 1400×360
   PNG, one line at `top 44.1 left 3.2 w 69.6 h 14.8  terminal error:
   connection refused`. The skill itself is prose; its first real run is Josh's.
+
+## 2026-09-12 — Screen recordings are captures too
+
+macOS drops `Screen Recording … .mov` into the same folder as stills, and
+ShotScribe walked past them: the watcher, the index, the MCP door and the
+panel each kept their own list of image extensions, none with a movie in it.
+
+- **One list.** `Capture.imageExtensions`, `Capture.movieExtensions` (`mov`,
+  `mp4`) and `Capture.isCapture` replace four copies that had already drifted
+  (the index knew no `gif` or `bmp`; the watcher did).
+- **Two frames stand in for the file.** `Frames.stills(of:)` takes a beat in
+  and the middle, on the older synchronous AVFoundation calls the 13 floor
+  still ships; `OCR.frames(atPath:)` is now the one place a path becomes
+  images, so labelling, the search index and `recognizeLayout` read a
+  recording the way they read a still. The layout uses the middle frame.
+- **Recognised by name alone.** `hasEnglishCapturePrefix` adds
+  "Screen Recording ". A real recording on this machine (2024, Documents)
+  carries no `kMDItemIsScreenCapture` xattr, so the shape-plus-xattr rule
+  cannot cover non-English recordings; that is a known gap, same as before.
+- **Found on the way:** the narrow no-break space macOS puts before AM/PM in
+  capture names bit a shell path I typed with a plain space; `mdfind`'s path
+  was the one to use.
+- Evidence: 107 tests green, 5 new, three of which write a two-second H.264
+  movie with `AVAssetWriter` and read it back through `Frames`, `OCR` and the
+  `Renamer` (dry run: `.mov` kept, name from the frames). The built CLI
+  labelled the real 49-second recording "Adobe Benefits Membership" with the
+  offline titler in 0.63s, without touching it.

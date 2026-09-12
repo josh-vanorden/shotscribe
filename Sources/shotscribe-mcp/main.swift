@@ -51,9 +51,9 @@ let toolDefs: [[String: Any]] = [
     [
         "name": "latest_screenshots",
         "description": """
-        List the user's most recent macOS screenshots (newest first) from their \
-        configured capture folder. Use this to find "my latest screenshot" \
-        without asking for a path.
+        List the user's most recent macOS screenshots and screen recordings \
+        (newest first) from their configured capture folder. Use this to find \
+        "my latest screenshot" without asking for a path.
         """,
         "inputSchema": [
             "type": "object",
@@ -167,10 +167,9 @@ func runLatestScreenshots(_ args: [String: Any]) -> [String: Any] {
         at: dir, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else {
         return textResult("Can't read the screenshot folder at \(dir.path).", isError: true)
     }
-    let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "tiff", "heic", "bmp"]
     let fmt = ISO8601DateFormatter()
     let shots = items
-        .filter { imageExts.contains($0.pathExtension.lowercased()) }
+        .filter(Capture.isCapture)
         .compactMap { url -> (URL, Date)? in
             let m = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate

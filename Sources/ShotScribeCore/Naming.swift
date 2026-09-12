@@ -28,9 +28,12 @@ public enum Naming {
         hasEnglishCapturePrefix(filename) || hasDefaultCaptureShape(filename)
     }
 
+    /// Stills and recordings alike: macOS writes "Screen Recording 2026-09-12
+    /// at 3.41.07 PM.mov" into the same folder, in the same shape.
     static func hasEnglishCapturePrefix(_ filename: String) -> Bool {
         let lower = filename.lowercased()
         return lower.hasPrefix("screenshot ") || lower.hasPrefix("screen shot ")
+            || lower.hasPrefix("screen recording ")
     }
 
     /// macOS's default capture name in any language: a word or two, the ISO

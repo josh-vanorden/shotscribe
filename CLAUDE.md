@@ -60,6 +60,13 @@ Settings live in one place for all four doors: `ShotScribeDefaults` (the
 the CLI and MCP server spell names the same way the app does — `ShotScribeModel.defaults`
 delegates to it rather than resolving the domain a second time.
 
+`Capture` holds the one list of capture extensions (stills plus `mov`/`mp4`); the watcher, the
+index, the MCP door and the panel all filter with `Capture.isCapture`. `OCR.frames(atPath:)` is the
+one place a path becomes images — one for a still, two via `Frames` for a recording — and every
+reader (labelling, `ShotIndex.searchText`, `recognizeLayout`) goes through it. `recognizeLayout`
+is what the `layout_screenshot` MCP tool and `/screenshot code` build on: positions in percent of
+the image, top-left origin, reading order.
+
 ### The Titler seam, and why its direction flips
 
 `Titler` is the swappable protocol. `ClaudeTitler` shells out to the user's own

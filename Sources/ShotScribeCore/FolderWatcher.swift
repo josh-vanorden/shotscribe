@@ -17,7 +17,6 @@ public final class FolderWatcher: @unchecked Sendable {
     private var seen: Set<String> = []
     private var debounce: DispatchWorkItem?
 
-    private static let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "tiff", "heic", "bmp"]
 
     public init(directory: URL, onNewFile: @escaping @Sendable (URL) -> Void) {
         self.directory = directory
@@ -80,7 +79,7 @@ public final class FolderWatcher: @unchecked Sendable {
         guard let items = try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles]) else { return [] }
-        return items.filter { Self.imageExts.contains($0.pathExtension.lowercased()) }
+        return items.filter(Capture.isCapture)
     }
 
     /// The user's configured macOS screenshot location
