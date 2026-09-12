@@ -483,3 +483,23 @@ way to point a session at the shot in front of you.
   skill documents the exact form the app copies. The app was repackaged at
   18:01; the paste is Josh's to try. The composer taking a pasted
   `/screenshot …` as a command on submit is expected, not yet seen.
+
+## 2026-09-12 — Share, unfolding in place
+
+Josh sent a reel of a share pill that opens into a row of destination icons,
+each named on hover, and asked for that. Built natively on the hero: one
+**Share** capsule that unfolds into the Mac's own destinations for the file
+(`NSSharingService.sharingServices(forItems:)` — AirDrop, Mail, Messages,
+Notes, Add to Photos, Freeform on this Mac, the first six of ten), each named
+the moment it is hovered, with "More" opening the system picker (`ShareLink`).
+Real services with their own icons instead of social logos; the hero's action
+row became a `FlowLayout` so an open row wraps instead of clipping. Every
+shot's context menu keeps a plain "Share…" that opens the picker.
+
+- `sharingServices(forItems:)` is deprecated at macOS 13 in favour of
+  `standardShareMenuItem`, which is a menu and cannot be laid out as a row; it
+  still answers on macOS 26, and nothing else enumerates destinations with
+  icons. One deprecation warning, on purpose, with the reason beside it.
+- Evidence: builds, 122 tests green (none touch the view), the services list
+  confirmed from a scratch program against a real capture. The unfold, the
+  hover names and an actual AirDrop are Josh's to try; repackaged at 18:35.
