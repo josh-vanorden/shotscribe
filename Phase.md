@@ -46,6 +46,9 @@ stands, one item longer.
 ## Gate to ship 0.7.0
 - [ ] `claude` signed in, then `shotscribe eval --limit 25` with Claude: the
       first real quality number, against names that were not the titler's own.
+- [ ] One real run each of `/screenshot code` and the "Rebuild as code" paste
+      inside a project. Both are prompts; neither has been exercised by a
+      model yet, only their inputs verified.
 - [ ] Josh's live verdict on the glass window. It was rendered off-screen in
       both appearances; hover captions and the inspector animation are unseen.
 - [ ] Merge `settings-pane` into `main` and push (`MANUAL_PUSH=1`).
@@ -73,3 +76,7 @@ stands, one item longer.
   13; `foregroundColor` is the spelling that works.
 - **`chrisop-refresh` regenerates `Index.md` after every commit**, so the tree
   is dirty again the moment a commit lands. Fold it into a docs commit.
+- **Tag chips read as actions.** Bare pills styled like buttons, and a tag
+  spelled "code" beside a feature called code; Josh asked what the terminal
+  button does. Now a tag glyph, the word and a tooltip (9061022), and stage
+  two has a real answer, the brief (7f2d09b).

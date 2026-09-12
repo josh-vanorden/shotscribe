@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-12 17:40 — Tag chips read as actions
+- **Bug/Issue:** Josh, on the new window: "What does the terminal button do?" and "the code button, stage two the user hits code, then what?" The pills under a tile were Finder tags, not controls.
+- **RCA:** The chips were bare capsules styled like the window's buttons, with no glyph and a hover that said only "Find everything tagged code"; the shipped vocabulary holds "code" and "terminal", which read as verbs beside a feature called code. Nothing on the chip said what it was.
+- **Evidence:** Josh's message of 2026-09-12; the off-screen renders `glass-port-dark.png` (before) and `chips.png` (after) in the session scratchpad.
+- **Fix/Repair:** One `TagChip` everywhere: the tag glyph, the word, and the tooltip "Filed under code (a Finder tag). Click to see everything filed the same way." Commit `9061022`. Stage two got its answer in `7f2d09b`, "Rebuild as code".
+- **Related PR:** none — `josh-vanorden/shotscribe@9061022`
+
 ### 2026-09-12 17:05 — Menu bar words in titles: the offline titler read the chrome
 - **Bug/Issue:** A rendered capture with a menu bar ("Terminal Shell Edit View Window Help") and a body ("deploy finished with warnings") was titled "Terminal Shell Edit" under `{date} {app} {title}`, in `ChromeTests.testARenameReadsTheAppOffTheImage`. Every full-screen capture titled by the offline titler had been exposed to the same words.
 - **RCA:** The titler was handed the whole OCR text. On a shot whose words each occur once, `KeywordTitler` picks the first three non-stopwords in reading order, and the menu bar is read first. Nothing separated chrome from content.
