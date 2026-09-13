@@ -448,10 +448,16 @@ public struct ShotScribeView: View {
                     .frame(width: 96, height: 96)
                     .glass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Take a screenshot").font(.system(size: 20, weight: .bold)).tracking(-0.5)
-                    Text("It lands in **\(model.folder.lastPathComponent)** and gets a name that says what it shows. Press ⇧ ⌘ 4, or drop a folder below to watch a different one.")
+                    // The welcome: the tagline, then what to do. Seen once, on a
+                    // folder with nothing named yet; after that the shots are the welcome.
+                    Text("Every screenshot, named.").font(.system(size: 22, weight: .bold)).tracking(-0.6)
+                    Text("The moment it lands, by the AI you already use — and it stays a file in your folder.")
                         .font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Text("Take one: press ⇧ ⌘ 4. It lands in **\(model.folder.lastPathComponent)** and gets a name that says what it shows. Drop a folder below to watch a different one.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
                 }
             }
             .padding(.top, 70)

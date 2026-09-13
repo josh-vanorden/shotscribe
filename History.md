@@ -717,4 +717,9 @@ already signed in to, or an OpenAI-compatible endpoint.
   `scripts/fit-icon.swift` finds the squircle's edge from the alpha and fits
   it to 824 of 1024, `scripts/make-iconset.sh` builds the iconset and icns.
   The mascot and the old `make-icon.swift` generator are gone.
+- 11:51: the tagline — "Every screenshot, named — the moment it lands, by the
+  AI you already use, and it stays a file in your folder" — heads the README
+  and the first-launch welcome (the empty state: a folder with nothing named
+  yet). The README's "welcome window" sentence, stale since the Dock window,
+  now describes what first launch does. Rendered off-screen on an empty folder.
 

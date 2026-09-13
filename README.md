@@ -1,4 +1,7 @@
-# shotscribe
+# ShotScribe
+
+**Every screenshot, named — the moment it lands, by the AI you already use,
+and it stays a file in your folder.**
 
 Turn `Screenshot 2026-08-11 at 3.41.07 PM.png` into
 `2026-08-11 1541 AWS Billing Console.png` — automatically, on-device, and
@@ -253,9 +256,9 @@ place (click it, type, Return — the date stays, the words change) when a name 
 not what you would have said, and a row of tiles below it carries the icon of
 each service it reaches, named on hover — Finder, **Share** (which unfolds into
 AirDrop, Messages, Mail, Notes…), Claude, code, tags. Any shot also drags out as
-a copy. First
-launch (and relaunching from Spotlight) shows a welcome window pointing at the
-menu bar — a menu-bar-only app should never look like "nothing happened."
+a copy. First launch opens the window on the folder it is watching with the
+inspector open, so the settings are found; a folder with nothing named yet
+shows the welcome instead of an empty grid.
 Activity logs to `~/Library/Logs/ShotScribe.log`.
 
 ```bash
@@ -360,7 +363,7 @@ Items goes with the app.
 - [x] Core engine + CLI (`rename` / `label` / `watch`)
 - [x] MCP server target (`shotscribe-mcp`) — Claude Code / Cowork call it as tools
 - [x] `MenuBarExtra` app — the always-there local UI (`scripts/package-app.sh`)
-- [x] App icon, welcome window, configurable folder, launch at login
+- [x] App icon, first-launch welcome, configurable folder, launch at login
 - [x] Notarized distribution — Developer ID signed, notarized, stapled (app + DMG)
 - [x] `/screenshot` skill — the gesture, for any Claude Code user
 - [x] `ShotScribeUI` — the face as a mountable library, so any shell can host it
