@@ -124,7 +124,7 @@ Monday 2026-09-14; the gate below is that morning's list.
       tile's mark, "Try it" on Ollama, the popover switch, an endpoint at
       `http://localhost:11434/v1`).
 - [ ] `serverInfo` → 1.6.0; CHANGELOG "unreleased" → the date; `/save`.
-- [ ] Tag `v1.6.0`; `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`;
+- [ ] Tag `v1.6.0`; `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`;
       verify as 1.5.1 was (stapler, spctl on the DMG, a quarantined copy).
 - [ ] `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg
       --latest --notes-file …` (draft in the session scratchpad, copied to

@@ -6,7 +6,7 @@
 
 **Last session:** 2026-09-13
 **Phase:** Ship — 1.5.1 is public; 1.6.0 ("Bring your own AI") is built, tested (141), pushed on `settings-pane` and judged ready by Josh ("we are set"); tag, notarization and the GitHub release are the next act
-**Next action:** Ship 1.6.0: bump `serverInfo` in `Sources/shotscribe-mcp/main.swift` to 1.6.0, date the CHANGELOG, commit; `git tag -a v1.6.0`; `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`; verify as 1.5.1 was (stapler on app + DMG, spctl on the DMG, a quarantined copy through Gatekeeper); `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file <notes>` — the draft is `release-notes-1.6.0.md` in the session scratchpad (rebuild from CHANGELOG + the tagline if gone). Then Toolbelt's pin to `from: "1.6.0"`.
+**Next action:** Ship 1.6.0: bump `serverInfo` in `Sources/shotscribe-mcp/main.swift` to 1.6.0, date the CHANGELOG, commit; `git tag -a v1.6.0`; `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`; verify as 1.5.1 was (stapler on app + DMG, spctl on the DMG, a quarantined copy through Gatekeeper); `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file <notes>` — the draft is `release-notes-1.6.0.md` in the session scratchpad (rebuild from CHANGELOG + the tagline if gone). Then Toolbelt's pin to `from: "1.6.0"`.
 
 **Open loops**
 - The release itself (above). Note the number: Josh said "v1.5.0" on 2026-09-13 but 1.5.1 is already public; CHANGELOG and notes say 1.6.0.
