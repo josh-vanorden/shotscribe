@@ -5,18 +5,19 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-13
-**Phase:** Ship — 1.6.0 ("Bring your own AI") is public: https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.0, notarized under ShotScribe's own profile `shotscribe-notary`
-**Next action:** Toolbelt's pin: `toolbelt/Package.swift:34` → `.upToNextMinor(from: "1.6.0")`, `swift package update shotscribe`, run the belt once. Then, when Josh asks, the announcement (draft: `announcement.md` in the session scratchpad; the tagline + the release link).
+**Phase:** Ship — 1.6.1 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.1, notarized under `shotscribe-notary`); 1.6.0 went out the same afternoon
+**Next action:** Sign in to `claude` (`claude` in a terminal), then run `/security-team shotscribe` — the seven-track sweep could not run today because each track is a `claude -p`; merge what it finds into 1.6.2. Then `shotscribe eval --limit 25` for the first real quality number.
 
 **Open loops**
-- Josh is still testing 1.6.0 after the release; anything he finds becomes 1.6.1.
-- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. `claude` signed out: every title today was the offline titler's.
-- Brand marks are Lobe Icons copies shipped on Josh's call. The icon gallery on localhost:9012 may still be serving.
-- Backlog sweep (93 raw files) unbuilt; the 1.5 punch list's hand tests still Josh's.
+- 1.6.2 ideas in `roadmap.md`: a customizable landing zone (per-tile use counts, hide/reorder/pin); two coding agents for comparison builds (where does the second result land?).
+- Toolbelt's pin at 1.6.0 is committed there but unpushed (`4eeb4dd`), beside Josh's own uncommitted `.gitignore` and `Package.resolved` changes; raise to 1.6.1 when convenient.
+- The announcement is drafted (`announcement.md`, session scratchpad; two lengths) — Josh: secondary.
+- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. Brand marks are Lobe Icons copies shipped on Josh's call. The icon gallery on localhost:9012 may still be serving.
+- Backlog sweep (93 raw files) unbuilt; the 1.5 punch list's hand tests are largely done by Josh's day of use — recordings and the capture-flag timing remain.
 
 **Ruled out**
-- Reusing `cockpit-notary` for ShotScribe (Josh: its own); moving a published tag ("remain at v1.5.0" — 1.5.0 and 1.5.1 were already out).
-- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon for Codex; five drawn icon directions.
+- Reusing `cockpit-notary` for ShotScribe; moving a published tag; reporting `/security-team` as run while `claude` is signed out.
+- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon for Codex; five drawn icon directions; the first-launch welcome as a filter's empty state.
 - Remote Control as a push channel; braces as the code icon; `standardShareMenuItem`; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
 
 **Working tree:** clean once the docs commit carrying this block lands
@@ -62,6 +63,13 @@ tag until its `from:` is raised.
   "Delete" letter by letter, furls to the bin, turns an arc for a beat, seals,
   and the shot goes where the **Keep** tab says — Trash, deleted outright, or
   (for clean-up) an archive folder. Default: the Trash.
+- **1.6.1:** **Mark up in Preview** (a tile with Preview's icon after Finder,
+  and in every menu; Restore moved beside the "was …" line). **Tags as a
+  filter:** a strip under the grid head with every tag in use and its count —
+  isolate, narrow (AND), Show all, Esc — and **By tag** in the sort menu
+  grouping the grid by filing; an empty result keeps the way out. The bin sits
+  on a dark scrim over images. Security sweep: a custom command's first token
+  must be a plain name or a path; plain http to a remote endpoint is flagged.
 - **The icon is Josh's artwork** (`assets/ShotScribe-artwork.png`, fitted to
   Apple's grid by `scripts/fit-icon.swift`, built by `scripts/make-iconset.sh`).
   **The tagline** heads the README and the first-launch welcome: *Every

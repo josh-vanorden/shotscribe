@@ -166,3 +166,14 @@ Two gate items remain: Toolbelt's pin (another repo) and Josh's continued
 testing, which he chose to keep doing after the release. The gate to
 *maintain* is unchanged — the README's two roadmap items are still his call.
 
+## 2026-09-13, evening — 1.6.1 public; phase Ship, gate to maintain unchanged
+The day's finds shipped as 1.6.1 under ShotScribe's own notary profile, with
+a hand security sweep (two hardenings). Toolbelt's pin is at 1.6.0
+(committed there, unpushed). The gate to *maintain* still turns on Josh's
+call about the README's two roadmap items; the release machinery itself is
+now routine: version, tag, `APPLE_NOTARY_PROFILE=shotscribe-notary`,
+verify, push, `gh release create`.
+- **Sub-issue:** `/security-team` cannot run while `claude` is signed out
+  (each track is a `claude -p`); the hand sweep is the fallback and is
+  recorded in History. Run the skill after sign-in for 1.6.2.
+

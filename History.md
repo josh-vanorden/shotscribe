@@ -768,3 +768,30 @@ app-specific password, and the profile answered.
   survive an empty result, the count line links Show all, selected chips wear
   an ×, Esc clears.
 
+## 2026-09-13 — 1.6.1, the same evening: what a day of use turned up
+
+Josh kept clicking after 1.6.0 and each thing he found went straight in:
+Mark up in Preview, tags as a filter (with a way out, after the first cut
+had none), the bin on a scrim, the window reloading on the watcher's rename,
+the list view's landing zone. Then "1.6.1 is ready for the public — we need
+a security sweep."
+
+- **The sweep, by hand.** `/security-team` dispatches `claude -p` per track
+  and `claude` was signed out all day, so the seven tracks were walked
+  manually against the diff since 1.5.1: no secrets or addresses in tracked
+  files; no new log line carries screen text ("deleted for good: N file(s)"
+  is a count); `removeItem` only under the Keep tab's own choice; argv never
+  a shell for the titlers. Two hardenings: a custom command's first token
+  must be a plain name (letters, digits, `._+-`) or a path before
+  `command -v` runs in the login shell — a pasted setting could otherwise
+  have carried a `;` into it — and a plain-http endpoint on a non-local host
+  is flagged in the AI tab. Tests for both; 143 green.
+- **Shipped.** `1bfc066` Version 1.6.1, tag on it; notarized under
+  `shotscribe-notary` (Apple: Accepted for app and DMG, stapled; stapler,
+  spctl on the DMG and a quarantined copy of the app all pass). Pushed with
+  the tag; published as
+  https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.1, latest.
+- **1.6.2 ideas** recorded in `roadmap.md`: a customizable landing zone
+  (count each tile's use, hide, reorder, pin) and two coding agents for
+  comparison builds. And the skill sweep once `claude` is signed in.
+
