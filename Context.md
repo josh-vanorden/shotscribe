@@ -5,21 +5,22 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-13
-**Phase:** Ship — 1.5.1 is public; 1.6.0 ("Bring your own AI") is built, tested and pushed on `settings-pane`, unreleased, scheduled for Monday 2026-09-14
-**Next action:** Monday: after Josh's click-through of the AI tab, bump `serverInfo` to 1.6.0 and date the CHANGELOG, tag `v1.6.0`, `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`, verify as 1.5.1 was, `/clean-tree`, `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file …` (draft in the session scratchpad — recreate from `roadmap.md` if gone), then Toolbelt's pin to `from: "1.6.0"`.
+**Phase:** Ship — 1.5.1 is public; 1.6.0 ("Bring your own AI") is built, tested (141), pushed on `settings-pane` and judged ready by Josh ("we are set"); tag, notarization and the GitHub release are the next act
+**Next action:** Ship 1.6.0: bump `serverInfo` in `Sources/shotscribe-mcp/main.swift` to 1.6.0, date the CHANGELOG, commit; `git tag -a v1.6.0`; `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`; verify as 1.5.1 was (stapler on app + DMG, spctl on the DMG, a quarantined copy through Gatekeeper); `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file <notes>` — the draft is `release-notes-1.6.0.md` in the session scratchpad (rebuild from CHANGELOG + the tagline if gone). Then Toolbelt's pin to `from: "1.6.0"`.
 
 **Open loops**
-- Josh's click-through of the AI tab (each kind, the tile's mark, "Try it" on Ollama, the popover switch, an endpoint with no key) — the one thing between here and the tag.
-- Codex, Gemini CLI, Cursor Agent presets unverified on this Mac; `codex` is absent here since macOS refused the 0.118.0 cask binary (memory: `codex-cask-flagged-2026-09-13`).
-- Brand marks are Lobe Icons copies shipped on Josh's call; OpenAI's and Google's own downloads are gated (`assets/brands/README.md`).
-- The 1.5 punch list (title edit, Share unfold, AirDrop, `/screenshot code`, recordings, capture-flag timing) is still Josh's to run by hand; backlog sweep (93 raw files) unbuilt; `claude` signed out; Remote Control off by choice.
+- The release itself (above). Note the number: Josh said "v1.5.0" on 2026-09-13 but 1.5.1 is already public; CHANGELOG and notes say 1.6.0.
+- "A share" — Josh's word on 2026-09-13; not yet defined (a `/preview-share` brief of the docs, or an announcement of the release).
+- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. `claude` signed out: every title today was the offline titler's.
+- Brand marks are Lobe Icons copies shipped on Josh's call (`assets/brands/README.md`). The icon gallery on localhost:9012 is still serving; stop it when convenient.
+- Backlog sweep (93 raw files) unbuilt; the 1.5 punch list's hand tests still Josh's.
 
 **Ruled out**
-- A menu `Picker` on a computed `Binding` (changes its face, not the model); CoreSVG and Quick Look for brand SVGs; the initial monogram as the shipped tile (Josh: real marks); ChatGPT.app's icon standing in for Codex.
+- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon standing in for Codex; five drawn icon directions (symbols of a screenshot, none of the naming) — Josh's own artwork won.
 - Remote Control as a push channel; braces as the code icon; `standardShareMenuItem` for the share row; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** 10 + this docs commit, all pushed by the `/clean-tree` that follows
+**Unpushed commits:** 9 + this docs commit, all pushed by the `/clean-tree` that follows
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
@@ -53,6 +54,19 @@ tag until its `from:` is raised.
   `scripts/make-brand-art.swift`), `wifi.slash` offline, `terminal` and
   `network` for the open doors. `/screenshot "<path>"` is copied only for
   Claude Code; every other kind gets a plain ask.
+- **The landing zone is in both views** (the list lost it until 2026-09-13),
+  and the window reloads the moment the watcher names a capture (it kept its
+  launch-time cache until the same day).
+- **A bin on every shot** — the tile's corner and the landing zone (on hover,
+  on a dark scrim), beside the date in the list: `DeletePill` eats the word
+  "Delete" letter by letter, furls to the bin, turns an arc for a beat, seals,
+  and the shot goes where the **Keep** tab says — Trash, deleted outright, or
+  (for clean-up) an archive folder. Default: the Trash.
+- **The icon is Josh's artwork** (`assets/ShotScribe-artwork.png`, fitted to
+  Apple's grid by `scripts/fit-icon.swift`, built by `scripts/make-iconset.sh`).
+  **The tagline** heads the README and the first-launch welcome: *Every
+  screenshot, named — the moment it lands, by the AI you already use, and it
+  stays a file in your folder.*
 
 - **Captures are recognised in any language.** `Naming.isRawCapture(at:)`:
   the English prefix alone, or the default-name shape plus the

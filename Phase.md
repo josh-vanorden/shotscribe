@@ -147,3 +147,17 @@ Monday 2026-09-14; the gate below is that morning's list.
   invocations**, editable, not run end to end on this Mac. Stated in the
   README and the release notes.
 
+## 2026-09-13, afternoon — the day's second half, still unreleased
+Added to 1.6.0 after the morning's gate was written: the landing zone in the
+list view, the bin that eats its label (with the Keep tab's Trash-or-delete
+choice), Josh's icon, the tagline in the README and the welcome, and the
+window reloading when the watcher names a capture. Josh took a capture and
+watched it land without a relaunch — the first live confirmation of the
+watcher-to-window path. The gate to ship 1.6.0 stands as written; Josh's
+read at 12:09: "we are set".
+- **A capture the watcher named stayed off screen until the next launch**
+  (Triage 12:10). The rename path never reloaded the cache; found only
+  because the noon captures were the first taken without a relaunch between.
+- **The list view had no landing zone** (Triage 09:30). The hero was wired
+  into the tiles branch only.
+
