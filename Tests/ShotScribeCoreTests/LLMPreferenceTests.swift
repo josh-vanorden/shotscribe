@@ -70,15 +70,18 @@ final class LLMPreferenceTests: XCTestCase {
         }
     }
 
-    /// An unsupported choice degrades and says so, rather than failing.
+    /// An unsupported choice degrades and says so, rather than failing. Since
+    /// 1.6 only Apple Intelligence is unsupported; Gemini has a CLI preset.
     func testAnUnsupportedProviderIsAnnouncedNotIgnored() throws {
-        try write(#"{"provider":"gemini"}"#)
+        try write(#"{"provider":"apple"}"#)
         let pref = LLMPreference.load()
         XCTAssertTrue(pref.isSet)
         XCTAssertFalse(pref.provider.usableHere)
         let note = try XCTUnwrap(pref.mismatchNote)
-        XCTAssertTrue(note.contains("Gemini"))
-        XCTAssertTrue(note.contains("falls back"))
+        XCTAssertTrue(note.contains("Apple Intelligence"))
+        XCTAssertTrue(note.contains("AI tab"))
+        try write(#"{"provider":"gemini"}"#)
+        XCTAssertTrue(LLMPreference.load().provider.usableHere, "Gemini CLI is a preset now")
     }
 
     func testASupportedProviderSaysNothing() throws {

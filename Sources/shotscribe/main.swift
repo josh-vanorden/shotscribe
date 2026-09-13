@@ -9,11 +9,17 @@ import ShotScribeCore
 //
 // Zero third-party dependencies — argument parsing is deliberately tiny.
 
+/// The titler is the AI tab's choice, read from the same settings the app
+/// writes. `--offline` (or the older `--no-claude`) forces keywords.
 func makeTitler(noClaude: Bool) -> Titler {
     if noClaude { return KeywordTitler() }
-    if ClaudeTitler.isAvailable() { return ClaudeTitler() }
-    FileHandle.standardError.write(Data(
-        "note: `claude` not found — using the offline keyword titler.\n".utf8))
+    let provider = ShotScribeDefaults.aiProvider()
+    let availability = provider.availability()
+    if let titler = provider.makeTitler(), availability.isReady { return titler }
+    if provider.kind != .offline {
+        FileHandle.standardError.write(Data(
+            "note: \(provider.kind.name): \(availability.text) Using the offline keyword titler.\n".utf8))
+    }
     return KeywordTitler()
 }
 
@@ -49,10 +55,12 @@ USAGE:
   shotscribe find   <query>                         Search what your screenshots SAY, not just
                                                     what they are called
   shotscribe name                                   Show the name template renames use
+  shotscribe ai                                     Show who titles, as the AI tab set it
   shotscribe eval   [--no-claude] [--limit N] [dir]  Score the titler against names you kept
 
 FLAGS:
-  --no-claude   Use the offline keyword titler instead of `claude -p`
+  --offline     Use the offline keyword titler instead of the AI tab's choice
+                (`--no-claude` still works and means the same)
   --no-tags     Don't file the shot under Finder tags
   --dry-run     Show the new name without moving the file
   --force       Rename even files you named yourself (default: macOS captures only)
@@ -69,7 +77,7 @@ guard let command = args.first else {
 }
 args.removeFirst()
 
-let noClaude = args.contains("--no-claude")
+let noClaude = args.contains("--no-claude") || args.contains("--offline")
 let noTags   = args.contains("--no-tags")
 let dryRun   = args.contains("--dry-run")
 let force    = args.contains("--force")
@@ -81,9 +89,15 @@ if let i = args.firstIndex(of: "--limit"), i + 1 < args.count, let n = Int(args[
 let positional = args.filter { !$0.hasPrefix("--") }
 
 let titler = makeTitler(noClaude: noClaude)
-let renamer = Renamer(titler: titler,
+var renamer = Renamer(titler: titler,
                       template: ShotScribeDefaults.nameTemplate(),
                       vocabulary: (noTags || !ShotScribeDefaults.taggingEnabled()) ? [] : ShotScribeDefaults.vocabulary())
+// A failing assistant is said out loud, and the offline titler names the shot.
+renamer.onTitlerError = { error in
+    let who = noClaude ? "the offline titler" : ShotScribeDefaults.aiProvider().kind.name
+    FileHandle.standardError.write(Data(
+        "note: \(who) failed — \(error.localizedDescription) Used the offline title.\n".utf8))
+}
 
 switch command {
 case "label":
@@ -167,7 +181,7 @@ case "eval":
     guard !cases.isEmpty else {
         print("no named captures in \(dir.path) to judge against"); exit(0)
     }
-    let which = noClaude || !ClaudeTitler.isAvailable() ? "offline titler" : "Claude"
+    let which = noClaude ? "offline titler" : ShotScribeDefaults.aiProvider().kind.name
     print("judging \(cases.count) named capture\(cases.count == 1 ? "" : "s") in \(dir.lastPathComponent) with the \(which)")
     var scores: [Evals.Score] = []
     var failures: [String] = []   // a titler that cannot run is not a titler that named badly
@@ -192,6 +206,15 @@ case "eval":
         print("\(failures.count) of \(cases.count) never reached the titler: \(failures[0])")
     }
 
+case "ai":
+    let p = ShotScribeDefaults.aiProvider()
+    print("titler   \(p.kind.name)")
+    if let m = p.effectiveModel { print("model    \(m)") }
+    if let c = p.effectiveCommand, p.kind != .claude { print("command  \(c)") }
+    if let e = p.endpoint { print("endpoint \(e)") }
+    print("status   \(p.availability().text)")
+    print("text     \(p.kind.whereTextGoes)")
+    print("Set in ShotScribe.app › AI. --offline forces keyword titles for one run.")
 case "name":
     // Read-only on purpose: the menu bar panel is where a template is edited,
     // and this is how the CLI shows which one it will use.

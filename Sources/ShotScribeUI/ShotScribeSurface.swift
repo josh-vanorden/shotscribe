@@ -39,6 +39,7 @@ public struct ShotScribeSurface: View {
 /// rename lands.
 public struct ShotScribeView: View {
     @State private var editingTitle = false
+    @State private var endpointKeyDraft = ""
     @ObservedObject var model: ShotScribeModel
     let chrome: ShotScribeChrome
     @State private var folderTargeted = false
@@ -77,7 +78,7 @@ public struct ShotScribeView: View {
             Divider()
             folderRow
             watchToggle
-            claudeToggle
+            aiToggle
             Toggle(isOn: Binding(get: { model.launchAtLogin },
                                  set: { model.setLaunchAtLogin($0) })) {
                 Text("Launch at login")
@@ -295,8 +296,8 @@ public struct ShotScribeView: View {
                     FlowLayout(spacing: 6) {
                         ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
                         ShareRow(url: shot.url).id(shot.path)
-                        ActionTile("Send to Claude", icon: AppIcons.claude ?? Image(systemName: "paperplane"),
-                                   art: AppIcons.claude != nil) { model.sendToClaude(shot) }
+                        ActionTile("Send to \(model.assistantName)", icon: AppIcons.icon(for: model.aiProvider.kind) ?? Image(systemName: "paperplane"),
+                                   art: AppIcons.icon(for: model.aiProvider.kind) != nil) { model.sendToAssistant(shot) }
                         ActionTile("Rebuild as code", icon: Image(systemName: "hammer")) { model.copyCodeBrief(for: shot) }
                         ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
                         if shot.original != nil, !model.otherInstanceRunning {
@@ -531,7 +532,7 @@ public struct ShotScribeView: View {
     func shotMenu(_ shot: IndexedShot) -> some View {
         Button("Reveal in Finder") { model.reveal(shot) }
         ShareLink(item: shot.url) { Text("Share…") }
-        Button("Send to Claude") { model.sendToClaude(shot) }
+        Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
         Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
         Menu("File as") {
             ForEach(model.vocabulary, id: \.self) { tag in
@@ -549,18 +550,18 @@ public struct ShotScribeView: View {
     // MARK: Inspector
 
     private enum InspectorTab: String, CaseIterable, Identifiable {
-        case folder, rename, name, file, keep
+        case folder, rename, ai, file, keep
         var id: String { rawValue }
         var symbol: String {
             switch self {
             case .folder: return "folder"
             case .rename: return "wand.and.stars"
-            case .name:   return "textformat"
+            case .ai:     return "sparkles"
             case .file:   return "tag"
             case .keep:   return "archivebox"
             }
         }
-        var title: String { rawValue.capitalized }
+        var title: String { self == .ai ? "AI" : rawValue.capitalized }
     }
 
     /// One pane at a time, so the inspector never scrolls past a screen. It
@@ -594,7 +595,7 @@ public struct ShotScribeView: View {
                     switch tab {
                     case .folder: folderPane
                     case .rename: renamePane
-                    case .name:   namePane
+                    case .ai:     aiPane
                     case .file:   filePane
                     case .keep:   keepPane
                     }
@@ -635,9 +636,8 @@ public struct ShotScribeView: View {
 
     private var renamePane: some View {
         VStack(alignment: .leading, spacing: 10) {
-            paneHead("Rename", "What happens to a capture the moment it lands.")
+            paneHead("Rename", "What happens to a capture the moment it lands, and how it is spelled.")
             watchToggle
-            claudeToggle
             // Never a box: a state worth a word gets one quiet line, next to
             // the toggle it concerns.
             if let err = model.lastError {
@@ -653,12 +653,113 @@ public struct ShotScribeView: View {
             .buttonStyle(CapsuleButtonStyle(prominent: true))
             .disabled(model.busy || model.otherInstanceRunning)
             .padding(.top, 4)
+            Divider().padding(.vertical, 4)
+            nameFields
         }
     }
 
-    private var namePane: some View {
+    /// The AI tab: who titles a capture. One picker, the fields the kind needs,
+    /// a line saying whether it can run here and where the text goes, and a
+    /// button that proves it on the newest capture without renaming anything.
+    private var aiPane: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            paneHead("AI", "Who titles a capture — an assistant you already use, or none.")
+            Picker("Titler", selection: Binding(
+                get: { model.aiProvider.kind },
+                set: { kind in model.setAIProvider(AIProvider(kind: kind, model: kind.defaultModel)) })) {
+                ForEach(AIProvider.Kind.allCases, id: \.self) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            let availability = model.aiProvider.availability()
+            HStack(alignment: .top, spacing: 7) {
+                Circle().fill(availability.isReady ? Color.green : ShotPalette.warning)
+                    .frame(width: 6, height: 6).padding(.top, 5)
+                Text(availability.text).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            aiFields
+            Text(model.aiProvider.kind.whereTextGoes)
+                .font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let suggested = AIProvider.suggested(from: model.llmPreference), suggested != model.aiProvider {
+                HStack(spacing: 6) {
+                    Text("This Mac prefers \(suggested.kind.name).").font(.caption2).foregroundStyle(.secondary)
+                    Button("Use it") { model.setAIProvider(suggested) }.controlSize(.mini)
+                }
+            }
+            if model.aiProvider.kind != .offline {
+                Button { model.tryTitler() } label: {
+                    Label(model.aiTrying ? "Trying…" : "Try it on the newest capture", systemImage: "sparkles")
+                }
+                .buttonStyle(CapsuleButtonStyle(prominent: true))
+                .disabled(model.aiTrying)
+                .padding(.top, 4)
+            }
+            if let trial = model.aiTrial {
+                Text(trial).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    /// The fields a kind needs, bound straight to the stored setting.
+    @ViewBuilder private var aiFields: some View {
+        let kind = model.aiProvider.kind
+        switch kind {
+        case .offline:
+            EmptyView()
+        case .claude:
+            aiField("Model (optional)", placeholder: "the CLI’s default", keyPath: \.model)
+            if !model.claudeAvailable {
+                Link("Get Claude Code — titles run on your own account",
+                     destination: URL(string: "https://claude.com/claude-code")!).font(.caption2)
+            }
+        case .codex, .gemini, .cursor, .ollama, .command:
+            aiField("Command", placeholder: kind.commandTemplate ?? "tool --flag {prompt}", keyPath: \.command, mono: true)
+            Text("{prompt} is the instruction plus the text read off the capture, as one argument. Keep the flags that stop the tool from acting on it.")
+                .font(.caption2).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
+            aiField("Model", placeholder: kind.defaultModel ?? "optional", keyPath: \.model)
+        case .endpoint:
+            aiField("Base URL", placeholder: "http://localhost:11434/v1", keyPath: \.endpoint, mono: true)
+            aiField("Model", placeholder: "llama3.2, gpt-4o-mini…", keyPath: \.model)
+            HStack(spacing: 8) {
+                SecureField(model.endpointKeyStored ? "A key is in your Keychain" : "API key (none for a local server)", text: $endpointKeyDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { model.setEndpointKey(endpointKeyDraft); endpointKeyDraft = "" }
+                Button("Save") { model.setEndpointKey(endpointKeyDraft); endpointKeyDraft = "" }
+                    .disabled(endpointKeyDraft.isEmpty)
+                if model.endpointKeyStored {
+                    Button("Remove") { model.setEndpointKey(nil) }
+                }
+            }
+            Text("The key is stored in your login Keychain, never in the settings file.")
+                .font(.caption2).foregroundStyle(.tertiary)
+        }
+    }
+
+    private func aiField(_ label: String, placeholder: String, keyPath: WritableKeyPath<AIProvider, String?>, mono: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(.caption.weight(.medium))
+            TextField(placeholder, text: Binding(
+                get: { model.aiProvider[keyPath: keyPath] ?? "" },
+                set: { new in
+                    var p = model.aiProvider
+                    p[keyPath: keyPath] = new.isEmpty ? nil : new
+                    model.setAIProvider(p)
+                }))
+            .textFieldStyle(.roundedBorder)
+            .font(mono ? .callout.monospaced() : .callout)
+        }
+    }
+
+    /// The spelling of a name: template, sample, pickers. On the Rename tab
+    /// since 1.6, under the switch; it was its own tab until the AI tab
+    /// needed the fifth slot.
+    private var nameFields: some View {
         VStack(alignment: .leading, spacing: 8) {
-            paneHead("Name", "How a renamed capture is spelled.")
+            Text("Spelling").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 TextField("{date} {time} {title}", text: $layoutDraft)
                     .textFieldStyle(.roundedBorder)
@@ -1145,32 +1246,18 @@ public struct ShotScribeView: View {
         .disabled(model.otherInstanceRunning)
     }
 
-    private var claudeToggle: some View {
-        Toggle(isOn: $model.useClaude) {
+    /// The popover's one AI switch. The full choice lives in the window's AI tab.
+    private var aiToggle: some View {
+        Toggle(isOn: Binding(get: { model.aiTitling }, set: { model.aiTitling = $0 })) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Title with Claude")
-                Text(model.claudeAvailable
-                     ? "Uses your own Claude Code account — only the text read off the image is sent."
-                     : "Claude Code isn’t installed — using the offline titler.")
+                Text(model.aiTitling ? "Title with \(model.aiProvider.kind.name)" : "Title with AI")
+                Text(model.aiTitling ? model.aiProvider.availability().text : "Off: keyword titles, nothing leaves this Mac. Choose an assistant in the window’s AI tab.")
                     .font(.caption2).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if !model.claudeAvailable {
-                    Link("Get Claude Code — titles run on your own account",
-                         destination: URL(string: "https://claude.com/claude-code")!)
-                        .font(.caption2)
-                }
-                // Say when the machine's setting overrides this toggle, rather
-                // than leaving it on and quietly using the offline titler.
-                if let note = model.llmMismatchNote {
-                    Text(note).font(.caption2)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
         .toggleStyle(.switch)
         .controlSize(.small)
-        .disabled(!model.claudeAvailable)
     }
 
     private var renameAction: some View {
@@ -1291,7 +1378,7 @@ private struct GalleryTile: View {
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
             ShareLink(item: shot.url) { Text("Share…") }
-            Button("Send to Claude") { model.sendToClaude(shot) }
+            Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
             Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
             Menu("File as") {
                 ForEach(model.vocabulary, id: \.self) { tag in
@@ -1493,8 +1580,23 @@ private struct TileButtonStyle: ButtonStyle {
 /// in Finder, Claude's mark for Send to Claude (a glyph when it is not installed).
 private enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
-    static let claude: Image? = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop")
-        .map { Image(nsImage: NSWorkspace.shared.icon(forFile: $0.path)) }
+    static let claude: Image? = app("com.anthropic.claudefordesktop")
+    static let cursor: Image? = app("com.todesktop.230313mzl4w4u92")
+
+    /// The assistant's own icon when its app is installed, else nothing (the
+    /// tile falls back to a glyph). Codex and Gemini are CLIs without an app.
+    static func icon(for kind: AIProvider.Kind) -> Image? {
+        switch kind.assistant {
+        case "Claude": return claude
+        case "Cursor": return cursor
+        default:       return nil
+        }
+    }
+
+    private static func app(_ bundleID: String) -> Image? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+            .map { Image(nsImage: NSWorkspace.shared.icon(forFile: $0.path)) }
+    }
 }
 
 /// Share, unfolding in place: one capsule that opens into the Mac's own

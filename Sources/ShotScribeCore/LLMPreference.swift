@@ -21,8 +21,8 @@ public struct LLMPreference: Sendable, Equatable {
         /// setting should cost you good titles, not the feature.
         public var usableHere: Bool {
             switch self {
-            case .claude, .local: return true
-            case .openai, .gemini, .apple: return false
+            case .claude, .local, .openai, .gemini: return true
+            case .apple: return false
             }
         }
 
@@ -78,7 +78,7 @@ public struct LLMPreference: Sendable, Equatable {
     /// honour. Nil when there is nothing to say.
     public var mismatchNote: String? {
         guard isSet, !provider.usableHere else { return nil }
-        return "This machine is set to \(provider.title), which ShotScribe cannot use yet — "
-             + "titling falls back to Claude."
+        return "This machine is set to \(provider.title), which ShotScribe cannot use — "
+             + "pick a titler in the AI tab."
     }
 }

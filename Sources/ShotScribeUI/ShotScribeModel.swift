@@ -25,7 +25,6 @@ public struct RenameEvent: Codable, Identifiable, Equatable {
 @MainActor
 public final class ShotScribeModel: ObservableObject {
     static let watchingKey = "shotscribe.watching"
-    static let useClaudeKey = "shotscribe.useClaude"
     static let eventsKey = "shotscribe.events"
     static let keepKey = "shotscribe.keep"
     private static let maxEvents = 20
@@ -39,10 +38,8 @@ public final class ShotScribeModel: ObservableObject {
         }
     }
 
-    /// Title via the local `claude` CLI (sharper labels) vs the offline
-    /// keyword titler. Only meaningful when `claudeAvailable`.
     /// What `~/.config/llm/provider.json` says, if anything. Read at launch for
-    /// display; the titler re-reads at the moment of use.
+    /// display; the AI tab offers it as a one-click choice.
     @Published public private(set) var llmPreference = LLMPreference.load()
 
     /// Non-nil when the machine's choice is one ShotScribe cannot honour.
@@ -50,8 +47,68 @@ public final class ShotScribeModel: ObservableObject {
 
     public func refreshLLMPreference() { llmPreference = LLMPreference.load() }
 
-    @Published public var useClaude: Bool {
-        didSet { Self.defaults.set(useClaude, forKey: Self.useClaudeKey) }
+    /// Who titles a capture — the AI tab's setting, honoured by every door.
+    @Published public private(set) var aiProvider: AIProvider = ShotScribeDefaults.aiProvider()
+
+    public func setAIProvider(_ provider: AIProvider) {
+        ShotScribeDefaults.setAIProvider(provider)
+        aiProvider = provider
+        aiTrial = nil
+    }
+
+    /// The popover's one switch: AI titling on or off. Off remembers nothing;
+    /// on picks Claude Code when it is installed, else the first CLI that is.
+    public var aiTitling: Bool {
+        get { aiProvider.kind != .offline }
+        set {
+            if !newValue { setAIProvider(AIProvider(kind: .offline)); return }
+            let first = [AIProvider.Kind.claude, .codex, .ollama, .gemini, .cursor]
+                .first { AIProvider(kind: $0).availability().isReady } ?? .claude
+            setAIProvider(AIProvider(kind: first))
+        }
+    }
+
+    /// Whether an endpoint key is in the Keychain. Never the key itself.
+    public var endpointKeyStored: Bool { Secrets.store.get(Secrets.endpointKeyAccount) != nil }
+    public func setEndpointKey(_ key: String?) {
+        Secrets.store.set(key, for: Secrets.endpointKeyAccount)
+        objectWillChange.send()
+    }
+
+    /// The last "try it" result, for one line under the AI tab's button.
+    @Published public private(set) var aiTrial: String?
+    @Published public private(set) var aiTrying = false
+
+    /// Title the newest capture with the chosen provider and show the answer,
+    /// without renaming anything — the AI tab's proof that the setting works.
+    public func tryTitler() {
+        guard !aiTrying else { return }
+        let folder = self.folder
+        let provider = aiProvider
+        let vocabulary = taggingEnabled ? self.vocabulary : []
+        aiTrying = true
+        aiTrial = "Reading the newest capture…"
+        Task { @MainActor [weak self] in
+            defer { self?.aiTrying = false }
+            let newest = ShotIndex.imageFiles(in: folder).max { a, b in
+                ((try? a.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast)
+                    < ((try? b.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast)
+            }
+            guard let newest else { self?.aiTrial = "No capture in \(folder.lastPathComponent) to try on."; return }
+            let ocr = await Task.detached(priority: .userInitiated) {
+                OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: newest.path)))
+            }.value
+            let titler: Titler = provider.makeTitler() ?? KeywordTitler()
+            let started = Date()
+            do {
+                let got = try await titler.labelling(forOCRText: ocr, vocabulary: vocabulary)
+                let secs = String(format: "%.1f s", Date().timeIntervalSince(started))
+                let tags = got.tags.isEmpty ? "" : " · " + got.tags.joined(separator: ", ")
+                self?.aiTrial = "\(newest.lastPathComponent) → “\(got.title)”\(tags) · \(secs)"
+            } catch {
+                self?.aiTrial = "Failed: \(error.localizedDescription)"
+            }
+        }
     }
 
     @Published public private(set) var events: [RenameEvent] = []
@@ -60,6 +117,9 @@ public final class ShotScribeModel: ObservableObject {
     @Published public private(set) var busy = false
 
     public let claudeAvailable = ClaudeTitler.isAvailable()
+    /// The assistant a shot is handed to, from the provider: Claude Code
+    /// unless the titler is itself a chat (Codex, Gemini, Cursor).
+    public var assistantName: String { aiProvider.kind.assistant }
     private var watcher: FolderWatcher?
 
     public static let folderKey = "shotscribe.folder"
@@ -246,18 +306,21 @@ public final class ShotScribeModel: ObservableObject {
             let brief = await Task.detached(priority: .userInitiated) { CodeBrief.text(forImageAt: path) }.value
             // A later hand-off (another shot, or Send to Claude) owns the pasteboard.
             guard let self, self.handoffGeneration == generation else { return }
+            let agent = self.aiProvider.kind.assistant == "Claude" ? "Claude Code" : "\(self.aiProvider.kind.assistant) (or any coding agent)"
             self.handOver(brief, saying: HandoffNote(
-                text: "Copied. Paste into Claude Code inside the project the code should land in.", symbol: "hammer"))
+                text: "Copied. Paste into \(agent) inside the project the code should land in.", symbol: "hammer"))
         }
     }
 
-    /// The shot to a Claude Code session. Nothing can push into a running
-    /// session, so this is `/screenshot "<path>"` on the pasteboard: pasted
-    /// anywhere Claude Code is listening, the skill reads this shot rather than
-    /// the newest. Dragging the tile into the composer is the wordless version.
-    public func sendToClaude(_ shot: IndexedShot) {
-        handOver(SendToClaude.line(forImageAt: shot.path), saying: HandoffNote(
-            text: "Copied. Paste into any Claude Code session; /screenshot reads this shot there.", symbol: "paperplane"))
+    /// The shot to the assistant's session. Nothing can push into a running
+    /// session, so this is one line on the pasteboard: `/screenshot "<path>"`
+    /// for Claude Code (the skill reads this shot rather than the newest), a
+    /// plain ask for any other chat. Dragging the tile in is the wordless version.
+    public func sendToAssistant(_ shot: IndexedShot) {
+        let kind = aiProvider.kind
+        let where_ = kind.assistant == "Claude" ? "any Claude Code session; /screenshot reads this shot there" : "a \(kind.assistant) chat"
+        handOver(SendToClaude.line(forImageAt: shot.path, kind: kind), saying: HandoffNote(
+            text: "Copied. Paste into \(where_).", symbol: "paperplane"))
     }
 
     private func handOver(_ text: String, saying note: HandoffNote) {
@@ -466,8 +529,6 @@ public final class ShotScribeModel: ObservableObject {
         let ud = Self.defaults
         watching = ud.object(forKey: Self.watchingKey) == nil
             ? true : ud.bool(forKey: Self.watchingKey)
-        useClaude = ud.object(forKey: Self.useClaudeKey) == nil
-            ? true : ud.bool(forKey: Self.useClaudeKey)
         if let data = ud.data(forKey: Self.eventsKey),
            let saved = try? JSONDecoder().decode([RenameEvent].self, from: data) {
             events = saved
@@ -589,11 +650,9 @@ public final class ShotScribeModel: ObservableObject {
     // MARK: - Renaming
 
     private var titler: Titler {
-        // The machine's provider choice gates this, not just ShotScribe's own
-        // toggle. Read fresh each time rather than cached at launch: whatever
-        // offers the picker may rewrite the file while ShotScribe is running.
-        (useClaude && claudeAvailable && LLMPreference.load().provider.usableHere)
-            ? ClaudeTitler() : KeywordTitler()
+        // The AI tab's choice, read from the stored setting at the moment of
+        // use so the CLI and the app agree even mid-session.
+        ShotScribeDefaults.aiProvider().makeTitler() ?? KeywordTitler()
     }
 
     public func rename(_ url: URL) async {

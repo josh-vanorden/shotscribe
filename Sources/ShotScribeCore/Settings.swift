@@ -8,13 +8,26 @@ public enum ShotScribeDefaults {
     public static let nameTemplateKey = "shotscribe.nameTemplate"
     public static let vocabularyKey = "shotscribe.tagVocabulary"
     public static let taggingKey = "shotscribe.tagging"
+    public static let aiProviderKey = "shotscribe.ai"
+    /// The switch this replaced: "Title with Claude", on by default.
+    static let legacyUseClaudeKey = "shotscribe.useClaude"
 
     /// ShotScribe's own preferences domain, reached by name from anything that
     /// is not ShotScribe.app: a host with its own bundle id would otherwise
     /// start blank, and start renaming in a folder the operator never chose.
     /// Inside the app that domain *is* `.standard`, and Apple warns against
     /// naming your own bundle id as a suite — which the branch avoids.
-    public static var suite: UserDefaults { suiteOverride ?? resolvedSuite }
+    public static var suite: UserDefaults { suiteOverride ?? environmentSuite ?? resolvedSuite }
+
+    /// `SHOTSCRIBE_DEFAULTS=<domain>` points every door at another settings
+    /// domain for that run — the way `SHOTSCRIBE_INDEX` does for the index — so
+    /// a titler or a template can be tried from the CLI without touching the
+    /// settings the app is using.
+    private static let environmentSuite: UserDefaults? = {
+        guard let name = ProcessInfo.processInfo.environment["SHOTSCRIBE_DEFAULTS"], !name.isEmpty,
+              name != appBundleID else { return nil }
+        return UserDefaults(suiteName: name)
+    }()
 
     /// Tests point this at a throwaway domain. Without it they would write the
     /// operator's own naming settings while checking that saving works.
@@ -72,5 +85,21 @@ public enum ShotScribeDefaults {
             suite.set(data, forKey: nameTemplateKey)
         }
         return nil
+    }
+
+    /// Who titles a capture. Nothing stored means what 1.5 did: Claude Code if
+    /// the old switch was on (or never touched), the offline titler if it was
+    /// off — so an upgrade changes nobody's titler.
+    public static func aiProvider() -> AIProvider {
+        if let data = suite.data(forKey: aiProviderKey),
+           let stored = try? JSONDecoder().decode(AIProvider.self, from: data) { return stored }
+        if suite.object(forKey: legacyUseClaudeKey) != nil, !suite.bool(forKey: legacyUseClaudeKey) {
+            return AIProvider(kind: .offline)
+        }
+        return .default
+    }
+
+    public static func setAIProvider(_ provider: AIProvider) {
+        if let data = try? JSONEncoder().encode(provider) { suite.set(data, forKey: aiProviderKey) }
     }
 }

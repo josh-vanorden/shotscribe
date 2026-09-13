@@ -36,12 +36,22 @@ public struct Renamer: Sendable {
         await labelling(fileAt: url).title
     }
 
+    /// Told when the titler fails. The shot still gets a name — the offline
+    /// titler's — but a door can say what went wrong instead of letting a
+    /// signed-out or blocked assistant look like a blunt titler. (Until 1.6 a
+    /// failure silently became "Screenshot".)
+    public var onTitlerError: (@Sendable (Error) -> Void)?
+
     /// OCR + title + the filing this renamer would give it. Touches nothing.
     public func labelling(fileAt url: URL) async -> Labelling {
         let ocr = OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: url.path)))
-        if let proposed = try? await titler.labelling(forOCRText: ocr, vocabulary: vocabulary),
-           !proposed.title.isEmpty {
-            return proposed
+        do {
+            let proposed = try await titler.labelling(forOCRText: ocr, vocabulary: vocabulary)
+            if !proposed.title.isEmpty { return proposed }
+        } catch {
+            onTitlerError?(error)
+            if let offline = try? await KeywordTitler().labelling(forOCRText: ocr, vocabulary: vocabulary),
+               !offline.title.isEmpty { return offline }
         }
         return Labelling(title: "Screenshot")
     }
