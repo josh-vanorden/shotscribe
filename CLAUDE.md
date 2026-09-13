@@ -158,11 +158,11 @@ with `ShotScribeDefaults.suiteOverride` and `ShotIndex.storeOverride` pointed at
 `shotscribe.watching` off. `ImageRenderer` is not enough; it leaves AppKit-backed controls blank.
 Fixtures must be hard links of real captures, not copies, or creation dates are all "now".
 
-### Version strings are hand-maintained
+### Version strings
 
-`VERSION` in `scripts/package-app.sh` (feeds the generated Info.plist) and `serverInfo` in
-`Sources/shotscribe-mcp/main.swift` are separate literals and have already drifted (0.4.0
-vs 0.2.0). Bump deliberately.
+`VERSION` in `scripts/package-app.sh` (feeds the generated Info.plist and names the DMG) is
+the latest git tag, never a literal. `serverInfo` in `Sources/shotscribe-mcp/main.swift` is
+still a literal — bump it in the same commit as the tag (it sat at 0.2.0 until 1.5.0).
 
 ## Repo conventions
 

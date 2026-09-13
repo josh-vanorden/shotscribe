@@ -44,7 +44,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleIconFile</key><string>ShotScribe</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
-    <!-- No LSUIElement: ShotScribe has a window and a Dock icon as of 0.7.0.
+    <!-- No LSUIElement: ShotScribe has a window and a Dock icon as of 1.5.0.
          The menu bar item stays, so closing the window leaves it watching. -->
     <key>NSHumanReadableCopyright</key><string>MIT — Josh VanOrden</string>
 </dict>
