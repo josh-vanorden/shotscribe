@@ -40,6 +40,11 @@ public struct ShotScribeSurface: View {
 public struct ShotScribeView: View {
     @State private var editingTitle = false
     @State private var endpointKeyDraft = ""
+    /// The picker's own state: a menu picker bound to a computed Binding
+    /// changed its displayed value without reaching the model (2026-09-13,
+    /// Josh: "had to choose twice"); plain state plus an explicit change
+    /// handler is the reliable shape.
+    @State private var kindDraft: AIProvider.Kind = .claude
     @ObservedObject var model: ShotScribeModel
     let chrome: ShotScribeChrome
     @State private var folderTargeted = false
@@ -667,14 +672,21 @@ public struct ShotScribeView: View {
     private var aiPane: some View {
         VStack(alignment: .leading, spacing: 10) {
             paneHead("AI", "Who titles a capture — an assistant you already use, or none.")
-            Picker("Titler", selection: Binding(
-                get: { model.aiProvider.kind },
-                set: { kind in model.setAIProvider(AIProvider(kind: kind, model: kind.defaultModel)) })) {
+            Picker("Titler", selection: $kindDraft) {
                 ForEach(AIProvider.Kind.allCases, id: \.self) { Text($0.name).tag($0) }
             }
             .pickerStyle(.menu)
             .labelsHidden()
-            let availability = model.aiProvider.availability()
+            .onAppear { kindDraft = model.aiProvider.kind }
+            .onChange(of: kindDraft) { kind in
+                if kind != model.aiProvider.kind {
+                    model.setAIProvider(AIProvider(kind: kind, model: kind.defaultModel))
+                }
+            }
+            .onChange(of: model.aiProvider.kind) { kind in
+                if kindDraft != kind { kindDraft = kind }
+            }
+            let availability = model.aiAvailability
             HStack(alignment: .top, spacing: 7) {
                 Circle().fill(availability.isReady ? Color.green : ShotPalette.warning)
                     .frame(width: 6, height: 6).padding(.top, 5)
@@ -1254,7 +1266,7 @@ public struct ShotScribeView: View {
         Toggle(isOn: Binding(get: { model.aiTitling }, set: { model.aiTitling = $0 })) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.aiTitling ? "Title with \(model.aiProvider.kind.name)" : "Title with AI")
-                Text(model.aiTitling ? model.aiProvider.availability().text : "Off: keyword titles, nothing leaves this Mac. Choose an assistant in the window’s AI tab.")
+                Text(model.aiTitling ? model.aiAvailability.text : "Off: keyword titles, nothing leaves this Mac. Choose an assistant in the window’s AI tab.")
                     .font(.caption2).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

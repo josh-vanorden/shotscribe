@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 08:00 — The AI picker changed its face, not the setting
+- **Bug/Issue:** Josh: switching the titler "is not switching our icons… I had to choose twice", and with the picker reading Codex the Send-to tile still showed Gemini's "G".
+- **RCA:** The menu-style `Picker` was bound to a computed `Binding(get:set:)`; its popup updated its own displayed value while the setter did not reach the model, so nothing published and the tile (which follows the model, proven by an off-screen render driving `setAIProvider` directly) had nothing to follow. The body also called `availability()`, which can spawn a login shell to find a CLI, on the main thread during the menu's commit.
+- **Evidence:** `scripts/render-pane.swift` snapshots `1-gemini.png` / `2-codex.png` / `3-cursor.png` (session scratchpad) showing the tile tracking the model; Josh's report of the live window.
+- **Fix/Repair:** The picker binds to `@State kindDraft` with `onChange` handlers in both directions, and availability is computed off the main thread into `model.aiAvailability`. Same day, unreleased (1.6.0).
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 07:05 — A failing titler became "Screenshot" in the CLI
 - **Bug/Issue:** `shotscribe label` with a titler that could not run (a CLI macOS refused to launch) printed the title "Screenshot" and no error, so a broken assistant looked like a blunt one.
 - **RCA:** `Renamer.labelling(fileAt:)` wrapped the titler in `try?` and fell through to a literal "Screenshot"; the app's own rename path had reported failures since 2026-08-12, the CLI and MCP paths never did.

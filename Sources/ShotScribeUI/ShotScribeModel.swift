@@ -54,6 +54,23 @@ public final class ShotScribeModel: ObservableObject {
         ShotScribeDefaults.setAIProvider(provider)
         aiProvider = provider
         aiTrial = nil
+        refreshAIAvailability()
+    }
+
+    /// Whether the chosen titler can run here, computed off the main thread:
+    /// finding a CLI can mean spawning a login shell, and a shell spawned
+    /// inside a view's body stalls the window (and raced the picker's commit).
+    @Published public private(set) var aiAvailability: AIProvider.Availability = .ready("Checking…")
+
+    private func refreshAIAvailability() {
+        let provider = aiProvider
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let availability = provider.availability()
+            await MainActor.run { [weak self] in
+                guard let self, self.aiProvider == provider else { return }
+                self.aiAvailability = availability
+            }
+        }
     }
 
     /// The popover's one switch: AI titling on or off. Off remembers nothing;
@@ -526,6 +543,7 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     public init() {
+        defer { refreshAIAvailability() }
         let ud = Self.defaults
         watching = ud.object(forKey: Self.watchingKey) == nil
             ? true : ud.bool(forKey: Self.watchingKey)

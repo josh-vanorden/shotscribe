@@ -159,11 +159,14 @@ settings live in a tabbed inspector (Folder, Rename, Name, File, Keep) floating 
 on a concatenated `Text` is 14+ (use `foregroundColor`), and the pane must paint
 `windowBackgroundColor` itself or a host that draws none shows the grid over black.
 
-To look at the pane without putting a window on the operator's machine: build, then compile a
-throwaway `NSHostingView` in an unordered `NSWindow` against the `.o` files in `.build/debug`,
-with `ShotScribeDefaults.suiteOverride` and `ShotIndex.storeOverride` pointed at scratch and
-`shotscribe.watching` off. `ImageRenderer` is not enough; it leaves AppKit-backed controls blank.
-Fixtures must be hard links of real captures, not copies, or creation dates are all "now".
+To look at the pane without putting a window on the operator's machine: `scripts/render-pane.swift`
+(compile line in its header) hosts the real `ShotScribeView` in an unordered `NSWindow` against the
+`.o` files in `.build/debug`, with `ShotScribeDefaults.suiteOverride` and `ShotIndex.storeOverride`
+pointed at scratch and `shotscribe.watching` off, drives the model, and snapshots. `ImageRenderer`
+is not enough; it leaves AppKit-backed controls blank. Fixtures must be hard links of real captures,
+not copies, or creation dates are all "now". A menu `Picker` must bind to plain `@State` with an
+`onChange` handler, never a computed `Binding` — the computed one changed its displayed value
+without calling the setter (2026-09-13).
 
 ### Version strings
 
