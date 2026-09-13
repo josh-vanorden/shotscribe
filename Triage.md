@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 16:30 — A tag filter with no way out
+- **Bug/Issue:** Josh isolated a tag and "had no way of clearing or returning to the normal view once drilled into an area."
+- **RCA:** Two causes. The strip's Clear was a quiet, background-less chip easy to miss. Worse, a filter that narrows to zero shots fell into `content`'s empty branch, which is the first-launch welcome — no strip, no Clear, no count line — so isolating a tag whose only shot was the landing zone, or narrowing to two tags nothing carries together, was a dead end.
+- **Evidence:** Josh's report on the 16:15 build; the `content` branch order in `ShotScribeSurface.swift`.
+- **Fix/Repair:** The empty-under-filter case keeps the grid head, the strip and a "Nothing filed under X + Y together" line with a prominent Show all; the strip's Clear became a real "Show all" button; a selected chip carries an × to say it comes off; the count line has a Show all link; Esc clears the filter. Same day, 1.6.1.
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 12:10 — A capture the watcher named did not appear until the next launch
 - **Bug/Issue:** Josh took captures at 12:01 and 12:02; the log shows both renamed and the index holds them, but the window kept showing the morning's shots — "only one screenshot for today".
 - **RCA:** `ShotScribeModel.rename` recorded the new file into the index on a detached task and never reloaded the model's cache; `retitle`, `undo`, `tag` and `trash` all call `loadIndex()`, the watcher's own path did not. Every earlier sighting of a fresh capture in the window had a relaunch between the capture and the look.

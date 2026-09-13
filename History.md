@@ -763,4 +763,8 @@ app-specific password, and the profile answered.
   every tag in use and its count, and a **By tag** sort that groups the grid
   by filing, a shot under each tag it carries, the untagged last. Rendered
   both off-screen (`HARNESS_SORT=tag`). For 1.6.1.
+- 16:30: the tag filter had no way out (Triage) — narrowed to nothing, the
+  window showed the first-launch welcome. Now: the strip and a "Show all"
+  survive an empty result, the count line links Show all, selected chips wear
+  an ×, Esc clears.
 

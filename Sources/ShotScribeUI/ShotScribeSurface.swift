@@ -134,6 +134,8 @@ public struct ShotScribeView: View {
                 if model.otherInstanceRunning { standDownBanner.padding(.bottom, 14) }
                 if let plan = model.cleanupPlan { cleanupPreview(plan).padding(.bottom, 14) }
                 content
+                    // Esc backs out of a tag filter, the way it backs out of a title edit.
+                    .onExitCommand { if !model.tagFilter.isEmpty { model.clearTagFilter() } }
             }
             .padding(.top, 52)
             .padding(.horizontal, 18)
@@ -218,7 +220,13 @@ public struct ShotScribeView: View {
         if model.indexing {
             indexingState
         } else if model.visibleShots.isEmpty {
-            if model.query.trimmingCharacters(in: .whitespaces).isEmpty { emptyState } else { noMatches }
+            if !model.tagFilter.isEmpty {
+                // Narrowed to nothing: keep the strip and the way out — never the
+                // first-launch welcome, which has neither.
+                gridHead
+                tagStrip
+                noneFiled
+            } else if model.query.trimmingCharacters(in: .whitespaces).isEmpty { emptyState } else { noMatches }
         } else if model.shotView == .list {
             // The landing zone is the point of the window; the list is a denser
             // way to see the rest, not a way to lose the newest capture.
@@ -359,10 +367,10 @@ public struct ShotScribeView: View {
         FlowLayout(spacing: 6) {
             if !model.tagFilter.isEmpty {
                 Button { model.clearTagFilter() } label: {
-                    Label("Clear", systemImage: "xmark").font(.caption.weight(.medium))
+                    Label("Show all", systemImage: "xmark.circle.fill")
                 }
-                .buttonStyle(CapsuleButtonStyle(quiet: true))
-                .help("Show every screenshot again")
+                .buttonStyle(CapsuleButtonStyle())
+                .help("Stop isolating; every screenshot again (Esc does the same)")
             }
             ForEach(model.tagCounts) { tc in
                 let on = model.tagFilter.contains(tc.tag)
@@ -371,6 +379,7 @@ public struct ShotScribeView: View {
                         Image(systemName: "tag").font(.system(size: 9, weight: .semibold))
                         Text(tc.tag)
                         Text("\(tc.count)").monospacedDigit().opacity(0.7)
+                        if on { Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).opacity(0.85) }
                     }
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 9).frame(height: 24)
@@ -397,6 +406,10 @@ public struct ShotScribeView: View {
                  ? "\(model.visibleShots.count) screenshots"
                  : "\(model.visibleShots.count) match\(model.visibleShots.count == 1 ? "" : "es")")
                 .font(.caption.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
+            if !model.tagFilter.isEmpty {
+                Button("Show all") { model.clearTagFilter() }
+                    .buttonStyle(.link).font(.caption.weight(.medium))
+            }
             if let handoff = model.handoffNote {
                 Label(handoff.text, systemImage: handoff.symbol)
                     .font(.caption).foregroundStyle(ShotPalette.accent)
@@ -533,6 +546,18 @@ public struct ShotScribeView: View {
             folderRow.frame(maxWidth: 470)
         }
         .frame(maxWidth: 560)
+    }
+
+    private var noneFiled: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Nothing filed under \(model.tagFilter.sorted().joined(separator: " + ")) together.")
+                .font(.system(size: 15, weight: .bold)).tracking(-0.3)
+            Text("Take one tag off, or show everything.")
+                .font(.callout).foregroundStyle(.secondary)
+            Button("Show all") { model.clearTagFilter() }
+                .buttonStyle(CapsuleButtonStyle(prominent: true)).padding(.top, 4)
+        }
+        .padding(.top, 24)
     }
 
     private var noMatches: some View {
