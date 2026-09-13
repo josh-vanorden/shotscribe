@@ -21,4 +21,19 @@ final class HardeningTests: XCTestCase {
         XCTAssertEqual(Naming.sanitize(". .. ... Real"), "Real")
         XCTAssertEqual(Naming.sanitize("v1.5.0 notes"), "v1.5.0 notes", "dots inside a word are words")
     }
+
+    /// A titler reply is untrusted — the model read whatever was on screen — so
+    /// neither boundary lets a control or invisible-format character through: a
+    /// bidi override (U+202E) makes Finder display a name backwards, and a raw
+    /// ESC in a printed label can drive the terminal it lands in.
+    func testALabelCannotSmuggleControlOrBidiCharacters() {
+        XCTAssertEqual(Naming.sanitize("Report\u{202E}gnp.png"), "Report gnp.png")
+        XCTAssertEqual(Naming.sanitize("Login\u{1B}[31m Page"), "Login [31m Page")
+        XCTAssertEqual(Naming.sanitize("Foo\u{0}Bar"), "Foo Bar")
+        XCTAssertEqual(LabelCleaner.clean("Slack\u{202E} Thread"), "Slack Thread")
+        XCTAssertEqual(LabelCleaner.clean("Terminal\u{1B}[2J Output"), "Terminal [2J Output")
+        // macOS's own narrow no-break space (U+202F, a space, not a control)
+        // stays: capture-name detection depends on names keeping it.
+        XCTAssertEqual(Naming.sanitize("3.16.12\u{202F}PM"), "3.16.12\u{202F}PM")
+    }
 }
