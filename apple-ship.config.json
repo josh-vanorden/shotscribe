@@ -1,0 +1,11 @@
+{
+  "name": "ShotScribe",
+  "versionSource": "static",
+  "buildCommand": "bash scripts/package-app.sh",
+  "appBundlePath": "dist/ShotScribe.app",
+  "dmgOutputDir": "dist/",
+  "notaryProfile": "shotscribe-notary",
+  "deployTarget": "~/Desktop/",
+  "credentialBackend": "keychain",
+  "touchIdRequired": true
+}
