@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.0 — unreleased
+## 1.6.0 — 2026-09-13
 
 - **Bring your own AI.** An **AI** tab names who titles a capture, honoured by
   the app, the watcher and the CLI: Claude Code (the default, as before),
