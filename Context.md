@@ -5,22 +5,22 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-13
-**Phase:** Ship — 1.5.1 is public; 1.6.0 ("Bring your own AI") is built, tested (141), pushed on `settings-pane` and judged ready by Josh ("we are set"); tag, notarization and the GitHub release are the next act
-**Next action:** Ship 1.6.0: bump `serverInfo` in `Sources/shotscribe-mcp/main.swift` to 1.6.0, date the CHANGELOG, commit; `git tag -a v1.6.0`; `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`; verify as 1.5.1 was (stapler on app + DMG, spctl on the DMG, a quarantined copy through Gatekeeper); `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file <notes>` — the draft is `release-notes-1.6.0.md` in the session scratchpad (rebuild from CHANGELOG + the tagline if gone). Then Toolbelt's pin to `from: "1.6.0"`.
+**Phase:** Ship — 1.6.0 ("Bring your own AI") is public: https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.0, notarized under ShotScribe's own profile `shotscribe-notary`
+**Next action:** Toolbelt's pin: `toolbelt/Package.swift:34` → `.upToNextMinor(from: "1.6.0")`, `swift package update shotscribe`, run the belt once. Then, when Josh asks, the announcement (draft: `announcement.md` in the session scratchpad; the tagline + the release link).
 
 **Open loops**
-- The release itself (above). Note the number: Josh said "v1.5.0" on 2026-09-13 but 1.5.1 is already public; CHANGELOG and notes say 1.6.0.
-- "A share" — Josh's word on 2026-09-13; not yet defined (a `/preview-share` brief of the docs, or an announcement of the release).
+- Josh is still testing 1.6.0 after the release; anything he finds becomes 1.6.1.
 - Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. `claude` signed out: every title today was the offline titler's.
-- Brand marks are Lobe Icons copies shipped on Josh's call (`assets/brands/README.md`). The icon gallery on localhost:9012 is still serving; stop it when convenient.
+- Brand marks are Lobe Icons copies shipped on Josh's call. The icon gallery on localhost:9012 may still be serving.
 - Backlog sweep (93 raw files) unbuilt; the 1.5 punch list's hand tests still Josh's.
 
 **Ruled out**
-- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon standing in for Codex; five drawn icon directions (symbols of a screenshot, none of the naming) — Josh's own artwork won.
-- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem` for the share row; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
+- Reusing `cockpit-notary` for ShotScribe (Josh: its own); moving a published tag ("remain at v1.5.0" — 1.5.0 and 1.5.1 were already out).
+- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon for Codex; five drawn icon directions.
+- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem`; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** 9 + this docs commit, all pushed by the `/clean-tree` that follows
+**Unpushed commits:** 1 (that docs commit), pushed right after
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at

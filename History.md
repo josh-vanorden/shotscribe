@@ -728,3 +728,25 @@ already signed in to, or an OpenAI-compatible endpoint.
   the first ones taken without a relaunch in between, which is why it took
   until today to show.
 
+## 2026-09-13 — 1.6.0 shipped, under ShotScribe's own notary profile
+
+Josh at 12:09: "we are set". The number: he said 1.5.0, but 1.5.0 and 1.5.1
+were already public, so 1.6.0 — what the CHANGELOG had said all along.
+The notary: he wanted ShotScribe's own credential, not the shared
+`cockpit-notary`. The "apple dev skill" turned out to be Conduit's
+`apple-ship`, whose `credentials` wizard (Touch-ID gated) stores a notarytool
+keychain profile named by `apple-ship.config.json`; ShotScribe got that file
+(`notaryProfile: shotscribe-notary`), Josh ran the wizard with a fresh
+app-specific password, and the profile answered.
+
+- `0a901f6` Version 1.6.0, tag `v1.6.0` on it; two doc/config commits after.
+- `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`: Apple
+  Accepted the app and the DMG (the profile's first two submissions), both
+  stapled. `stapler validate` passes on both; `spctl` on the DMG and on a
+  quarantined copy of the app taken out of it: Notarized Developer ID.
+- Pushed `settings-pane`, `main` and the tag; published
+  https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.0 with the
+  DMG, marked latest. The app in the Dock is that build.
+- Still Josh's: keep testing (his words); Toolbelt's pin to `from: "1.6.0"`;
+  the announcement (drafted, "secondary").
+

@@ -123,12 +123,12 @@ Monday 2026-09-14; the gate below is that morning's list.
 - [ ] Josh's click-through of the AI tab on the 08:31 build (each kind, the
       tile's mark, "Try it" on Ollama, the popover switch, an endpoint at
       `http://localhost:11434/v1`).
-- [ ] `serverInfo` → 1.6.0; CHANGELOG "unreleased" → the date; `/save`.
-- [ ] Tag `v1.6.0`; `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`;
-      verify as 1.5.1 was (stapler, spctl on the DMG, a quarantined copy).
-- [ ] `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg
-      --latest --notes-file …` (draft in the session scratchpad, copied to
-      the roadmap's instructions).
+- [x] `serverInfo` → 1.6.0; CHANGELOG dated 2026-09-13; `/save`.
+- [x] Tagged `v1.6.0` at `0a901f6`; notarized under `shotscribe-notary`
+      (ShotScribe's own profile, made with `apple-ship credentials`); Apple
+      Accepted app and DMG, stapled, spctl and a quarantined copy pass.
+- [x] Pushed with the tag; released 2026-09-13 as
+      https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.0 (latest).
 - [ ] Toolbelt: `Package.swift:34` → `.upToNextMinor(from: "1.6.0")`,
       `swift package update shotscribe`.
 
@@ -160,4 +160,9 @@ read at 12:09: "we are set".
   because the noon captures were the first taken without a relaunch between.
 - **The list view had no landing zone** (Triage 09:30). The hero was wired
   into the tiles branch only.
+
+## 2026-09-13, 13:36 — 1.6.0 is public; the phase is still Ship, by Josh's own item
+Two gate items remain: Toolbelt's pin (another repo) and Josh's continued
+testing, which he chose to keep doing after the release. The gate to
+*maintain* is unchanged — the README's two roadmap items are still his call.
 
