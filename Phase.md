@@ -112,3 +112,38 @@ Sub-issues found by the pass:
   first. The first E2E run was wrong about four features because of this.
 - **Fixtures inherit xattrs.** `cp` carries the capture flag and Finder tags;
   use `cp -X`. Hard links share the inode, so never tag through one.
+
+## 2026-09-13 — 1.6.0 built; the phase stays Ship
+"Bring your own AI" is built, tested (140) and pushed on `settings-pane`,
+unreleased: an AI tab (Rename absorbed Name), seven titlers behind one
+setting, the Send-to tile wearing the titler's mark. Release is scheduled for
+Monday 2026-09-14; the gate below is that morning's list.
+
+## Gate to ship 1.6.0
+- [ ] Josh's click-through of the AI tab on the 08:31 build (each kind, the
+      tile's mark, "Try it" on Ollama, the popover switch, an endpoint at
+      `http://localhost:11434/v1`).
+- [ ] `serverInfo` → 1.6.0; CHANGELOG "unreleased" → the date; `/save`.
+- [ ] Tag `v1.6.0`; `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`;
+      verify as 1.5.1 was (stapler, spctl on the DMG, a quarantined copy).
+- [ ] `/clean-tree` with the tag; `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg
+      --latest --notes-file …` (draft in the session scratchpad, copied to
+      the roadmap's instructions).
+- [ ] Toolbelt: `Package.swift:34` → `.upToNextMinor(from: "1.6.0")`,
+      `swift package update shotscribe`.
+
+## Discovered sub-issues (2026-09-13)
+- **A menu `Picker` on a computed `Binding` changed its face, not the model.**
+  Josh: "had to choose twice", tile stale. Plain `@State` + `onChange` both
+  ways is the rule (CLAUDE.md, Triage). Proven with `scripts/render-pane.swift`.
+- **Rasterising brand SVGs on macOS.** `NSImage` (CoreSVG) dropped Gemini's
+  gradient; Quick Look painted it on a white square; a `WKWebView` snapshot on
+  a transparent page keeps both — `scripts/svg-to-png.swift`.
+- **A blocked CLI looked like a blunt titler.** `Renamer.labelling` swallowed
+  the error into "Screenshot"; now reported (`onTitlerError`). Found because
+  macOS refused the Homebrew `codex` 0.118.0 binary as known malware and the
+  run printed a title. Codex stays unverified here (History, memory).
+- **The Codex, Gemini CLI and Cursor Agent presets are their documented
+  invocations**, editable, not run end to end on this Mac. Stated in the
+  README and the release notes.
+

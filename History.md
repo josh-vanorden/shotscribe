@@ -684,4 +684,10 @@ already signed in to, or an OpenAI-compatible endpoint.
   white square), embedded as base64, monochrome ones as templates.
   Offline wears `wifi.slash`, a command `terminal`, an endpoint `network`.
   Verified with `scripts/render-pane.swift`: six snapshots, one per kind.
+- Later: "A command" became **Other CLI…**, last in the picker, with one line
+  naming who it is for (llm, aichat, mods, a team script). Josh's read of the
+  tab: "99% there"; the Gemini mark's white square and edge crop were the last
+  visual defect, fixed by the WebKit renderer. The ship list for Monday
+  2026-09-14 is in `roadmap.md`; the release notes are drafted. Docs and code
+  pushed under the evening's `/clean-tree`; no 1.6.0 tag yet.
 

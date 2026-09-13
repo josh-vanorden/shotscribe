@@ -4,34 +4,55 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-12
-**Phase:** Ship — 1.5.1 is public (GitHub release with the notarized DMG); one gate item to *maintain* is Josh's call (close or defer the README's backlog sweep and widget)
-**Next action:** Raise Toolbelt's pin at `toolbelt/Package.swift:34` to `.upToNextMinor(from: "1.5.1")` and `swift package update shotscribe`, so the belt mounts the new pane. Then sign in to `claude` and run `.build/release/shotscribe eval --limit 25`.
+**Last session:** 2026-09-13
+**Phase:** Ship — 1.5.1 is public; 1.6.0 ("Bring your own AI") is built, tested and pushed on `settings-pane`, unreleased, scheduled for Monday 2026-09-14
+**Next action:** Monday: after Josh's click-through of the AI tab, bump `serverInfo` to 1.6.0 and date the CHANGELOG, tag `v1.6.0`, `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`, verify as 1.5.1 was, `/clean-tree`, `gh release create v1.6.0 dist/ShotScribe-1.6.0.dmg --latest --notes-file …` (draft in the session scratchpad — recreate from `roadmap.md` if gone), then Toolbelt's pin to `from: "1.6.0"`.
 
 **Open loops**
-- The hand tests only a person can run (`roadmap.md` punch list): title edit, Share unfolding + an AirDrop, hover bubbles, drag-out, the Send to Claude paste, `/screenshot code`, a screen recording, launch at login, capture-flag timing.
-- Backlog sweep: 93 raw `Screenshot …` files in the folder (newest 2026-08-21), unbuilt.
-- `claude` signed out since 2026-09-10: no eval number; Remote Control off by choice.
-- Two MCP niceties left as-is: a non-image path says "no text recognised"; a malformed line gets no -32700 reply.
+- Josh's click-through of the AI tab (each kind, the tile's mark, "Try it" on Ollama, the popover switch, an endpoint with no key) — the one thing between here and the tag.
+- Codex, Gemini CLI, Cursor Agent presets unverified on this Mac; `codex` is absent here since macOS refused the 0.118.0 cask binary (memory: `codex-cask-flagged-2026-09-13`).
+- Brand marks are Lobe Icons copies shipped on Josh's call; OpenAI's and Google's own downloads are gated (`assets/brands/README.md`).
+- The 1.5 punch list (title edit, Share unfold, AirDrop, `/screenshot code`, recordings, capture-flag timing) is still Josh's to run by hand; backlog sweep (93 raw files) unbuilt; `claude` signed out; Remote Control off by choice.
 
 **Ruled out**
-- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem` for the share row.
-- The `kMDItemIsScreenCapture` xattr alone as "raw"; `ImageRenderer` for off-screen renders; copied fixtures for dates (and now for xattrs: `cp -X`); `labelling` as an extension-only method; app names in the menu-word list; a Terminal for stage two.
+- A menu `Picker` on a computed `Binding` (changes its face, not the model); CoreSVG and Quick Look for brand SVGs; the initial monogram as the shipped tile (Josh: real marks); ChatGPT.app's icon standing in for Codex.
+- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem` for the share row; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** 1 (that docs commit), pushed right after
+**Unpushed commits:** 10 + this docs commit, all pushed by the `/clean-tree` that follows
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
 3.41.07 PM.png") into dated, findable titles ("2026-08-11 1541 AWS Billing
 Console.png") — on-device OCR (Apple Vision) plus a swappable Titler seam.
 
-## Current state (2026-09-12 — 1.5.0)
+## Current state (2026-09-13 — 1.5.1 public, 1.6.0 built and unshipped)
 
-Tagged `v1.5.0` at `9ddbf8c` on `settings-pane`; everything since 0.6.1 ships
-as one release (the notarized DMG's status is in `History.md`, same date).
+1.5.1 is the public release (GitHub, notarized DMG). Everything below that
+says "1.6" is on `settings-pane`, built, tested (140) and pushed, with the tag,
+notarization and release scheduled for Monday 2026-09-14 (`roadmap.md`).
 Toolbelt still pins `.upToNextMinor(from: "0.6.0")`, which cannot reach a 1.x
 tag until its `from:` is raised.
+
+- **Bring your own AI (1.6).** `AIProvider` is the one stored choice
+  (`shotscribe.ai`, migrating the old switch): Offline, Claude Code, Codex,
+  Gemini CLI, Cursor Agent, Ollama, An endpoint, Other CLI…. `makeTitler()` is
+  the factory every door uses; `CommandTitler` runs any command with
+  `{prompt}` as one argument (presets are editable templates carrying each
+  tool's tool-denying flags), `EndpointTitler` is the only network code (key
+  in the Keychain via `Secrets`), `CommandRunner` the one process runner.
+  `Renamer.onTitlerError` makes a failing titler visible; the CLI prints it.
+  `shotscribe ai`, `--offline`, `SHOTSCRIBE_DEFAULTS=<domain>`.
+- **Five tabs, still.** Folder · Rename (switch, rename-now, then *Spelling* —
+  the template) · AI (picker bound to plain state, the kind's fields,
+  availability computed off the main thread, "Try it on the newest capture")
+  · File · Keep. The popover keeps one "Title with AI" switch.
+- **The Send-to tile wears the titler's mark**: Claude, the OpenAI mark for
+  Codex, Gemini, Cursor, Ollama (Lobe Icons copies in `assets/brands/`,
+  rasterised through WebKit by `scripts/svg-to-png.swift`, embedded by
+  `scripts/make-brand-art.swift`), `wifi.slash` offline, `terminal` and
+  `network` for the open doors. `/screenshot "<path>"` is copied only for
+  Claude Code; every other kind gets a plain ask.
 
 - **Captures are recognised in any language.** `Naming.isRawCapture(at:)`:
   the English prefix alone, or the default-name shape plus the
