@@ -2,6 +2,12 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.1 — unreleased
+
+- **Mark up in Preview** on the landing zone and in every shot's menu: the
+  capture opens in macOS's own Preview for the pencil. "Restore" moved beside
+  the "was …" line it puts back, so the tile row stays one row.
+
 ## 1.6.0 — 2026-09-13
 
 - **Bring your own AI.** An **AI** tab names who titles a capture, honoured by

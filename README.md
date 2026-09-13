@@ -254,8 +254,8 @@ template with a live sample), **AI** (who titles — see *Whose AI is it?*),
 after the fact. The newest capture sits at the top as the landing zone: its title edits in
 place (click it, type, Return — the date stays, the words change) when a name is
 not what you would have said, and a row of tiles below it carries the icon of
-each service it reaches, named on hover — Finder, **Share** (which unfolds into
-AirDrop, Messages, Mail, Notes…), Claude, code, tags. Any shot also drags out as
+each service it reaches, named on hover — Finder, **Preview** (mark it up), **Share** (which unfolds
+into AirDrop, Messages, Mail, Notes…), your assistant, code, tags. Any shot also drags out as
 a copy. First launch opens the window on the folder it is watching with the
 inspector open, so the settings are found; a folder with nothing named yet
 shows the welcome instead of an empty grid.

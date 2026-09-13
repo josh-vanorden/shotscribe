@@ -928,6 +928,15 @@ public final class ShotScribeModel: ObservableObject {
         }
     }
 
+    /// The shot in Preview, for the pencil: macOS's own markup, one click from
+    /// the landing zone. Josh's habit (2026-09-13) — annotate before sending.
+    func markUp(_ shot: IndexedShot) {
+        let preview = URL(fileURLWithPath: "/System/Applications/Preview.app")
+        NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            if let error { Task { @MainActor [weak self] in self?.lastError = "Couldn’t open in Preview: \(error.localizedDescription)" } }
+        }
+    }
+
     func reveal(_ shot: IndexedShot) {
         NSWorkspace.shared.activateFileViewerSelecting([shot.url])
     }

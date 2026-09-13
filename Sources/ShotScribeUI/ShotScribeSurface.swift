@@ -304,8 +304,17 @@ public struct ShotScribeView: View {
                         + Text(" \(dayWord(shot.captured))").foregroundColor(.secondary))
                     HeroTitle(shot: shot, editing: $editingTitle) { model.retitle(shot, to: $0) }
                     if let original = shot.original {
-                        Text("was \(original)").font(.caption2).foregroundStyle(.tertiary)
-                            .lineLimit(1).truncationMode(.middle)
+                        // Restore lives here, beside the name it puts back, so the
+                        // tile row stays one row.
+                        HStack(spacing: 6) {
+                            Text("was \(original)").font(.caption2).foregroundStyle(.tertiary)
+                                .lineLimit(1).truncationMode(.middle)
+                            if !model.otherInstanceRunning {
+                                Button("Restore") { model.undo(shot) }
+                                    .buttonStyle(.link).font(.caption2)
+                                    .help("Put the original capture name back")
+                            }
+                        }
                     }
                     if !(shot.tags ?? []).isEmpty {
                         HStack(spacing: 6) { tagChips(shot) }.padding(.top, 2)
@@ -314,6 +323,7 @@ public struct ShotScribeView: View {
                     // the service it reaches, named the moment it is hovered.
                     FlowLayout(spacing: 6) {
                         ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
+                        ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true) { model.markUp(shot) }
                         ShareRow(url: shot.url).id(shot.path)
                         // The mark of the titler in use — offline included — so the
                         // landing zone says which AI this is at a glance.
@@ -326,9 +336,6 @@ public struct ShotScribeView: View {
                         }
                         ActionTile("Rebuild as code", icon: Image(systemName: "hammer")) { model.copyCodeBrief(for: shot) }
                         ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
-                        if shot.original != nil, !model.otherInstanceRunning {
-                            ActionTile("Restore original name", icon: Image(systemName: "arrow.uturn.backward")) { model.undo(shot) }
-                        }
                         if model.taggingEnabled { fileAsMenu(shot) }
                     }
                     .padding(.top, 8)
@@ -564,6 +571,7 @@ public struct ShotScribeView: View {
     @ViewBuilder
     func shotMenu(_ shot: IndexedShot) -> some View {
         Button("Reveal in Finder") { model.reveal(shot) }
+        Button("Mark up in Preview") { model.markUp(shot) }
         ShareLink(item: shot.url) { Text("Share…") }
         Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
         Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
@@ -1445,6 +1453,7 @@ private struct GalleryTile: View {
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
         .contextMenu {
             Button("Reveal in Finder") { model.reveal(shot) }
+            Button("Mark up in Preview") { model.markUp(shot) }
             ShareLink(item: shot.url) { Text("Share…") }
             Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
             Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
@@ -1845,6 +1854,7 @@ private struct TileButtonStyle: ButtonStyle {
 /// in Finder, Claude's mark for Send to Claude (a glyph when it is not installed).
 private enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
+    static let preview = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Preview.app"))
 
     /// The titler's mark: the brand mark embedded from `assets/brands/` when
     /// there is one (it is the mark people know), else the installed app's own

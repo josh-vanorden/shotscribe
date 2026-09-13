@@ -749,4 +749,12 @@ app-specific password, and the profile answered.
   DMG, marked latest. The app in the Dock is that build.
 - Still Josh's: keep testing (his words); Toolbelt's pin to `from: "1.6.0"`;
   the announcement (drafted, "secondary").
+- 14:17, after the release: **Mark up in Preview.** Josh: "every time we sign
+  something we find something" — he opens screenshots in Preview to pencil
+  them, and nothing in the window kicked that off. A tile with Preview's own
+  icon after Finder on the landing zone, and a line in both menus;
+  `NSWorkspace.open(_:withApplicationAt:)` on `/System/Applications/Preview.app`.
+  "Restore original name" left the tile row for a link beside the "was …"
+  line it puts back, so the row stays one row. Toolbelt's pin raised to
+  `from: "1.6.0"` the same hour. For 1.6.1.
 
