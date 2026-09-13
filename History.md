@@ -722,4 +722,9 @@ already signed in to, or an OpenAI-compatible endpoint.
   and the first-launch welcome (the empty state: a folder with nothing named
   yet). The README's "welcome window" sentence, stale since the Dock window,
   now describes what first launch does. Rendered off-screen on an empty folder.
+- 12:10: a capture named by the watcher stayed off screen until the next
+  launch — the model recorded it but never reloaded its cache (Triage). Fixed:
+  the window reloads the moment the rename lands. Josh's noon captures were
+  the first ones taken without a relaunch in between, which is why it took
+  until today to show.
 

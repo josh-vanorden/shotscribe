@@ -713,10 +713,14 @@ public final class ShotScribeModel: ObservableObject {
                 // Index it now, not at the next sweep: a screenshot you just
                 // took is exactly the one you are about to go looking for. The
                 // old path is dropped so a rename does not leave a second,
-                // stale entry pointing at a file that no longer exists.
-                Task.detached(priority: .utility) {
+                // stale entry pointing at a file that no longer exists. Then
+                // the window reloads: until 2026-09-13 it kept the cache it
+                // loaded at launch, so a capture named by the watcher was in
+                // the index but not on screen until the next launch.
+                Task.detached(priority: .utility) { [weak self] in
                     ShotIndex.forget(from.path)
                     ShotIndex.record(to, original: from.lastPathComponent)
+                    await MainActor.run { self?.loadIndex(); self?.runSearch() }
                 }
                 if label != nil { lastError = nil }
             }

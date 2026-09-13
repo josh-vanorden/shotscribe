@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 12:10 — A capture the watcher named did not appear until the next launch
+- **Bug/Issue:** Josh took captures at 12:01 and 12:02; the log shows both renamed and the index holds them, but the window kept showing the morning's shots — "only one screenshot for today".
+- **RCA:** `ShotScribeModel.rename` recorded the new file into the index on a detached task and never reloaded the model's cache; `retitle`, `undo`, `tag` and `trash` all call `loadIndex()`, the watcher's own path did not. Every earlier sighting of a fresh capture in the window had a relaunch between the capture and the look.
+- **Evidence:** `~/Library/Logs/ShotScribe.log` 12:01–12:02 (renamed, then the re-fire skipped as not raw); `index.json` with four entries for 2026-09-13; the window from an 11:51 launch.
+- **Fix/Repair:** After `ShotIndex.record` the detached task hops to the main actor and calls `loadIndex()` and `runSearch()`. Same day, unreleased (1.6.0).
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 09:30 — The list view had no landing zone
 - **Bug/Issue:** Josh, from a screenshot of the window in list view: the newest capture's landing zone — the hero, with the title edit and the tiles — was missing; only the rows showed. "The landing zone is the key to our system so it missing degrades user functionality."
 - **RCA:** `content` built the hero only on the tiles branch; the list branch went `gridHead` → `shotsList` and never asked for `heroShot`. The list predates the hero (2026-09-12) and was not revisited when it landed.
