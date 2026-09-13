@@ -679,8 +679,9 @@ already signed in to, or an OpenAI-compatible endpoint.
   tile now carries the mark of the titler itself — Josh: "those three are
   really well known and should have their respective logo icons." The marks
   come from Lobe Icons 1.95.0 (MIT collection; the marks stay their owners'),
-  rasterised to 128 px (Gemini's gradient needed Quick Look's WebKit path;
-  CoreSVG dropped it), embedded as base64, monochrome ones as templates.
+  rasterised to 256 px through WebKit (`scripts/svg-to-png.swift`: CoreSVG
+  dropped Gemini's gradient, Quick Look painted it on white — Josh caught the
+  white square), embedded as base64, monochrome ones as templates.
   Offline wears `wifi.slash`, a command `terminal`, an endpoint `network`.
   Verified with `scripts/render-pane.swift`: six snapshots, one per kind.
 

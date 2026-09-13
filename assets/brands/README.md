@@ -19,8 +19,9 @@ redrawn.
 
 `claude`, `codex` (the OpenAI mark), `gemini`, `cursor` and `ollama`, as SVG
 sources from [Lobe Icons](https://github.com/lobehub/lobe-icons) 1.95.0 (MIT
-for the collection; each mark stays its owner's trademark) and the 128 px PNGs
-rasterised from them. `<name>.mono` marks the single-colour ones, rendered as
+for the collection; each mark stays its owner's trademark) and the 256 px PNGs
+rasterised from them with `scripts/svg-to-png.swift` (WebKit: CoreSVG drops
+Gemini's gradient and Quick Look paints a white background). `<name>.mono` marks the single-colour ones, rendered as
 templates. Josh chose to ship them (2026-09-13) knowing OpenAI's and Google's
 own downloads are gated; they point at the service the user signed in to and
 are never more prominent than ShotScribe's own icon. Remove on an owner's request.
