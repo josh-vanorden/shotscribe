@@ -4,6 +4,10 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.6.1 — unreleased
 
+- **Tags as a filter.** A strip under the grid head lists every tag in use
+  with its count: click one to isolate, a second to narrow to both, Clear to
+  see everything. A tag chip on a tile does the same. **By tag** joins the
+  sort menu and groups the grid by filing, the untagged last.
 - **Mark up in Preview** on the landing zone and in every shot's menu: the
   capture opens in macOS's own Preview for the pencil. "Restore" moved beside
   the "was …" line it puts back, so the tile row stays one row.

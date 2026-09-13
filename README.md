@@ -391,8 +391,10 @@ shotscribe find error       # …or how they are filed
 The search field in the app does the same thing, and new captures index
 themselves the moment they are renamed. Tags are searched alongside the text and
 rank with the filename, since a tag was chosen deliberately and body text merely
-crossed the screen. In the app the tags sit on each tile; clicking one shows
-everything filed the same way. A tag you add by hand in Finder is picked up by
+crossed the screen. In the app the tags sit on each tile; clicking one isolates
+everything filed the same way, a strip above the grid lists every tag in use
+with its count (click to isolate, a second to narrow, Clear to undo), and
+**By tag** in the sort menu groups the grid by filing. A tag you add by hand in Finder is picked up by
 the next sweep.
 
 `SHOTSCRIBE_INDEX=/tmp/scratch.json shotscribe …` points the index somewhere

@@ -225,11 +225,13 @@ public struct ShotScribeView: View {
             let hero = heroShot
             if let hero { heroCard(hero) }
             gridHead
+            if !model.tagCounts.isEmpty { tagStrip }
             shotsList(excluding: hero)
         } else {
             let hero = heroShot
             if let hero { heroCard(hero) }
             gridHead
+            if !model.tagCounts.isEmpty { tagStrip }
             ForEach(dayGroups(excluding: hero)) { group in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(group.title).font(.system(size: 15, weight: .bold)).tracking(-0.3)
@@ -350,10 +352,48 @@ public struct ShotScribeView: View {
         .padding(.bottom, 18)
     }
 
+    /// Every tag in use with its count: click one to isolate, another to
+    /// narrow, Clear to see everything again. The filing system's own table of
+    /// contents — the answer to "show me everything I filed under error".
+    private var tagStrip: some View {
+        FlowLayout(spacing: 6) {
+            if !model.tagFilter.isEmpty {
+                Button { model.clearTagFilter() } label: {
+                    Label("Clear", systemImage: "xmark").font(.caption.weight(.medium))
+                }
+                .buttonStyle(CapsuleButtonStyle(quiet: true))
+                .help("Show every screenshot again")
+            }
+            ForEach(model.tagCounts) { tc in
+                let on = model.tagFilter.contains(tc.tag)
+                Button { model.toggleTag(tc.tag) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "tag").font(.system(size: 9, weight: .semibold))
+                        Text(tc.tag)
+                        Text("\(tc.count)").monospacedDigit().opacity(0.7)
+                    }
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 9).frame(height: 24)
+                    .foregroundStyle(on ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
+                    .background(Capsule().fill(on ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.primary.opacity(0.06))))
+                    .overlay(Capsule().strokeBorder(.white.opacity(on ? 0.25 : 0.08), lineWidth: 1))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(on ? "Filed under \(tc.tag) — click to stop isolating it"
+                         : "Isolate everything filed under \(tc.tag); a second tag narrows to both")
+            }
+        }
+        .padding(.bottom, 10)
+        .animation(.easeOut(duration: 0.15), value: model.tagFilter)
+    }
+
     /// Count, selection, sort and view: quiet, one line, above the groups.
     private var gridHead: some View {
         HStack(spacing: 10) {
-            Text(model.query.isEmpty
+            Text(!model.tagFilter.isEmpty
+                 ? "\(model.visibleShots.count) filed under \(model.tagFilter.sorted().joined(separator: " + "))"
+                 : model.query.isEmpty
                  ? "\(model.visibleShots.count) screenshots"
                  : "\(model.visibleShots.count) match\(model.visibleShots.count == 1 ? "" : "es")")
                 .font(.caption.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
@@ -393,7 +433,7 @@ public struct ShotScribeView: View {
     }
 
     private struct DayGroup: Identifiable {
-        let id: Date
+        let id: String
         let title: String
         let subtitle: String
         var sessions: [Session]
@@ -406,9 +446,31 @@ public struct ShotScribeView: View {
         let chronological = model.query.trimmingCharacters(in: .whitespaces).isEmpty
             && (model.sort == .newest || model.sort == .oldest)
         let shots = model.visibleShots.filter { $0.path != hero?.path }
+        // By tag: one group per tag in use, a shot under every tag it carries,
+        // the untagged last — the filing as a browse.
+        if model.sort == .tag, model.query.trimmingCharacters(in: .whitespaces).isEmpty {
+            var byTag: [String: [IndexedShot]] = [:]
+            var untagged: [IndexedShot] = []
+            for s in shots {
+                let tags = Set((s.tags ?? []).map { $0.lowercased() })
+                if tags.isEmpty { untagged.append(s) } else { for t in tags { byTag[t, default: []].append(s) } }
+            }
+            var groups = byTag.keys.sorted().map { t -> DayGroup in
+                let members = byTag[t]!
+                return DayGroup(id: "tag:\(t)", title: t,
+                                subtitle: "\(members.count) screenshot\(members.count == 1 ? "" : "s")",
+                                sessions: Sessions.collapse(members, gapMinutes: 0))
+            }
+            if !untagged.isEmpty {
+                groups.append(DayGroup(id: "tag:", title: "Untagged",
+                                       subtitle: "\(untagged.count) screenshot\(untagged.count == 1 ? "" : "s")",
+                                       sessions: Sessions.collapse(untagged, gapMinutes: 0)))
+            }
+            return groups
+        }
         let sessions = Sessions.collapse(shots, gapMinutes: chronological ? model.keepPolicy.sessionGapMinutes : 0)
         guard chronological else {
-            return [DayGroup(id: .distantPast, title: model.query.isEmpty ? "All screenshots" : "Matches", subtitle: "", sessions: sessions)]
+            return [DayGroup(id: "all", title: model.query.isEmpty ? "All screenshots" : "Matches", subtitle: "", sessions: sessions)]
         }
         let cal = Calendar.current
         var groups: [DayGroup] = []
@@ -418,7 +480,7 @@ public struct ShotScribeView: View {
             if let i = index[day] { groups[i].sessions.append(s) }
             else {
                 index[day] = groups.count
-                groups.append(DayGroup(id: day, title: Self.dayTitle(day), subtitle: Self.daySubtitle(day), sessions: [s]))
+                groups.append(DayGroup(id: "day:\(day.timeIntervalSince1970)", title: Self.dayTitle(day), subtitle: Self.daySubtitle(day), sessions: [s]))
             }
         }
         return groups

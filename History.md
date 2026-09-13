@@ -757,4 +757,10 @@ app-specific password, and the profile answered.
   "Restore original name" left the tile row for a link beside the "was …"
   line it puts back, so the row stays one row. Toolbelt's pin raised to
   `from: "1.6.0"` the same hour. For 1.6.1.
+- 16:15: **tags as a filter.** Josh, still clicking: no way to sort or isolate
+  by tag — a chip click ran a text search for the word. Now `tagFilter` on the
+  model (isolate; a second tag narrows, AND), a strip under the grid head with
+  every tag in use and its count, and a **By tag** sort that groups the grid
+  by filing, a shot under each tag it carries, the untagged last. Rendered
+  both off-screen (`HARNESS_SORT=tag`). For 1.6.1.
 

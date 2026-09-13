@@ -767,7 +767,7 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     public enum ShotSort: String, CaseIterable, Identifiable, Sendable {
-        case newest, oldest, nameAsc, nameDesc
+        case newest, oldest, nameAsc, nameDesc, tag
         public var id: String { rawValue }
         public var label: String {
             switch self {
@@ -775,6 +775,7 @@ public final class ShotScribeModel: ObservableObject {
             case .oldest:   return "Oldest first"
             case .nameAsc:  return "Name A–Z"
             case .nameDesc: return "Name Z–A"
+            case .tag:      return "By tag"
             }
         }
     }
@@ -865,25 +866,64 @@ public final class ShotScribeModel: ObservableObject {
         case .oldest:   return shots.sorted { $0.captured < $1.captured }
         case .nameAsc:  return shots.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         case .nameDesc: return shots.sorted { $0.name.localizedStandardCompare($1.name) == .orderedDescending }
+        case .tag:
+            // First tag A–Z, newest first within one; the untagged last.
+            return shots.sorted { a, b in
+                let ta = a.tags?.first?.lowercased() ?? "\u{10FFFF}", tb = b.tags?.first?.lowercased() ?? "\u{10FFFF}"
+                return ta != tb ? ta < tb : a.captured > b.captured
+            }
         }
     }
+
+    // MARK: Tags as a filter
+
+    /// The tags being isolated; every shot shown carries all of them.
+    @Published var tagFilter: Set<String> = []
+
+    public struct TagCount: Identifiable, Equatable {
+        public var id: String { tag }
+        public let tag: String
+        public let count: Int
+    }
+
+    /// Every tag in use across the corpus, most used first — the filing
+    /// system's own table of contents.
+    var tagCounts: [TagCount] {
+        var counts: [String: Int] = [:]
+        for shot in indexCache { for t in Set((shot.tags ?? []).map { $0.lowercased() }) { counts[t, default: 0] += 1 } }
+        return counts.map { TagCount(tag: $0.key, count: $0.value) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.tag < $1.tag }
+    }
+
+    func toggleTag(_ tag: String) {
+        let t = tag.lowercased()
+        if tagFilter.contains(t) { tagFilter.remove(t) } else { tagFilter.insert(t) }
+    }
+
+    func clearTagFilter() { tagFilter.removeAll() }
 
     /// What the views show: search hits when searching, the whole corpus
     /// otherwise. The index doubles as the browser — it is the only thing that
     /// knows every shot, since the rename history is capped.
     var visibleShots: [IndexedShot] {
-        query.trimmingCharacters(in: .whitespaces).isEmpty
+        let base: [IndexedShot] = query.trimmingCharacters(in: .whitespaces).isEmpty
             ? indexCache
             // Search results are ranked by relevance; re-sorting them by date
             // would throw away the ranking that made them results.
             : (sort == .newest ? hits.map(\.shot) : Self.sorted(hits.map(\.shot), by: sort))
+        guard !tagFilter.isEmpty else { return base }
+        return base.filter { shot in
+            let have = Set((shot.tags ?? []).map { $0.lowercased() })
+            return tagFilter.allSatisfy { have.contains($0) }
+        }
     }
 
-    /// Show everything filed the same way. Tags are indexed, so a filter is just
-    /// a search — no second code path, and the field shows what is being asked.
+    /// Show everything filed the same way: isolate the tag. Until 2026-09-13
+    /// this ran a text search for the word, which also matched body text and
+    /// could not be combined; the strip above the grid is the same filter with
+    /// every tag in use on it.
     func filter(tag: String) {
-        query = tag
-        runSearch()
+        tagFilter = [tag.lowercased()]
     }
 
     func snippet(for shot: IndexedShot) -> String? {

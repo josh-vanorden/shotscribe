@@ -11,6 +11,7 @@
 //   mkdir -p /tmp/pane/shots && ln ~/Pictures/Screenshots/<a few>.png /tmp/pane/shots/
 //   /tmp/render-pane /tmp/pane          # writes /tmp/pane/*.png
 //   HARNESS_VIEW=list /tmp/render-pane /tmp/pane   # the list view instead of tiles
+//   HARNESS_SORT=tag /tmp/render-pane /tmp/pane    # grouped by tag
 //
 // Hard-link the fixtures (a copy gets today's date and no hero). The pane
 // stands down while ShotScribe.app runs, which is fine for a render.
@@ -29,6 +30,7 @@ let suite = UserDefaults(suiteName: suiteName)!
 suite.set(false, forKey: "shotscribe.watching")
 suite.set("\(root)/shots", forKey: "shotscribe.folder")
 if let view = ProcessInfo.processInfo.environment["HARNESS_VIEW"] { suite.set(view, forKey: "shotView") }
+if let sort = ProcessInfo.processInfo.environment["HARNESS_SORT"] { suite.set(sort, forKey: "shotSort") }
 ShotScribeDefaults.suiteOverride = suite
 ShotIndex.storeOverride = URL(fileURLWithPath: "\(root)/index.json")
 for url in ShotIndex.imageFiles(in: URL(fileURLWithPath: "\(root)/shots")) { ShotIndex.record(url) }
