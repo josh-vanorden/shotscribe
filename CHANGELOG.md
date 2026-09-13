@@ -2,8 +2,12 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.1 — unreleased
+## 1.6.1 — 2026-09-13
 
+- **Security sweep.** A custom command's first token must be a plain name or
+  a path before the login-shell lookup runs; plain `http` to a remote endpoint
+  is flagged in the AI tab. Nothing else found: no secrets, no new logging of
+  screen text, deletes only under the Keep tab's own choice.
 - **Tags as a filter.** A strip under the grid head lists every tag in use
   with its count: click one to isolate, a second to narrow to both, Clear to
   see everything. A tag chip on a tile does the same. **By tag** joins the
