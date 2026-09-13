@@ -35,10 +35,12 @@ once.
 - **It keeps a search index at `~/.shotscribe/index.json`**: the text read off
   every capture. It never leaves the machine and is readable by your user
   only, but it is more sensitive than the screenshots — see *Privacy*.
-- **With "Title with Claude" on, the text read off each capture is sent to
-  Anthropic** through the `claude` CLI on your own subscription. Off (the
-  offline titler), nothing leaves the machine. The app makes no network
-  connections of its own and has no telemetry.
+- **With AI titling on, the text read off each capture goes to whichever
+  assistant the AI tab names** — Claude Code by default, through the `claude`
+  CLI on your own subscription; Codex, Gemini CLI, Cursor, an endpoint, or
+  Ollama on this Mac. Offline, nothing leaves the machine. The only network
+  code in the app is the endpoint titler, and it runs only when an endpoint is
+  the choice; there is no telemetry.
 - **macOS may ask for folder access.** If your captures land on the Desktop
   (or in Documents or Downloads), the first look there triggers the standard
   folder-access prompt; denying it leaves the app idle. `~/Pictures` needs no
@@ -51,30 +53,37 @@ once.
 
 Everything it writes and how to remove it is under *Uninstall*.
 
-## Whose Claude is it?
+## Whose AI is it?
 
-**Yours.** ShotScribe ships no API keys and has no account of its own. When
-Claude titling is on, it drives the `claude` CLI installed on *your* machine,
-which runs on *your* Claude subscription — the same one you use in your
-terminal. Install [Claude Code](https://claude.com/claude-code), run
-`claude` once to sign in, and ShotScribe picks it up automatically. No Claude
-Code? Everything still works with the offline keyword titler — just blunter
+**Yours.** ShotScribe ships no API keys and has no account of its own. The
+**AI** tab names who titles a capture, and every door — the app, the CLI, the
+watcher — honours the same choice:
+
+| Titler | What it drives | Where the text goes |
+|---|---|---|
+| **Claude Code** (default) | the `claude` CLI you are signed in to, with its tools disabled | Anthropic, on your subscription |
+| **Codex** | `codex exec` in a read-only sandbox | OpenAI, on your login |
+| **Gemini CLI** | `gemini -p`, sandboxed | Google, on your login |
+| **Cursor Agent** | `cursor-agent -p` | Cursor, on your login |
+| **Ollama** | `ollama run <model>` | nowhere — the model runs on this Mac |
+| **A command** | anything that prints a line | wherever it sends it |
+| **An endpoint** | any OpenAI-compatible `/chat/completions` — OpenAI, OpenRouter, LM Studio, Ollama's `/v1`, a team gateway | the endpoint you name; a local one keeps it here |
+| **Offline** | the keyword titler | nowhere |
+
+The CLI presets are commands you can see and edit in the tab (`{prompt}` is
+the instruction plus the text read off the capture, as one argument); each
+ships with the flags that stop the tool from *acting* on that text, because
+what is on your screen is not always text you wrote. An endpoint's key lives
+in your Keychain, never in the settings file. **Try it on the newest capture**
+shows the title the choice would give, without renaming anything. Nothing
+installed? Everything still works with the offline titler — just blunter
 labels.
 
-## The "connect to Claude" part
-
-Titling is a swappable seam (`Titler`):
-
-- **`ClaudeTitler`** shells out to the local [Claude Code](https://claude.com/claude-code)
-  CLI (`claude -p`), sandboxed (no tools, no MCP) since the prompt carries text
-  pulled off your screen. This is the default when `claude` is installed.
-- **`KeywordTitler`** needs no network and no Claude — it picks the salient words
-  straight from the OCR text. So the tool is still useful to anyone.
-
-And the inversion also exists: **`shotscribe-mcp`** is an MCP server (stdio)
-that lets Claude Code / Cowork call the same engine as tools *during a
-session* — there, the calling model IS the intelligence, so the server only
-does the mechanical, on-device parts and takes the model's title as input.
+The inversion also exists: **`shotscribe-mcp`** is an MCP server (stdio) that
+lets Claude Code, Cursor, Codex, Gemini CLI, LibreChat or any MCP client call
+the same engine as tools *during a session* — there, the calling model IS the
+intelligence, so the server only does the mechanical, on-device parts and
+takes the model's title as input.
 
 ## Install
 
@@ -111,8 +120,11 @@ shotscribe rename --dry-run "~/Desktop/Screenshot ....png"
 shotscribe watch
 shotscribe watch ~/Pictures/Screenshots
 
-# Skip Claude, use the offline keyword titler:
-shotscribe label --no-claude "~/Desktop/Screenshot ....png"
+# Skip the AI tab's choice for one run and use the offline keyword titler:
+shotscribe label --offline "~/Desktop/Screenshot ....png"
+
+# Who titles, as the AI tab set it (SHOTSCRIBE_DEFAULTS=<domain> tries another):
+shotscribe ai
 
 # Rename without filing it under Finder tags:
 shotscribe rename --no-tags "~/Desktop/Screenshot ....png"
@@ -156,9 +168,9 @@ screen is not always text you wrote, so a screenshot never gets to invent a tag
 of its own — anything off the list is dropped. Tags you added by hand are kept.
 `--no-tags` turns filing off.
 
-## MCP server (Claude Code / Cowork integration)
+## MCP server (Claude Code, Cursor, Codex, Gemini CLI, LibreChat…)
 
-`shotscribe-mcp` speaks MCP over stdio and exposes three tools:
+`shotscribe-mcp` speaks MCP over stdio and exposes four tools:
 
 | Tool | What it does |
 |---|---|
@@ -167,16 +179,26 @@ of its own — anything off the list is dropped. Tags you added by hand are kept
 | `layout_screenshot` | The text *with its layout*: every line in reading order with top/left/width/height in percent, so a model can rebuild the screen as code. Still on-device; no pixels leave the machine |
 | `rename_screenshot` | Safe rename to `<date> <time> <Label>.ext`; takes the caller's `title`, protects user-named files (`force` to override), supports `dry_run` |
 
-Register it with Claude Code:
+Build it once — `swift build -c release` — then register the binary with
+whichever client you use (the path is `$(pwd)/.build/release/shotscribe-mcp`):
 
 ```bash
-swift build -c release
-claude mcp add shotscribe -- "$(pwd)/.build/release/shotscribe-mcp"
+claude mcp add shotscribe -- /path/to/shotscribe-mcp            # Claude Code
+codex mcp add shotscribe -- /path/to/shotscribe-mcp             # Codex CLI
+gemini mcp add shotscribe /path/to/shotscribe-mcp               # Gemini CLI
+```
+
+Cursor reads `.cursor/mcp.json`, LibreChat its `librechat.yaml`; both take a
+stdio server the same way:
+
+```json
+{ "mcpServers": { "shotscribe": { "command": "/path/to/shotscribe-mcp" } } }
 ```
 
 Then, mid-session: *"grab my latest screenshot and give it a proper name"* —
-Claude lists, OCRs, composes the title, renames. No nested LLM calls: when the
-caller is already a model, the server stays mechanical.
+the model lists, OCRs, composes the title, renames. No nested LLM calls: when
+the caller is already a model, the server stays mechanical. It has no network
+listener and never calls a model itself.
 
 ### The `/screenshot` skill
 
@@ -221,11 +243,12 @@ in. That is stage two; stage one was the name and the filing.
 
 `ShotScribe.app` is the always-there face: a menu bar panel with an
 auto-rename watch toggle, a **configurable watch folder** ("Change…" — defaults
-to your macOS screenshot location), a Claude/offline titler switch, **launch at
-login**, "Rename latest capture now", and a history of recent renames. A **Name**
-block edits the filename template with a live sample under the field, a **File**
-block edits the tag vocabulary, and any shot's context menu can file it after the
-fact. The newest capture sits at the top as the landing zone: its title edits in
+to your macOS screenshot location), an AI titling switch, **launch at login**,
+"Rename latest capture now", and a history of recent renames. The window's
+inspector has five tabs: **Folder**, **Rename** (the switch, and the filename
+template with a live sample), **AI** (who titles — see *Whose AI is it?*),
+**File** (the tag vocabulary) and **Keep**; any shot's context menu can file it
+after the fact. The newest capture sits at the top as the landing zone: its title edits in
 place (click it, type, Return — the date stays, the words change) when a name is
 not what you would have said, and a row of tiles below it carries the icon of
 each service it reaches, named on hover — Finder, **Share** (which unfolds into
@@ -279,11 +302,12 @@ Toolbelt and never will.
 ## Privacy
 
 OCR runs entirely on-device (Apple Vision). Only the *extracted text* is sent
-to the titler — and with `--no-claude`, nothing leaves the machine at all. With
-the default `ClaudeTitler`, that text is sent to `claude -p` (which runs
-inference on Anthropic's servers, billed to your Claude subscription). That
-call runs with Claude Code's tools disabled and no MCP servers, because the
-text on your screen is not always text you wrote.
+to the titler — and offline, or with Ollama, nothing leaves the machine at all.
+With the default, that text goes to `claude -p` (inference on Anthropic's
+servers, billed to your Claude subscription) with Claude Code's tools disabled
+and no MCP servers, because the text on your screen is not always text you
+wrote; the other CLI presets carry their own tool-denying flags, and you can
+see and edit every one of them in the AI tab.
 
 What ShotScribe keeps on the machine, and where:
 
@@ -293,6 +317,7 @@ What ShotScribe keeps on the machine, and where:
 | Settings | `defaults` domain `com.joshvanorden.shotscribe` | Watch folder, template, vocabulary, switches, recent renames |
 | Log | `~/Library/Logs/ShotScribe.log` | File names and outcomes — never the text of a capture |
 | Finder tags | On the renamed files themselves | The tags chosen from your list |
+| Endpoint key | Your login Keychain, item `endpoint-api-key` | Only when you enter one; removable from the AI tab |
 
 Treat the index like the screenshots it describes: keep it out of backups
 and shared folders you would not trust with them. Nothing here is uploaded,
@@ -318,9 +343,15 @@ Items goes with the app.
   the window's chrome says.
 - Screen recordings are recognised by their English default name only; macOS
   puts no capture flag on a recording, so other languages are not detected.
-- The offline titler picks salient words, which can include OCR noise; sign
-  in to `claude` for titles that read like titles, and `shotscribe eval` to
-  measure the difference.
+- The offline titler picks salient words, which can include OCR noise; any
+  assistant in the AI tab gives titles that read like titles, and
+  `shotscribe eval` measures the difference.
+- The Claude Code, Ollama, custom-command and endpoint titlers have been run
+  end to end; the Codex, Gemini CLI and Cursor Agent presets are shipped as
+  their documented invocations and are editable — the "Try it" button is the
+  check. Keep a CLI's tool-denying flags, and keep the CLI itself current and
+  signed: macOS will refuse a binary it recognises as malware, and ShotScribe
+  then reports the failure rather than working around it.
 - The window and the menu bar item are one process; a copy of the pane hosted
   in another app stands down while ShotScribe.app runs.
 

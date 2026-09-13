@@ -2,6 +2,23 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.0 — unreleased
+
+- **Bring your own AI.** An **AI** tab names who titles a capture, honoured by
+  the app, the watcher and the CLI: Claude Code (the default, as before),
+  Codex, Gemini CLI, Cursor Agent, Ollama, any command that prints a line, or
+  any OpenAI-compatible endpoint (key in the Keychain). Presets are visible,
+  editable commands with their tool-denying flags; "Try it on the newest
+  capture" shows the answer without renaming.
+- The **Rename** tab now also holds the filename template; the Name tab is
+  gone and the fifth slot is the AI tab.
+- **Send to …** follows the assistant: the tile shows Claude's or Cursor's icon
+  and copies the line that chat understands.
+- `shotscribe ai` shows the choice; `--offline` (alias of `--no-claude`) forces
+  keywords; `SHOTSCRIBE_DEFAULTS=<domain>` tries another settings domain.
+- The MCP server is documented for Cursor, Codex, Gemini CLI and LibreChat as
+  well as Claude Code — it always was one.
+
 ## 1.5.1 — 2026-09-12
 
 - The search index is written readable by its owner only (0600, folder 0700);

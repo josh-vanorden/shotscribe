@@ -69,9 +69,16 @@ the image, top-left origin, reading order.
 
 ### The Titler seam, and why its direction flips
 
-`Titler` is the swappable protocol. `ClaudeTitler` shells out to the user's own
-`claude -p`; `KeywordTitler` is the offline frequency-ranking fallback. `ClaudeTitler.isAvailable()`
-decides which the CLI and menu bar pick.
+`Titler` is the swappable protocol. Behind it: `ClaudeTitler` (`claude -p`, tools denied),
+`CommandTitler` (any command with `{prompt}` as one argument — the Codex, Gemini CLI, Cursor
+Agent and Ollama presets are just templates in `AIProvider.Kind`), `EndpointTitler` (one
+OpenAI-compatible `POST /chat/completions`, the only network code) and `KeywordTitler` (offline).
+`AIProvider` is the stored choice (`ShotScribeDefaults.aiProvider()`, key `shotscribe.ai`,
+migrating the old `shotscribe.useClaude` switch) and `makeTitler()` is the one factory every door
+uses; `CommandRunner` is the one process runner (`/dev/null` stdin, both pipes drained, watchdog).
+The endpoint key is in the Keychain via `Secrets.store`; tests swap in `MemoryStore`.
+`SHOTSCRIBE_DEFAULTS=<domain>` points a CLI run at another settings domain, as `SHOTSCRIBE_INDEX`
+does for the index — use it for any provider trial, never the real domain.
 
 **`shotscribe-mcp` must never use `ClaudeTitler`.** When Claude calls the server as a
 tool, the caller already *is* the model — titling inside the tool would be a nested LLM
