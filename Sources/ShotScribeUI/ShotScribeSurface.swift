@@ -297,7 +297,7 @@ public struct ShotScribeView: View {
                         ShareRow(url: shot.url).id(shot.path)
                         ActionTile("Send to Claude", icon: AppIcons.claude ?? Image(systemName: "paperplane"),
                                    art: AppIcons.claude != nil) { model.sendToClaude(shot) }
-                        ActionTile("Rebuild as code", icon: Image(systemName: "curlybraces")) { model.copyCodeBrief(for: shot) }
+                        ActionTile("Rebuild as code", icon: Image(systemName: "hammer")) { model.copyCodeBrief(for: shot) }
                         ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
                         if shot.original != nil, !model.otherInstanceRunning {
                             ActionTile("Restore original name", icon: Image(systemName: "arrow.uturn.backward")) { model.undo(shot) }

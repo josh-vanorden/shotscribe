@@ -241,13 +241,13 @@ public final class ShotScribeModel: ObservableObject {
     /// Code, to paste inside the project the code should land in.
     public func copyCodeBrief(for shot: IndexedShot) {
         let path = shot.path
-        let generation = show(HandoffNote(text: "Reading the layout…", symbol: "curlybraces"))
+        let generation = show(HandoffNote(text: "Reading the layout…", symbol: "hammer"))
         Task { @MainActor [weak self] in
             let brief = await Task.detached(priority: .userInitiated) { CodeBrief.text(forImageAt: path) }.value
             // A later hand-off (another shot, or Send to Claude) owns the pasteboard.
             guard let self, self.handoffGeneration == generation else { return }
             self.handOver(brief, saying: HandoffNote(
-                text: "Copied. Paste into Claude Code inside the project the code should land in.", symbol: "curlybraces"))
+                text: "Copied. Paste into Claude Code inside the project the code should land in.", symbol: "hammer"))
         }
     }
 
