@@ -556,3 +556,68 @@ Josh's number, not 0.7.0: everything since 0.6.1 ships as one release.
   reach 1.x.
 - Pushed `settings-pane`, `main` and the tag with `MANUAL_PUSH=1` under
   this evening's `/clean-tree`.
+
+## 2026-09-12 — The QA pass, and 1.5.1 out the door
+
+Josh: "an end to end checklist of each feature, a full QA pass, a security
+sweep, the go-to-market warnings, then out the door publicly." Run on fresh
+release binaries, in scratch folders, with `SHOTSCRIBE_INDEX` pointed away
+from the real index and nothing written to the real defaults domain
+(checksummed before and after).
+
+**First finding was the pass itself:** `.build/release/shotscribe` was a
+Sep 11 binary — `package-app.sh` builds only the menubar product — so the
+first run "found" missing tags, an unknown `eval`, and a German capture renamed
+without its flag, all of which were the stale binary. It also honoured no
+`SHOTSCRIBE_INDEX` and wrote six scratch entries into the real index; they
+were scrubbed (backup `index.json.qa-2026-09-12.bak`, 222 entries remain).
+Second finding: `cp` copies extended attributes, so fixtures inherited the
+capture flag and Finder tags from their originals; `cp -X` is the fixture
+rule now (in memory).
+
+**Checklist (fresh binaries):**
+- Capture rule: `Screenshot`, `Screen Shot` renamed; user-named refused,
+  `--force` renames; `Bildschirmfoto` without the flag refused, with it
+  renamed; a collision gets ` (2)`. ✓
+- Rename, offline titler, dry-run, template (`name`). ✓
+- Tags: written as Finder tags (read back with `xattr -px … | xxd -r -p |
+  plutil -p -`: `terminal 0`, `code 0`); `--no-tags` writes none; an
+  off-vocabulary tag from an MCP caller is dropped; hand tags are kept. ✓
+- Index and search: `SHOTSCRIBE_INDEX` honoured, `find` by text and by tag,
+  the real index untouched. ✓
+- `eval --limit 3`: scores, moves nothing. ✓
+- Watcher: a capture dropped into a watched folder renamed within ~2 s. ✓
+- MCP over stdio: initialize (1.5.x, protocol echoed), four tools, OCR,
+  layout (86 lines), `rename_screenshot` dry run, refusal of a user-named
+  file, unknown tool → -32602, unknown method → -32601, a malformed line
+  ignored without a crash, stderr quiet. ✓ Two notes: a non-image path
+  answers "no text recognised" rather than "not an image"; a malformed line
+  gets no -32700 reply. Both left as they are.
+- The window, captured live (`screencapture -l<window>`): hero, tiles, tag
+  chips, inspector. Switches looked off in the capture — that is macOS
+  drawing an inactive window; `defaults` said on. The tag tile had wrapped:
+  the hero's text column is ~252 pt and seven 30 pt tiles need 258. ✗ → fixed
+  (28 pt, 6 pt gaps), re-captured, one row. ✓
+- Recordings: `RecordingTests` only; no `.mov` in the folder to try live.
+- Not exercised by machine: title edit, Share unfolding, hover bubbles,
+  drag-out, Send to Claude paste, launch at login, anything with `claude`
+  signed in. Josh's punch list in `roadmap.md`.
+
+**Security sweep:** `ClaudeTitler` runs `--strict-mcp-config` and denies
+Bash, BashOutput, KillShell, Task, Agent, Read, Write, Edit, NotebookEdit,
+WebFetch, WebSearch, Glob, Grep; stdin `/dev/null`, SIGTERM→SIGKILL
+watchdog. No network code beyond spawning `claude`; no telemetry; no secrets
+or e-mail addresses in tracked files; the log carries names and counts, never
+OCR text; hardened runtime on, no entitlements. Two findings fixed in 1.5.1:
+the index was 0644 in a 0755 folder (now 0600/0700, tightened on the next
+save of an old index), and a title of `../../etc/passwd` kept `..` as a word
+(dot-only words dropped). `Triage.md` has both, and the wrap.
+
+**Go to market:** README gained *Before you install — what it touches*,
+install from the DMG, a privacy table (index, defaults, log, tags), *Uninstall*,
+*Known limitations*; `SECURITY.md` (reporting, the trust boundaries);
+`CHANGELOG.md`.
+
+**Shipped:** `v1.5.1` at `e6e96a1`, notarized (4× Accepted, stapled; the DMG
+and a quarantined copy of the app both assess as Notarized Developer ID),
+published as the latest GitHub release with the DMG attached. 127 tests.

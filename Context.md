@@ -5,22 +5,21 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-12
-**Phase:** Ship (1.5.0 tagged, notarized and pushed; the DMG is local — no GitHub release yet; Toolbelt still mounts 0.6.1)
-**Next action:** Ask Josh whether to publish: `gh release create v1.5.0 dist/ShotScribe-1.5.0.dmg`; then raise Toolbelt's pin at `toolbelt/Package.swift:34` to `.upToNextMinor(from: "1.5.0")` and `swift package update shotscribe`. In parallel, sign in to `claude` and run `.build/release/shotscribe eval --limit 25`.
+**Phase:** Ship — 1.5.1 is public (GitHub release with the notarized DMG); one gate item to *maintain* is Josh's call (close or defer the README's backlog sweep and widget)
+**Next action:** Raise Toolbelt's pin at `toolbelt/Package.swift:34` to `.upToNextMinor(from: "1.5.1")` and `swift package update shotscribe`, so the belt mounts the new pane. Then sign in to `claude` and run `.build/release/shotscribe eval --limit 25`.
 
 **Open loops**
-- The punch list in `roadmap.md` (13 items): nothing hand-tested yet — the tiles and their hover names, the title edit, Share unfolding and an AirDrop, the Send to Claude paste, `/screenshot code`, a screen recording, the capture-flag timing.
-- Backlog sweep: 93 raw `Screenshot …` files in the folder (newest 2026-08-21), unbuilt; same pass could re-render old names under a new template.
-- `claude` signed out since 2026-09-10: no eval number yet, and Remote Control needs the login too (left off by Josh's choice).
-- Toolbelt pin: `.upToNextMinor(from: "0.6.0")` cannot resolve a 1.x tag.
+- The hand tests only a person can run (`roadmap.md` punch list): title edit, Share unfolding + an AirDrop, hover bubbles, drag-out, the Send to Claude paste, `/screenshot code`, a screen recording, launch at login, capture-flag timing.
+- Backlog sweep: 93 raw `Screenshot …` files in the folder (newest 2026-08-21), unbuilt.
+- `claude` signed out since 2026-09-10: no eval number; Remote Control off by choice.
+- Two MCP niceties left as-is: a non-image path says "no text recognised"; a malformed line gets no -32700 reply.
 
 **Ruled out**
-- Remote Control (`claude rc`) as a push channel into a session: only claude.ai/code and the phone app can send into one; Send to Claude is a paste by design.
-- Braces as the code tile's icon (an engineer's glyph); `standardShareMenuItem` for the share row (a menu, not a row).
-- The `kMDItemIsScreenCapture` xattr alone as "raw"; `ImageRenderer` for off-screen renders; copied fixtures; `labelling` as an extension-only method; app names in the menu-word list; opening a Terminal for stage two.
+- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem` for the share row.
+- The `kMDItemIsScreenCapture` xattr alone as "raw"; `ImageRenderer` for off-screen renders; copied fixtures for dates (and now for xattrs: `cp -X`); `labelling` as an extension-only method; app names in the menu-word list; a Terminal for stage two.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** 1 (that docs commit), pushed by the same `/clean-tree`; code and the `v1.5.0` tag were pushed first
+**Unpushed commits:** 1 (that docs commit), pushed right after
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at

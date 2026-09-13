@@ -6,6 +6,27 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-12 19:40 — The search index was world-readable
+- **Bug/Issue:** `~/.shotscribe/index.json` — the text read off every capture — sat at mode 0644 in a 0755 folder, while the README called it more sensitive than the screenshots. Found in the QA pass (`ls -la ~/.shotscribe`).
+- **RCA:** `ShotIndex.save` wrote with `Data.write(options: .atomic)` and created the folder with default attributes; nothing ever set a mode, so the umask decided.
+- **Evidence:** `ls -la` before: `-rw-r--r--` / `drwxr-xr-x`; `HardeningTests.testTheIndexIsReadableByItsOwnerOnly` after.
+- **Fix/Repair:** The folder is created 0700 and the file set 0600 after every save (`.atomic` writes a fresh file, so an old index is tightened on its next save). Commit on `settings-pane`, 2026-09-12 (see `History.md`, 1.5.1).
+- **Related PR:** none — released as 1.5.1
+
+### 2026-09-12 19:40 — A dot-only word survived title sanitising
+- **Bug/Issue:** `rename_screenshot` with the title `../../etc/passwd Title` produced `2026-09-12 1933 .. etc passwd.png`. Harmless — `/` is stripped, so the file stays in its folder — but `..` reached a file name.
+- **RCA:** `Naming.sanitize` removes path-illegal characters and collapses spaces; a word made only of dots contains none of those characters.
+- **Evidence:** The MCP driver run in the QA pass (scratch folder); `HardeningTests.testATitleCannotCarryAPathComponent`.
+- **Fix/Repair:** `sanitize` drops words that contain nothing but dots; dots inside a word (`v1.5.0`) stay. Same commit as above.
+- **Related PR:** none — released as 1.5.1
+
+### 2026-09-12 19:38 — The tag tile wrapped to a second row
+- **Bug/Issue:** In the window capture of the 1.5.0 build, the landing zone's seventh tile (File as) sat alone on a second line with visible room to its right.
+- **RCA:** The hero splits its width evenly between the thumbnail and the text column, leaving the column about 252 pt; seven 30 pt tiles at 8 pt spacing need 258. `FlowLayout` did what it is for.
+- **Evidence:** `window.png` and the `tiles.png` crop in the session scratchpad; the arithmetic.
+- **Fix/Repair:** Tiles are 28 pt at 6 pt spacing (232 pt); the row still wraps gracefully below that. Same commit.
+- **Related PR:** none — released as 1.5.1
+
 ### 2026-09-12 17:40 — Tag chips read as actions
 - **Bug/Issue:** Josh, on the new window: "What does the terminal button do?" and "the code button, stage two the user hits code, then what?" The pills under a tile were Finder tags, not controls.
 - **RCA:** The chips were bare capsules styled like the window's buttons, with no glyph and a hover that said only "Find everything tagged code"; the shipped vocabulary holds "code" and "terminal", which read as verbs beside a feature called code. Nothing on the chip said what it was.

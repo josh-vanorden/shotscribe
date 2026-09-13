@@ -16,9 +16,8 @@ No engine changes. Details in `History.md`.
   (rename captures that landed while the app wasn't running) and a
   WidgetKit widget. Closing those — or explicitly deferring them — is a
   reasonable gate before calling this "maintain" rather than "ship."
-- TODO: no distribution channel (e.g. a GitHub release, Homebrew tap)
-  confirmed yet for the notarized DMG sitting in `dist/` — worth checking
-  before treating "ship" as complete.
+- ~~TODO: no distribution channel confirmed for the notarized DMG.~~ Done
+  2026-09-12: GitHub releases carry the DMG (`v1.5.1`, marked latest).
 
 ## Discovered sub-issues
 - **2026-08-20 — `swift test` was blocked, then unblocked the same day.**
@@ -60,7 +59,7 @@ stands, one item longer.
       (Apple: Accepted, both submissions), stapled; a quarantined copy out of
       the DMG passes Gatekeeper as Notarized Developer ID. `History.md` has
       the commands.
-- [ ] Toolbelt: raise `.upToNextMinor(from: "0.6.0")` to `from: "1.5.0"`
+- [ ] Toolbelt: raise `.upToNextMinor(from: "0.6.0")` to `from: "1.5.1"`
       (`toolbelt/Package.swift:34`) and `swift package update shotscribe`, or
       it keeps mounting the 0.6.1 pane — a 1.x tag is out of that range.
 - [ ] Live check of the capture flag timing under a custom
@@ -100,3 +99,16 @@ README's two roadmap items open. Discovered this evening:
   replacement is a menu item, which cannot be laid out as the unfolding row
   Josh asked for. It still answers on macOS 26; one deprecation warning is
   kept on purpose with the reason beside it.
+
+## 2026-09-12, night — 1.5.1 released; the phase is still Ship, by one item
+The QA pass (History, same date) fixed three things and shipped `v1.5.1` as
+a public GitHub release with the notarized DMG. Of the gate to *maintain*,
+the distribution channel is now real; what remains is Josh's call on the
+README's two open roadmap items (backlog sweep — 93 raw files are waiting —
+and the widget): close them or defer them explicitly, and this is maintain.
+Sub-issues found by the pass:
+- **`package-app.sh` builds one product.** The CLI and MCP binaries in
+  `.build/release` can be days stale; a QA run must `swift build -c release`
+  first. The first E2E run was wrong about four features because of this.
+- **Fixtures inherit xattrs.** `cp` carries the capture flag and Finder tags;
+  use `cp -X`. Hard links share the inode, so never tag through one.
