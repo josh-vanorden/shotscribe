@@ -693,4 +693,12 @@ already signed in to, or an OpenAI-compatible endpoint.
 - 09:30: the list view had no landing zone — the hero was built only on the
   tiles branch. Fixed (hero first, the newest shot left out of the rows);
   `scripts/render-pane.swift` grew a `HARNESS_VIEW=list` switch to prove it.
+- 09:47: **a bin on every shot.** Josh: the tile's upper corner, the landing
+  zone, and right of the date in the list. `TrashButton` + `TrashCan`: a drawn
+  can whose lid hinges at the right, lifts for the pointer and swings open on
+  the click, then the tile scales away before `NSWorkspace.recycle` runs;
+  list rows keep theirs faint until hovered. Josh remembered a bin animation
+  from "Claude Bridge, Skills" to reuse — no such control exists in any repo
+  or surface here (the hub's bin is a plain button), so this one was drawn
+  fresh in that spirit.
 

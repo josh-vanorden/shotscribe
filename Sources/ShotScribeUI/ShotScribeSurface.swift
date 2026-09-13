@@ -39,6 +39,7 @@ public struct ShotScribeSurface: View {
 /// rename lands.
 public struct ShotScribeView: View {
     @State private var editingTitle = false
+    @State private var heroHovered = false
     @State private var endpointKeyDraft = ""
     /// The picker's own state: a menu picker bound to a computed Binding
     /// changed its displayed value without reaching the model (2026-09-13,
@@ -281,10 +282,19 @@ public struct ShotScribeView: View {
 
             HStack(alignment: .center, spacing: 18) {
                 AspectThumbnail(path: shot.path, aspect: 1.6, pixels: 960)
+                    .overlay(alignment: .topTrailing) {
+                        if heroHovered, !model.otherInstanceRunning {
+                            TrashButton(size: 15, onImage: true) { model.trash(shot) }
+                                .padding(10)
+                                .transition(.opacity)
+                        }
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
                     .frame(maxWidth: .infinity)
                     .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
+                    .onHover { heroHovered = $0 }
+                    .animation(.easeOut(duration: 0.16), value: heroHovered)
                     .help("Drag to attach a copy elsewhere.")
                 VStack(alignment: .leading, spacing: 6) {
                     // foregroundColor, not foregroundStyle: on a concatenated Text the
@@ -501,6 +511,8 @@ public struct ShotScribeView: View {
                         tagChips(shot)
                         Text(shot.captured, format: .dateTime.year().month().day())
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        TrashButton(size: 12, quiet: true) { model.trash(shot) }
+                            .frame(width: 22)
                     }
                     .padding(.vertical, 6)
                     .contentShape(Rectangle())
@@ -1338,6 +1350,7 @@ private struct GalleryTile: View {
     let session: Session?
     @ObservedObject var model: ShotScribeModel
     @State private var hovered = false
+    @State private var leaving = false
 
     var body: some View {
         let picked = model.selected.contains(shot.path)
@@ -1375,24 +1388,34 @@ private struct GalleryTile: View {
                     }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if let session, leadsSession {
-                        Button { model.toggleExpanded(session) } label: {
-                            Label("\(session.count)", systemImage: "chevron.up")
-                                .font(.caption2.weight(.semibold)).monospacedDigit()
-                                .padding(.horizontal, 8).padding(.vertical, 4)
-                                .background(.ultraThinMaterial, in: Capsule())
+                    HStack(spacing: 6) {
+                        if let session, leadsSession {
+                            Button { model.toggleExpanded(session) } label: {
+                                Label("\(session.count)", systemImage: "chevron.up")
+                                    .font(.caption2.weight(.semibold)).monospacedDigit()
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(.ultraThinMaterial, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .help("Fold these \(session.count) back into one tile")
                         }
-                        .buttonStyle(.plain)
-                        .padding(8)
-                        .help("Fold these \(session.count) back into one tile")
+                        if hovered, !model.selecting {
+                            TrashButton(onImage: true) {
+                                withAnimation(.easeIn(duration: 0.18)) { leaving = true }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
+                            }
+                            .transition(.opacity)
+                        }
                     }
+                    .padding(8)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .strokeBorder(picked || hovered ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator),
                                   lineWidth: picked || hovered ? 2 : 1))
                 .shadow(color: .black.opacity(hovered ? 0.35 : 0), radius: 14, y: 8)
-                .scaleEffect(hovered ? 1.015 : 1)
+                .scaleEffect(leaving ? 0.86 : hovered ? 1.015 : 1)
+                .opacity(leaving ? 0 : 1)
                 .animation(.easeOut(duration: 0.18), value: hovered)
                 .contentShape(Rectangle())
         }
@@ -1480,6 +1503,77 @@ private struct GallerySessionTile: View {
 /// is and what clicking does. It was a bare pill, and a pill that says "code"
 /// beside a feature called code reads as a button. Nothing here runs anything;
 /// it filters.
+/// The bin. A drawn can whose lid lifts when the pointer arrives and flips
+/// open on the click, the way the Dock's bin answers a drop; the shot then
+/// leaves. Finder's Put Back undoes it — the help says so.
+private struct TrashButton: View {
+    var size: CGFloat = 14
+    /// List rows: faint until hovered, so a column of bins is not a column of
+    /// warnings.
+    var quiet = false
+    /// Tiles and the hero: white on a glass disc over the image.
+    var onImage = false
+    let action: () -> Void
+    @State private var hovering = false
+    @State private var firing = false
+
+    var body: some View {
+        Button {
+            guard !firing else { return }
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) { firing = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) { action(); firing = false }
+        } label: {
+            TrashCan(open: hovering || firing, flung: firing)
+                .frame(width: size, height: size)
+                .padding(onImage ? 6 : 4)
+                .background { if onImage { Circle().fill(.ultraThinMaterial) } }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(onImage ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+        .opacity(quiet && !hovering && !firing ? 0.38 : 1)
+        .animation(.easeOut(duration: 0.14), value: hovering)
+        .onHover { hovering = $0 }
+        .help("Move to the Trash. Finder’s Put Back undoes it.")
+    }
+}
+
+/// The can and its lid as two strokes, so the lid can move on its own: it
+/// hinges at the right, lifts a little for a hover and swings up for the click.
+private struct TrashCan: View {
+    var open: Bool
+    var flung: Bool
+
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width, h = g.size.height
+            let stroke = StrokeStyle(lineWidth: max(1.2, w * 0.1), lineCap: .round, lineJoin: .round)
+            ZStack {
+                Path { p in
+                    p.move(to: CGPoint(x: w * 0.17, y: h * 0.33))
+                    p.addLine(to: CGPoint(x: w * 0.83, y: h * 0.33))
+                    p.addLine(to: CGPoint(x: w * 0.76, y: h * 0.92))
+                    p.addQuadCurve(to: CGPoint(x: w * 0.24, y: h * 0.92), control: CGPoint(x: w * 0.5, y: h * 0.99))
+                    p.closeSubpath()
+                    p.move(to: CGPoint(x: w * 0.41, y: h * 0.47)); p.addLine(to: CGPoint(x: w * 0.43, y: h * 0.80))
+                    p.move(to: CGPoint(x: w * 0.59, y: h * 0.47)); p.addLine(to: CGPoint(x: w * 0.57, y: h * 0.80))
+                }
+                .stroke(style: stroke)
+                Path { p in
+                    p.move(to: CGPoint(x: w * 0.06, y: h * 0.25)); p.addLine(to: CGPoint(x: w * 0.94, y: h * 0.25))
+                    p.move(to: CGPoint(x: w * 0.37, y: h * 0.25)); p.addLine(to: CGPoint(x: w * 0.40, y: h * 0.10))
+                    p.addLine(to: CGPoint(x: w * 0.60, y: h * 0.10)); p.addLine(to: CGPoint(x: w * 0.63, y: h * 0.25))
+                }
+                .stroke(style: stroke)
+                .rotationEffect(.degrees(flung ? -42 : open ? -16 : 0), anchor: UnitPoint(x: 0.94, y: 0.25))
+                .offset(y: flung ? -h * 0.16 : open ? -h * 0.07 : 0)
+            }
+            .animation(.spring(response: 0.26, dampingFraction: 0.58), value: open)
+            .animation(.spring(response: 0.22, dampingFraction: 0.5), value: flung)
+        }
+    }
+}
+
 private struct TagChip: View {
     let tag: String
     var onImage = false
