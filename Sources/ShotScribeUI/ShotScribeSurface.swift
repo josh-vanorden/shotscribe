@@ -292,7 +292,7 @@ public struct ShotScribeView: View {
                     }
                     // The landing zone's actions: one row of tiles, each the icon of
                     // the service it reaches, named the moment it is hovered.
-                    FlowLayout(spacing: 8) {
+                    FlowLayout(spacing: 6) {
                         ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
                         ShareRow(url: shot.url).id(shot.path)
                         ActionTile("Send to Claude", icon: AppIcons.claude ?? Image(systemName: "paperplane"),
@@ -516,10 +516,10 @@ public struct ShotScribeView: View {
             }
         } label: {
             Image(systemName: "tag").resizable().aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14).frame(width: 30, height: 30).contentShape(Circle())
+                .frame(width: 13, height: 13).frame(width: 28, height: 28).contentShape(Circle())
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        .frame(width: 30, height: 30)
+        .frame(width: 28, height: 28)
         .background {
             Circle().fill(Color.primary.opacity(0.08))
                 .overlay(Circle().strokeBorder(.white.opacity(0.1), lineWidth: 1))
@@ -1467,8 +1467,8 @@ private struct ActionTile: View {
     var body: some View {
         Button(action: action) {
             icon.resizable().aspectRatio(contentMode: .fit)
-                .frame(width: art ? 20 : 14, height: art ? 20 : 14)
-                .frame(width: 30, height: 30)
+                .frame(width: art ? 19 : 13, height: art ? 19 : 13)
+                .frame(width: 28, height: 28)
                 .contentShape(Circle())
         }
         .buttonStyle(TileButtonStyle())
@@ -1518,7 +1518,7 @@ private struct ShareRow: View {
                 }
             } label: {
                 Image(systemName: "square.and.arrow.up").resizable().aspectRatio(contentMode: .fit)
-                    .frame(width: 14, height: 14).frame(width: 22, height: 22)
+                    .frame(width: 13, height: 13).frame(width: 20, height: 20)
                     .foregroundColor(open ? ShotPalette.accent : .primary)
                     .contentShape(Circle())
             }
@@ -1549,7 +1549,7 @@ private struct ShareRow: View {
             }
         }
         .font(.caption.weight(.medium))
-        .padding(.horizontal, open ? 8 : 4).frame(height: 30)
+        .padding(.horizontal, open ? 8 : 4).frame(height: 28)
         .background {
             Capsule().fill(Color.primary.opacity(open ? 0.1 : 0.08))
                 .overlay(Capsule().strokeBorder(open ? ShotPalette.accent.opacity(0.35) : .white.opacity(0.1), lineWidth: 1))

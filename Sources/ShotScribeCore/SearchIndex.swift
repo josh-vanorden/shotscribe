@@ -108,12 +108,20 @@ public enum ShotIndex {
 
     public static func save(_ store: Store) {
         let dir = indexURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fm = FileManager.default
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true,
+                                attributes: [.posixPermissions: 0o700])
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .iso8601
         if let data = try? enc.encode(store) {
             try? data.write(to: indexURL, options: .atomic)
+            // The index is the most sensitive thing ShotScribe writes — text
+            // caught in passing, greppable — so it is readable by its owner
+            // only, and an index written before this rule is tightened on the
+            // next save. `.atomic` writes a fresh file, so this runs every time.
+            try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: indexURL.path)
+            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         }
     }
 

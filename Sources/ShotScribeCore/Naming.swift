@@ -91,7 +91,11 @@ public enum Naming {
     public static func sanitize(_ label: String, maxChars: Int = 60) -> String {
         let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\n\t")
         let cleaned = label.components(separatedBy: illegal).joined(separator: " ")
-        let collapsed = cleaned.split(separator: " ").joined(separator: " ")
+        // A word that is only dots ("..", ".") survives the character strip and
+        // reads as a path component; it carries no meaning in a title either.
+        let collapsed = cleaned.split(separator: " ")
+            .filter { $0.contains { $0 != "." } }
+            .joined(separator: " ")
         return String(collapsed.prefix(maxChars)).trimmingCharacters(in: .whitespaces)
     }
 
