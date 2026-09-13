@@ -621,3 +621,57 @@ install from the DMG, a privacy table (index, defaults, log, tags), *Uninstall*,
 **Shipped:** `v1.5.1` at `e6e96a1`, notarized (4× Accepted, stapled; the DMG
 and a quarantined copy of the app both assess as Notarized Developer ID),
 published as the latest GitHub release with the DMG attached. 127 tests.
+
+## 2026-09-13 — Bring your own AI: the AI tab, and five tabs still
+
+Josh, first thing: ShotScribe reads as a Claude-only tool, his teammates use
+Cursor, Hermes, LibreChat, OpenAI and Gemini, and the inspector's five icons
+are the right number. Decision: merge Rename and Name, give the fifth slot to
+an **AI** tab, and cover the list with two mechanisms — a CLI the person is
+already signed in to, or an OpenAI-compatible endpoint.
+
+- **`AIProvider`** is the one stored choice (`shotscribe.ai`, migrating the
+  old "Title with Claude" switch so an upgrade changes nobody's titler):
+  offline, Claude Code, Codex, Gemini CLI, Cursor Agent, Ollama, a command, an
+  endpoint. `makeTitler()` is the factory every door uses.
+- **`CommandTitler`** runs any command with `{prompt}` as one argument
+  (instruction + OCR text) and takes the reply's last non-empty line; the
+  presets are visible, editable templates carrying each CLI's tool-denying
+  flags. `CommandRunner` is the process runner extracted from `ClaudeTitler`
+  (stdin `/dev/null`, both pipes drained, SIGTERM→SIGKILL), shared by both.
+- **`EndpointTitler`**: one `POST {base}/chat/completions`, the only network
+  code in the app; the key comes from the Keychain (`Secrets`, with a
+  `MemoryStore` for tests) and never touches the settings file.
+- **The tabs**: Folder · Rename (the switch, rename-now, then *Spelling* — the
+  template and its pickers) · AI (picker, the kind's fields, an availability
+  line, where the text goes, the machine's `provider.json` as a one-click
+  suggestion, "Try it on the newest capture") · File · Keep. The popover keeps
+  one switch, "Title with AI". **Send to …** follows the assistant (Claude's or
+  Cursor's icon; `/screenshot "<path>"` for Claude Code, a plain ask for
+  others); the brief's note names the agent.
+- **CLI**: `shotscribe ai`; `--offline` (alias `--no-claude`);
+  `SHOTSCRIBE_DEFAULTS=<domain>` tries another settings domain, the way
+  `SHOTSCRIBE_INDEX` does for the index — every provider trial below used it,
+  and the real domain was checksummed untouched.
+- **A failing titler is now said out loud.** `Renamer.labelling` swallowed
+  errors (`try?` → "Screenshot"); it now reports through `onTitlerError` and
+  falls back to the offline name. The CLI prints the note. Found because a
+  blocked Codex run printed "Screenshot" instead of an error.
+- Evidence: 140 tests green (13 new: migration, lenient decoding, argv
+  building, a command as a titler, failure and timeout, the endpoint request
+  and reply, availability, the hand-off line, the machine preference, secrets,
+  the reported failure). Live through the CLI in a throwaway domain: **Ollama**
+  preset titled a capture "Terminal Settings · terminal, settings" in 15 s;
+  **Ollama as an endpoint** (`/v1`, no key) answered in 0.8 s; a **custom
+  command** and **offline** as expected; **Gemini CLI** missing → visible
+  note + offline title. The window captured live: five tabs, the Rename tab
+  with *Spelling* under the switch. The AI tab itself, the popover switch and
+  "Try it" are Josh's to click.
+- **Not verified, and an incident.** The Codex preset was run once and macOS
+  refused to launch `/opt/homebrew/Caskroom/codex/0.118.0/codex-aarch64-apple-darwin`
+  as *known malware* (cask installed 2026-04-03; the file was removed at
+  06:54, not to the Trash). Nothing executed. Codex, Gemini CLI and Cursor
+  Agent ship as their documented invocations, editable, unverified here; the
+  README says so. Whether that April build was compromised or the verdict a
+  false positive is not knowable without fetching it again, which this
+  session did not do.

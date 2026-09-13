@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 07:05 — A failing titler became "Screenshot" in the CLI
+- **Bug/Issue:** `shotscribe label` with a titler that could not run (a CLI macOS refused to launch) printed the title "Screenshot" and no error, so a broken assistant looked like a blunt one.
+- **RCA:** `Renamer.labelling(fileAt:)` wrapped the titler in `try?` and fell through to a literal "Screenshot"; the app's own rename path had reported failures since 2026-08-12, the CLI and MCP paths never did.
+- **Evidence:** The Codex run in the 2026-09-13 QA (History, same date); `AIProviderTests.testAFailingTitlerIsReportedAndTheOfflineNameStands`.
+- **Fix/Repair:** `Renamer.onTitlerError` reports the failure and the offline titler names the shot; the CLI prints "note: <titler> failed — … Used the offline title." Same day.
+- **Related PR:** none — on `settings-pane`, unreleased (1.6.0)
+
 ### 2026-09-12 19:40 — The search index was world-readable
 - **Bug/Issue:** `~/.shotscribe/index.json` — the text read off every capture — sat at mode 0644 in a 0755 folder, while the README called it more sensitive than the screenshots. Found in the QA pass (`ls -la ~/.shotscribe`).
 - **RCA:** `ShotIndex.save` wrote with `Data.write(options: .atomic)` and created the folder with default attributes; nothing ever set a mode, so the umask decided.

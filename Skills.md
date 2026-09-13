@@ -27,7 +27,7 @@ Skills, slash commands, and workflows used by or on this repo.
   working here.
 
 <!-- markerblock:skills-inventory -->
-## What this repo can invoke — read on 2026-09-12
+## What this repo can invoke — read on 2026-09-13
 
 ### Executable tracked files
 
