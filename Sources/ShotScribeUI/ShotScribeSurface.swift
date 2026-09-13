@@ -284,7 +284,7 @@ public struct ShotScribeView: View {
                 AspectThumbnail(path: shot.path, aspect: 1.6, pixels: 960)
                     .overlay(alignment: .topTrailing) {
                         if heroHovered, !model.otherInstanceRunning {
-                            TrashButton(size: 15, onImage: true) { model.trash(shot) }
+                            DeletePill(size: 15, onImage: true) { model.trash(shot) }
                                 .padding(10)
                                 .transition(.opacity)
                         }
@@ -511,8 +511,7 @@ public struct ShotScribeView: View {
                         tagChips(shot)
                         Text(shot.captured, format: .dateTime.year().month().day())
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                        TrashButton(size: 12, quiet: true) { model.trash(shot) }
-                            .frame(width: 22)
+                        DeletePill(size: 12, quiet: true) { model.trash(shot) }
                     }
                     .padding(.vertical, 6)
                     .contentShape(Rectangle())
@@ -1400,7 +1399,7 @@ private struct GalleryTile: View {
                             .help("Fold these \(session.count) back into one tile")
                         }
                         if hovered, !model.selecting {
-                            TrashButton(onImage: true) {
+                            DeletePill(onImage: true) {
                                 withAnimation(.easeIn(duration: 0.18)) { leaving = true }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
                             }
@@ -1503,38 +1502,120 @@ private struct GallerySessionTile: View {
 /// is and what clicking does. It was a bare pill, and a pill that says "code"
 /// beside a feature called code reads as a button. Nothing here runs anything;
 /// it filters.
-/// The bin. A drawn can whose lid lifts when the pointer arrives and flips
-/// open on the click, the way the Dock's bin answers a drop; the shot then
-/// leaves. Finder's Put Back undoes it — the help says so.
-private struct TrashButton: View {
-    var size: CGFloat = 14
+/// The bin that eats the label. Idle it is a bin; hover unfurls the word
+/// "Delete" beside it; the click sends the letters into the bin one after
+/// another — the level inside rises with each — then the pill furls to the bin
+/// alone, an arc turns for a beat, seals, and the shot goes to the Trash. The
+/// move itself takes milliseconds, so the arc is a beat rather than a
+/// measurement: a wait should read as a wait, not a flicker. Finder's Put Back
+/// undoes it, and the help says so. (After the reel Josh sent, 2026-09-13.)
+private struct DeletePill: View {
+    enum Stage: Equatable { case idle, eating, furled, pending, done }
+    var size: CGFloat = 13
+    /// Tiles and the hero: white on a glass capsule over the image.
+    var onImage = false
     /// List rows: faint until hovered, so a column of bins is not a column of
     /// warnings.
     var quiet = false
-    /// Tiles and the hero: white on a glass disc over the image.
-    var onImage = false
     let action: () -> Void
+
+    @State private var stage = Stage.idle
     @State private var hovering = false
-    @State private var firing = false
+    @State private var flying: Set<Int> = []
+    @State private var landed = 0
+    @State private var spin = 0.0
+    private static let word = Array("Delete")
+
+    private var wordShown: Bool { (stage == .idle && hovering) || stage == .eating }
 
     var body: some View {
-        Button {
-            guard !firing else { return }
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) { firing = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) { action(); firing = false }
-        } label: {
-            TrashCan(open: hovering || firing, flung: firing)
-                .frame(width: size, height: size)
-                .padding(onImage ? 6 : 4)
-                .background { if onImage { Circle().fill(.ultraThinMaterial) } }
-                .contentShape(Circle())
+        Button(action: fire) {
+            HStack(spacing: 5) {
+                if wordShown {
+                    HStack(spacing: 0) {
+                        ForEach(Self.word.indices, id: \.self) { i in
+                            Text(String(Self.word[i]))
+                                .opacity(flying.contains(i) ? 0 : 1)
+                                .modifier(FlyToBin(progress: flying.contains(i) ? 1 : 0,
+                                                   dx: CGFloat(Self.word.count - i) * 6.5 + 9))
+                        }
+                    }
+                    .font(.caption.weight(.semibold)).fixedSize()
+                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .trailing)))
+                }
+                ZStack {
+                    TrashCan(open: hovering || stage == .eating, flung: stage == .eating,
+                             fill: Double(landed) / Double(Self.word.count))
+                        .frame(width: size, height: size)
+                    if stage == .pending || stage == .done {
+                        Circle().trim(from: 0, to: stage == .done ? 1 : 0.3)
+                            .stroke(style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                            .frame(width: size + 9, height: size + 9)
+                            .rotationEffect(.degrees(spin))
+                            .transition(.opacity)
+                    }
+                }
+            }
+            .padding(.horizontal, wordShown ? 8 : 5).padding(.vertical, 4)
+            .background {
+                if onImage { Capsule().fill(.ultraThinMaterial) }
+                else { Capsule().fill(Color.primary.opacity(hovering || stage != .idle ? 0.08 : 0)) }
+            }
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .foregroundStyle(onImage ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-        .opacity(quiet && !hovering && !firing ? 0.38 : 1)
-        .animation(.easeOut(duration: 0.14), value: hovering)
+        .opacity(quiet && !hovering && stage == .idle ? 0.38 : 1)
         .onHover { hovering = $0 }
+        .animation(.spring(response: 0.28, dampingFraction: 0.75), value: wordShown)
+        .animation(.easeOut(duration: 0.14), value: hovering)
         .help("Move to the Trash. Finder’s Put Back undoes it.")
+    }
+
+    private func fire() {
+        guard stage == .idle else { return }
+        stage = .eating
+        let step = 0.05, flight = 0.34
+        for i in Self.word.indices {
+            DispatchQueue.main.asyncAfter(deadline: .now() + step * Double(i)) {
+                withAnimation(.easeIn(duration: flight)) { _ = flying.insert(i) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + flight * 0.8) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { landed += 1 }
+                }
+            }
+        }
+        let eaten = step * Double(Self.word.count) + flight
+        DispatchQueue.main.asyncAfter(deadline: .now() + eaten) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) { stage = .furled }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                stage = .pending
+                withAnimation(.linear(duration: 0.7).repeatForever(autoreverses: false)) { spin = 360 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.easeOut(duration: 0.28)) { stage = .done }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { action() }
+                }
+            }
+        }
+    }
+}
+
+/// One letter's flight into the bin: an arc up and over, shrinking as it goes.
+/// A `GeometryEffect` so the whole path is one animatable number at the
+/// macOS 13 floor (keyframes are 14+).
+private struct FlyToBin: GeometryEffect {
+    var progress: CGFloat
+    var dx: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let t = progress
+        let scale = 1 - 0.75 * t
+        let x = dx * t + size.width / 2 * (1 - scale)
+        let y = -11 * sin(.pi * t) + 2 * t + size.height / 2 * (1 - scale)
+        return ProjectionTransform(CGAffineTransform(scaleX: scale, y: scale)
+            .concatenating(CGAffineTransform(translationX: x, y: y)))
     }
 }
 
@@ -1543,12 +1624,27 @@ private struct TrashButton: View {
 private struct TrashCan: View {
     var open: Bool
     var flung: Bool
+    /// How full it is, 0…1: rises as the letters land.
+    var fill: Double = 0
 
     var body: some View {
         GeometryReader { g in
             let w = g.size.width, h = g.size.height
             let stroke = StrokeStyle(lineWidth: max(1.2, w * 0.1), lineCap: .round, lineJoin: .round)
             ZStack {
+                Path { p in
+                    p.move(to: CGPoint(x: w * 0.17, y: h * 0.33))
+                    p.addLine(to: CGPoint(x: w * 0.83, y: h * 0.33))
+                    p.addLine(to: CGPoint(x: w * 0.76, y: h * 0.92))
+                    p.addQuadCurve(to: CGPoint(x: w * 0.24, y: h * 0.92), control: CGPoint(x: w * 0.5, y: h * 0.99))
+                    p.closeSubpath()
+                }
+                .fill(.primary.opacity(0.32))
+                .mask(alignment: .bottom) {
+                    Rectangle().frame(height: max(0, h * 0.62 * fill))
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+                .animation(.spring(response: 0.25, dampingFraction: 0.5), value: fill)
                 Path { p in
                     p.move(to: CGPoint(x: w * 0.17, y: h * 0.33))
                     p.addLine(to: CGPoint(x: w * 0.83, y: h * 0.33))

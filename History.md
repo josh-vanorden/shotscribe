@@ -701,4 +701,12 @@ already signed in to, or an OpenAI-compatible endpoint.
   from "Claude Bridge, Skills" to reuse — no such control exists in any repo
   or surface here (the hub's bin is a plain button), so this one was drawn
   fresh in that spirit.
+- 09:58: Josh sent the reel he meant ("Delete Button — The Bin Eats The
+  Label"): the letters fly into the bin, the pill furls to the icon, an arc
+  turns while the request runs, then seals. Built as `DeletePill`: hover
+  unfurls "Delete"; the click flies each letter in on a `GeometryEffect` arc
+  (keyframes are macOS 14+) while the can's level rises, furls, turns the
+  arc for a beat — the Trash move is milliseconds, so the beat is a floor, not
+  a measurement — seals, then the shot leaves. Same control in the tile
+  corner, the landing zone and the list row.
 

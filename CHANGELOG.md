@@ -15,9 +15,11 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 - **Send to …** wears the mark of the titler in use — Claude, Codex (the
   OpenAI mark), Gemini, Cursor, Ollama, offline — and copies the line that
   chat understands.
-- **A bin on every shot**: the upper corner of a tile and of the landing
-  zone (on hover), and beside the date in the list. Its lid lifts for the
-  pointer and flips for the click; Finder's Put Back undoes it.
+- **A bin on every shot** — the upper corner of a tile and of the landing
+  zone (on hover), and beside the date in the list. Hover unfurls "Delete";
+  the click sends the letters into the bin, furls the pill to the bin, turns
+  an arc for a beat and seals it, then the shot goes to the Trash. Finder's
+  Put Back undoes it.
 - `shotscribe ai` shows the choice; `--offline` (alias of `--no-claude`) forces
   keywords; `SHOTSCRIBE_DEFAULTS=<domain>` tries another settings domain.
 - The MCP server is documented for Cursor, Codex, Gemini CLI and LibreChat as
