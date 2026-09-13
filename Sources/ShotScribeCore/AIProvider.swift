@@ -12,7 +12,8 @@ import Foundation
 public struct AIProvider: Codable, Equatable, Sendable {
 
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case offline, claude, codex, gemini, cursor, ollama, command, endpoint
+        // The picker's order: the named tools, then the two open doors.
+        case offline, claude, codex, gemini, cursor, ollama, endpoint, command
 
         /// The picker's word for it.
         public var name: String {
@@ -23,8 +24,8 @@ public struct AIProvider: Codable, Equatable, Sendable {
             case .gemini:   return "Gemini CLI"
             case .cursor:   return "Cursor Agent"
             case .ollama:   return "Ollama (local)"
-            case .command:  return "A command"
             case .endpoint: return "An endpoint"
+            case .command:  return "Other CLI…"
             }
         }
 

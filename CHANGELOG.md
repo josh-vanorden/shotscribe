@@ -6,8 +6,8 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 - **Bring your own AI.** An **AI** tab names who titles a capture, honoured by
   the app, the watcher and the CLI: Claude Code (the default, as before),
-  Codex, Gemini CLI, Cursor Agent, Ollama, any command that prints a line, or
-  any OpenAI-compatible endpoint (key in the Keychain). Presets are visible,
+  Codex, Gemini CLI, Cursor Agent, Ollama, any OpenAI-compatible endpoint (key
+  in the Keychain), or any other CLI that answers a prompt. Presets are visible,
   editable commands with their tool-denying flags; "Try it on the newest
   capture" shows the answer without renaming.
 - The **Rename** tab now also holds the filename template; the Name tab is

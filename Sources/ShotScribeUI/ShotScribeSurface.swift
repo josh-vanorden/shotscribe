@@ -736,6 +736,10 @@ public struct ShotScribeView: View {
                      destination: URL(string: "https://claude.com/claude-code")!).font(.caption2)
             }
         case .codex, .gemini, .cursor, .ollama, .command:
+            if kind == .command {
+                Text("Any tool that answers a prompt on the command line — llm, aichat, mods, a team script.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             aiField("Command", placeholder: kind.commandTemplate ?? "tool --flag {prompt}", keyPath: \.command, mono: true)
             Text("{prompt} is the instruction plus the text read off the capture, as one argument. Keep the flags that stop the tool from acting on it.")
                 .font(.caption2).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)

@@ -66,8 +66,8 @@ watcher — honours the same choice:
 | **Gemini CLI** | `gemini -p`, sandboxed | Google, on your login |
 | **Cursor Agent** | `cursor-agent -p` | Cursor, on your login |
 | **Ollama** | `ollama run <model>` | nowhere — the model runs on this Mac |
-| **A command** | anything that prints a line | wherever it sends it |
 | **An endpoint** | any OpenAI-compatible `/chat/completions` — OpenAI, OpenRouter, LM Studio, Ollama's `/v1`, a team gateway | the endpoint you name; a local one keeps it here |
+| **Other CLI…** | any tool that answers a prompt on the command line — `llm`, `aichat`, `mods`, a team script | wherever it sends it |
 | **Offline** | the keyword titler | nowhere |
 
 The CLI presets are commands you can see and edit in the tab (`{prompt}` is
