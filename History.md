@@ -503,3 +503,28 @@ shot's context menu keeps a plain "Share…" that opens the picker.
 - Evidence: builds, 122 tests green (none touch the view), the services list
   confirmed from a scratch program against a real capture. The unfold, the
   hover names and an actual AirDrop are Josh's to try; repackaged at 18:35.
+
+## 2026-09-12 — The landing zone: service tiles, and a title you can fix
+
+Josh's screenshot of the window (still the 17:26 build — Share and Send to
+Claude were in `dist/` but not in the app in front of him) named two things:
+the hero's action icons were cryptic ("poor, they should reflect their service
+and have our hover text, simple layout"), and a rename the person does not like
+needs a fast fix right there.
+
+- **Tiles.** The hero's actions are one row of 30 pt round tiles, each the
+  icon of the service it reaches — Finder's own face, the Share glyph that
+  unfolds, Claude's app icon (a glyph if the app is missing), `{}` for the
+  brief, a pencil, undo, the tag — each named the moment it is hovered by the
+  same `NamedOnHover` bubble the share row uses. No text labels, no tooltip
+  delay. `ActionTile`, `TileButtonStyle`, `AppIcons`.
+- **Title edit in place.** Click the title (or the pencil) and it becomes a
+  field; Return renames the file, Escape puts it back. `Naming.retitled`
+  keeps the stamp exactly as spelled and swaps only the words, applying the
+  template's joining style but not its word cap. `ShotScribeModel.retitle`
+  moves the file (watcher told first), keeps a ShotScribe-named shot's raw
+  original for undo and gives a hand-named one its previous name there.
+- Evidence: 125 tests green, 3 new on `retitled` (stamp kept, snake style,
+  no cap, no-stamp names, empty and illegal titles). The app was repackaged
+  and relaunched at 18:59, so the next look is this build; the tiles, the
+  bubbles and an actual edit are Josh's to see.
