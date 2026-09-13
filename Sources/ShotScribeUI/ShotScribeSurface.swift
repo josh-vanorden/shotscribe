@@ -296,8 +296,11 @@ public struct ShotScribeView: View {
                     FlowLayout(spacing: 6) {
                         ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
                         ShareRow(url: shot.url).id(shot.path)
-                        ActionTile("Send to \(model.assistantName)", icon: AppIcons.icon(for: model.aiProvider.kind) ?? Image(systemName: "paperplane"),
-                                   art: AppIcons.icon(for: model.aiProvider.kind) != nil) { model.sendToAssistant(shot) }
+                        if let mark = AppIcons.icon(for: model.aiProvider.kind) {
+                            ActionTile("Send to \(model.assistantName)", icon: mark, art: true) { model.sendToAssistant(shot) }
+                        } else {
+                            ActionTile("Send to \(model.assistantName)", monogram: model.assistantName) { model.sendToAssistant(shot) }
+                        }
                         ActionTile("Rebuild as code", icon: Image(systemName: "hammer")) { model.copyCodeBrief(for: shot) }
                         ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
                         if shot.original != nil, !model.otherInstanceRunning {
@@ -1543,20 +1546,38 @@ private struct HeroTitle: View {
 /// service it reaches, named on hover.
 private struct ActionTile: View {
     let name: String
-    let icon: Image
+    let icon: Image?
+    let monogram: String?
     let art: Bool
     let action: () -> Void
 
     init(_ name: String, icon: Image, art: Bool = false, action: @escaping () -> Void) {
-        self.name = name; self.icon = icon; self.art = art; self.action = action
+        self.name = name; self.icon = icon; self.monogram = nil; self.art = art; self.action = action
+    }
+
+    /// A tile for a name with no mark on this Mac: its initial, set like a
+    /// contact's, until the brand's own artwork is in `assets/brands/`.
+    init(_ name: String, monogram: String, action: @escaping () -> Void) {
+        self.name = name; self.icon = nil; self.monogram = String(monogram.prefix(1)).uppercased()
+        self.art = true; self.action = action
     }
 
     var body: some View {
         Button(action: action) {
-            icon.resizable().aspectRatio(contentMode: .fit)
-                .frame(width: art ? 19 : 13, height: art ? 19 : 13)
-                .frame(width: 28, height: 28)
-                .contentShape(Circle())
+            Group {
+                if let icon {
+                    icon.resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: art ? 19 : 13, height: art ? 19 : 13)
+                } else if let monogram {
+                    Text(monogram)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(width: 19, height: 19)
+                        .background(Circle().fill(ShotPalette.accent))
+                }
+            }
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
         }
         .buttonStyle(TileButtonStyle())
         .modifier(NamedOnHover(title: name))
@@ -1580,22 +1601,42 @@ private struct TileButtonStyle: ButtonStyle {
 /// in Finder, Claude's mark for Send to Claude (a glyph when it is not installed).
 private enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
-    static let claude: Image? = app("com.anthropic.claudefordesktop")
-    static let cursor: Image? = app("com.todesktop.230313mzl4w4u92")
 
-    /// The assistant's own icon when its app is installed, else nothing (the
-    /// tile falls back to a glyph). Codex and Gemini are CLIs without an app.
+    /// The assistant's mark: the installed app's own icon first (Claude.app,
+    /// Cursor.app, ChatGPT.app or Codex.app for Codex, Ollama.app), then the
+    /// brand mark embedded from `assets/brands/`, else nothing and the tile
+    /// draws the assistant's initial. Never a generic glyph for a known name.
     static func icon(for kind: AIProvider.Kind) -> Image? {
         switch kind.assistant {
-        case "Claude": return claude
-        case "Cursor": return cursor
+        case "Claude": return app("com.anthropic.claudefordesktop") ?? BrandArt.image("claude")
+        case "Cursor": return app("com.todesktop.230313mzl4w4u92") ?? BrandArt.image("cursor")
+        case "Codex":  return app("com.openai.codex") ?? app("com.openai.chat") ?? BrandArt.image("codex")
+        case "Gemini": return app("com.google.gemini") ?? BrandArt.image("gemini")
         default:       return nil
         }
     }
 
+    private static var cache: [String: Image?] = [:]
     private static func app(_ bundleID: String) -> Image? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        if let hit = cache[bundleID] { return hit }
+        let image = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
             .map { Image(nsImage: NSWorkspace.shared.icon(forFile: $0.path)) }
+        cache[bundleID] = image
+        return image
+    }
+}
+
+/// The brand marks shipped inside the binary — see `assets/brands/README.md`.
+private enum BrandArt {
+    private static var cache: [String: Image?] = [:]
+    static func image(_ name: String) -> Image? {
+        if let hit = cache[name] { return hit }
+        let image = BrandArtData.png[name]
+            .flatMap { Data(base64Encoded: $0) }
+            .flatMap { NSImage(data: $0) }
+            .map { Image(nsImage: $0) }
+        cache[name] = image
+        return image
     }
 }
 
