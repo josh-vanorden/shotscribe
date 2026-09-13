@@ -1579,14 +1579,22 @@ private struct DeletePill: View {
             }
             .padding(.horizontal, wordShown ? 8 : 5).padding(.vertical, 4)
             .background {
-                if onImage { Capsule().fill(.ultraThinMaterial) }
-                else { Capsule().fill(Color.primary.opacity(hovering || stage != .idle ? 0.08 : 0)) }
+                // Over an image the bin sits on a dark scrim, not glass: white on
+                // a light capture was invisible (Josh, 2026-09-13). The scrim is
+                // what Photos does with its hover controls.
+                if onImage {
+                    Capsule().fill(Color.black.opacity(hovering ? 0.78 : 0.62))
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.45), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                } else {
+                    Capsule().fill(Color.primary.opacity(hovering || stage != .idle ? 0.1 : 0))
+                }
             }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .foregroundStyle(onImage ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-        .opacity(quiet && !hovering && stage == .idle ? 0.38 : 1)
+        .opacity(quiet && !hovering && stage == .idle ? 0.55 : 1)
         .onHover { hovering = $0 }
         .animation(.spring(response: 0.28, dampingFraction: 0.75), value: wordShown)
         .animation(.easeOut(duration: 0.14), value: hovering)
@@ -1652,7 +1660,7 @@ private struct TrashCan: View {
     var body: some View {
         GeometryReader { g in
             let w = g.size.width, h = g.size.height
-            let stroke = StrokeStyle(lineWidth: max(1.2, w * 0.1), lineCap: .round, lineJoin: .round)
+            let stroke = StrokeStyle(lineWidth: max(1.5, w * 0.12), lineCap: .round, lineJoin: .round)
             ZStack {
                 Path { p in
                     p.move(to: CGPoint(x: w * 0.17, y: h * 0.33))
