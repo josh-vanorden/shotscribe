@@ -43,20 +43,26 @@ fixed the offline titler); `{app}` off the capture's chrome, which also found
 the menu bar leaking into titles. 118 tests. Still unshipped; the gate below
 stands, one item longer.
 
-## Gate to ship 0.7.0
+## Gate to ship 0.7.0 — shipped as 1.5.0 on 2026-09-12
 - [ ] `claude` signed in, then `shotscribe eval --limit 25` with Claude: the
       first real quality number, against names that were not the titler's own.
 - [ ] One real run each of `/screenshot code` and the "Rebuild as code" paste
       inside a project. Both are prompts; neither has been exercised by a
       model yet, only their inputs verified.
-- [ ] Josh's live verdict on the glass window. It was rendered off-screen in
-      both appearances; hover captions and the inspector animation are unseen.
-- [ ] Merge `settings-pane` into `main` and push (`MANUAL_PUSH=1`).
-- [ ] Tag `v0.7.0` and run `APPLE_NOTARY_PROFILE=… ./scripts/package-app.sh`.
-      `dist/` holds a locally signed build of the branch; the notarized app is
-      0.6.1, inside the DMG.
-- [ ] Toolbelt: raise `.upToNextMinor(from: "0.6.0")` and update its pin, or it
-      keeps mounting the old pane.
+- [x] Josh's live verdict on the glass window. Given 2026-09-12 from a
+      screenshot of the window: the hero's action icons were cryptic and a
+      disliked rename needed a fix where it lands. Both built the same
+      evening (service-icon tiles named on hover; the title edits in place).
+- [x] Merge `settings-pane` into `main` and push (`MANUAL_PUSH=1`). Done
+      2026-09-12; `main` mirrors `settings-pane`.
+- [x] Tagged `v1.5.0` (Josh's number) at `9ddbf8c` and notarized on
+      2026-09-12: app and `dist/ShotScribe-1.5.0.dmg` signed, notarized
+      (Apple: Accepted, both submissions), stapled; a quarantined copy out of
+      the DMG passes Gatekeeper as Notarized Developer ID. `History.md` has
+      the commands.
+- [ ] Toolbelt: raise `.upToNextMinor(from: "0.6.0")` to `from: "1.5.0"`
+      (`toolbelt/Package.swift:34`) and `swift package update shotscribe`, or
+      it keeps mounting the 0.6.1 pane — a 1.x tag is out of that range.
 - [ ] Live check of the capture flag timing under a custom
       `com.apple.screencapture name` (roadmap step 1).
 - [ ] `claude` sign-in: the OAuth session expired 2026-09-10, so every title
@@ -80,3 +86,17 @@ stands, one item longer.
   spelled "code" beside a feature called code; Josh asked what the terminal
   button does. Now a tag glyph, the word and a tooltip (9061022), and stage
   two has a real answer, the brief (7f2d09b).
+
+## 2026-09-12, evening — 1.5.0 exists; the phase stays Ship
+Tagged, notarized and pushed, but the DMG sits in `dist/` and no GitHub
+release carries it, and Toolbelt cannot see a 1.x tag until its pin moves.
+The gate to *maintain* above is unchanged: distribution channel unconfirmed,
+README's two roadmap items open. Discovered this evening:
+- **The window Josh looks at is whichever build was launched, not the one
+  in `dist/`.** Two rebuilds went unseen because the 17:26 process kept
+  running; the fix is to quit and reopen after every package, which the
+  session now does itself.
+- **`sharingServices(forItems:)` is deprecated at macOS 13** and its named
+  replacement is a menu item, which cannot be laid out as the unfolding row
+  Josh asked for. It still answers on macOS 26; one deprecation warning is
+  kept on purpose with the reason beside it.

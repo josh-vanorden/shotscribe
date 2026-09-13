@@ -530,3 +530,29 @@ needs a fast fix right there.
   bubbles and an actual edit are Josh's to see.
 - Later: the `{}` tile became a hammer. Josh: outside engineering nobody
   knows what those symbols are for; "rebuild" is a word everyone has.
+
+## 2026-09-12 — 1.5.0: tagged, notarized, stapled
+
+Josh's number, not 0.7.0: everything since 0.6.1 ships as one release.
+
+- **Version.** `serverInfo` in the MCP server was the last literal (0.2.0);
+  it now says 1.5.0 and `CLAUDE.md` says to bump it with the tag. The app's
+  version is the tag, as `package-app.sh` has read it since 2026-09-06.
+  Tagged `v1.5.0` at `9ddbf8c`, annotated with what the release holds.
+- **Shipped.** `APPLE_NOTARY_PROFILE=cockpit-notary ./scripts/package-app.sh`
+  (the profile name lives in toolbelt's docs, now in memory too): Developer ID
+  + hardened runtime + timestamp, notarized and stapled, app and
+  `dist/ShotScribe-1.5.0.dmg`. Apple's log: Accepted for both submissions,
+  no Invalid.
+- **Evidence for "no error installing":** `stapler validate` passes on the
+  app and the DMG; `spctl -a -t open --context context:primary-signature` on
+  the DMG says accepted, source=Notarized Developer ID; a copy of the app
+  taken out of the mounted DMG and given a Safari quarantine xattr passes
+  `spctl -a -t execute` the same way and satisfies its Designated
+  Requirement. That is the path a download takes.
+- Not done, on purpose: the DMG is local (`dist/` is gitignored). A GitHub
+  release on the tag is the distribution step, and publishing is Josh's
+  call. Toolbelt still pins `.upToNextMinor(from: "0.6.0")`, which cannot
+  reach 1.x.
+- Pushed `settings-pane`, `main` and the tag with `MANUAL_PUSH=1` under
+  this evening's `/clean-tree`.

@@ -5,37 +5,34 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-12
-**Phase:** Ship (0.6.1 out; the 0.7 cycle is done locally and unshipped)
-**Next action:** Sign in to `claude` in a terminal, then `shotscribe eval --limit 25` for the first real quality number; then tag `v0.7.0`, run `APPLE_NOTARY_PROFILE=… ./scripts/package-app.sh`, and raise Toolbelt's pin.
+**Phase:** Ship (1.5.0 tagged, notarized and pushed; the DMG is local — no GitHub release yet; Toolbelt still mounts 0.6.1)
+**Next action:** Ask Josh whether to publish: `gh release create v1.5.0 dist/ShotScribe-1.5.0.dmg`; then raise Toolbelt's pin at `toolbelt/Package.swift:34` to `.upToNextMinor(from: "1.5.0")` and `swift package update shotscribe`. In parallel, sign in to `claude` and run `.build/release/shotscribe eval --limit 25`.
 
 **Open loops**
-- Toolbelt still mounts 0.6.1 from GitHub at `.upToNextMinor(from: "0.6.0")`; a 0.7 tag needs that raised and the pin updated.
-- `claude` signed out since 2026-09-10: every title since is the offline titler's, and `shotscribe eval` with Claude reports it rather than scoring it.
-- `/screenshot code` and the "Rebuild as code" paste have not had a real run inside a project; inputs verified, prompts unexercised.
-- Re-rendering already-named shots under a new template is unbuilt (preview-then-apply on the `Cleanup.plan` pattern).
-- Capture-flag timing under a custom `com.apple.screencapture name` is unverified live; non-English screen recordings are not recognised (they carry no xattr).
-- `{app}` on a browser window names the tab, not the browser; the README says so.
+- The punch list in `roadmap.md` (13 items): nothing hand-tested yet — the tiles and their hover names, the title edit, Share unfolding and an AirDrop, the Send to Claude paste, `/screenshot code`, a screen recording, the capture-flag timing.
+- Backlog sweep: 93 raw `Screenshot …` files in the folder (newest 2026-08-21), unbuilt; same pass could re-render old names under a new template.
+- `claude` signed out since 2026-09-10: no eval number yet, and Remote Control needs the login too (left off by Josh's choice).
+- Toolbelt pin: `.upToNextMinor(from: "0.6.0")` cannot resolve a 1.x tag.
 
 **Ruled out**
-- The `kMDItemIsScreenCapture` xattr alone as "raw": it is on every renamed shot too.
-- Material and Paper as treatments: they differed by a glow; Glass vs Classic is the comparison.
-- `ImageRenderer` for off-screen renders (AppKit controls come out blank) and copied fixtures (creation dates become "now"): use an `NSHostingView` in an unordered window and hard links.
-- `labelling` as an extension-only method: static dispatch skipped every override.
-- App names in the menu-word list ("terminal", "code"): Terminal was read as a menu and dropped.
-- Opening a Terminal from the app for stage two: the brief on the pasteboard was chosen instead.
+- Remote Control (`claude rc`) as a push channel into a session: only claude.ai/code and the phone app can send into one; Send to Claude is a paste by design.
+- Braces as the code tile's icon (an engineer's glyph); `standardShareMenuItem` for the share row (a menu, not a row).
+- The `kMDItemIsScreenCapture` xattr alone as "raw"; `ImageRenderer` for off-screen renders; copied fixtures; `labelling` as an extension-only method; app names in the menu-word list; opening a Terminal for stage two.
 
-**Working tree:** 5 uncommitted files — Context.md, Phase.md, Triage.md, Index.md, Obsidian.md
-**Unpushed commits:** 8
+**Working tree:** clean once the docs commit carrying this block lands
+**Unpushed commits:** 1 (that docs commit), pushed by the same `/clean-tree`; code and the `v1.5.0` tag were pushed first
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
 3.41.07 PM.png") into dated, findable titles ("2026-08-11 1541 AWS Billing
 Console.png") — on-device OCR (Apple Vision) plus a swappable Titler seam.
 
-## Current state (2026-09-12 — the 0.7 cycle, unshipped)
+## Current state (2026-09-12 — 1.5.0)
 
-Everything below is on `settings-pane`, local only; the public repo and the
-notarized DMG are still 0.6.1.
+Tagged `v1.5.0` at `9ddbf8c` on `settings-pane`; everything since 0.6.1 ships
+as one release (the notarized DMG's status is in `History.md`, same date).
+Toolbelt still pins `.upToNextMinor(from: "0.6.0")`, which cannot reach a 1.x
+tag until its `from:` is raised.
 
 - **Captures are recognised in any language.** `Naming.isRawCapture(at:)`:
   the English prefix alone, or the default-name shape plus the
@@ -54,19 +51,30 @@ notarized DMG are still 0.6.1.
   groups, gallery tiles with hover captions, and a tabbed floating inspector
   (Folder, Rename, Name, File, Keep) that never scrolls. The popover is
   unchanged.
+- **The landing zone.** The hero's title edits in place (click or the pencil;
+  Return renames with the stamp kept exactly as spelled — `Naming.retitled`,
+  `ShotScribeModel.retitle`; undo keeps working). Under it, one row of round
+  tiles carrying the icon of the service each reaches, named on hover by
+  `NamedOnHover`: Finder's own icon, **Share** (which unfolds in place into
+  the Mac's destinations for the file — AirDrop, Mail, Messages, Notes… with
+  "More" as the system picker), Claude's app icon for **Send to Claude**
+  (copies `/screenshot "<path>"`; the skill takes a path now), a hammer for
+  **Rebuild as code** (the brief), undo, and the tag menu. Braces were
+  rejected as an engineer's glyph.
 - **Four borrows from screenshot-to-code.** `layout_screenshot` (text with
   positions, on-device) and `/screenshot code`; screen recordings as captures
   (two frames via AVFoundation); `shotscribe eval`, with the folder as the
   test set; `{app}`, read off the menu bar or title bar. The eval's first run
   found a fortnight of OCR-noise names kept while Claude was signed out, and
   the `{app}` test found the menu bar leaking into titles; both fixed.
-- **Stage two in the app.** "Rebuild as code" on the hero and in every shot's
-  menu copies a self-contained brief for Claude Code and says where to paste
-  it. Tags are drawn as tags (glyph, word, tooltip); any shot drags out as a
-  copy of the file.
+- Tags are drawn as tags (glyph, word, tooltip); any shot drags out as a copy
+  of the file.
 - Engine: `NameTemplate`, `Settings`, `Tagging`, `Capture`, `Frames`, `Chrome`,
-  `Evals`, `CodeBrief`; `IndexedShot.tags`; `Renamer(titler:template:vocabulary:)`.
-  120 tests.
+  `Evals`, `CodeBrief`, `SendToClaude`, `Naming.retitled`; `IndexedShot.tags`;
+  `Renamer(titler:template:vocabulary:)`. 125 tests.
+- Remote Control (`claude rc`) is not a push channel into a session — only
+  claude.ai/code and the phone app can send into one — so Send to Claude is a
+  paste by design. It is off on this machine by Josh's choice (2026-09-12).
 
 ## Earlier state (2026-09-03 — the fourth question: what is kept)
 
