@@ -284,7 +284,7 @@ public struct ShotScribeView: View {
                 AspectThumbnail(path: shot.path, aspect: 1.6, pixels: 960)
                     .overlay(alignment: .topTrailing) {
                         if heroHovered, !model.otherInstanceRunning {
-                            DeletePill(size: 15, onImage: true) { model.trash(shot) }
+                            DeletePill(size: 15, onImage: true, forGood: model.deletesForGood) { model.trash(shot) }
                                 .padding(10)
                                 .transition(.opacity)
                         }
@@ -360,7 +360,7 @@ public struct ShotScribeView: View {
                 Text("\(model.selected.count) selected").font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 Button("All") { model.selectAllVisible() }.controlSize(.small)
                 Button(role: .destructive) { model.trashSelected() } label: {
-                    Label("Move to Trash", systemImage: "trash")
+                    Label(model.deletesForGood ? "Delete for good" : "Move to Trash", systemImage: "trash")
                 }
                 .controlSize(.small).disabled(model.selected.isEmpty)
             }
@@ -511,7 +511,7 @@ public struct ShotScribeView: View {
                         tagChips(shot)
                         Text(shot.captured, format: .dateTime.year().month().day())
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                        DeletePill(size: 12, quiet: true) { model.trash(shot) }
+                        DeletePill(size: 12, quiet: true, forGood: model.deletesForGood) { model.trash(shot) }
                     }
                     .padding(.vertical, 6)
                     .contentShape(Rectangle())
@@ -571,7 +571,7 @@ public struct ShotScribeView: View {
             Button("Restore original name") { model.undo(shot) }
         }
         Divider()
-        Button("Move to Trash", role: .destructive) { model.trash(shot) }
+        Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
     }
 
     // MARK: Inspector
@@ -963,7 +963,7 @@ public struct ShotScribeView: View {
                 }
                 .labelsHidden().frame(width: 96)
             }
-            keepRow("Flagged captures go to", destinationDetail) { destinationPicker }
+            keepRow("Deleted captures go to", destinationDetail) { destinationPicker }
             Divider().padding(.vertical, 2)
             Button { model.previewCleanup() } label: {
                 Label("Preview clean-up", systemImage: "sparkles")
@@ -1004,21 +1004,34 @@ public struct ShotScribeView: View {
 
     private var destinationDetail: String {
         switch model.keepPolicy.destination {
-        case .trash:             return "The Trash — recoverable from Finder. Nothing is ever deleted outright."
-        case .archive(let path): return (path as NSString).abbreviatingWithTildeInPath
+        case .trash:             return "The Trash — Finder’s Put Back undoes it. The bin on every shot does the same."
+        case .delete:            return "Deleted outright: no Trash, no Put Back. The bin on every shot does the same."
+        case .archive(let path): return (path as NSString).abbreviatingWithTildeInPath + " for clean-up; a single shot’s bin still uses the Trash."
         }
     }
 
+    private enum DestinationChoice: Hashable { case trash, delete, archive }
+
     private var destinationPicker: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            Picker("", selection: Binding<Bool>(
-                get: { if case .archive = model.keepPolicy.destination { return true } else { return false } },
-                set: { archive in
-                    if archive { model.chooseArchiveFolder() }
-                    else { model.keepPolicy.destination = .trash }
+            Picker("", selection: Binding<DestinationChoice>(
+                get: {
+                    switch model.keepPolicy.destination {
+                    case .trash:   return .trash
+                    case .delete:  return .delete
+                    case .archive: return .archive
+                    }
+                },
+                set: { choice in
+                    switch choice {
+                    case .trash:   model.keepPolicy.destination = .trash
+                    case .delete:  model.keepPolicy.destination = .delete
+                    case .archive: model.chooseArchiveFolder()
+                    }
                 })) {
-                Text("Trash").tag(false)
-                Text("Archive").tag(true)
+                Text("Trash").tag(DestinationChoice.trash)
+                Text("Delete").tag(DestinationChoice.delete)
+                Text("Archive").tag(DestinationChoice.archive)
             }
             .pickerStyle(.segmented).labelsHidden().controlSize(.small).fixedSize()
             if case .archive(let path) = model.keepPolicy.destination {
@@ -1041,7 +1054,7 @@ public struct ShotScribeView: View {
                     Button("Done") { model.cancelCleanup() }.controlSize(.small)
                 }
             } else {
-                Text("\(plan.moves.count) screenshot\(plan.moves.count == 1 ? "" : "s") in \(model.folder.lastPathComponent) would move to \(plan.destination.label): \(plan.duplicates) duplicate\(plan.duplicates == 1 ? "" : "s"), \(plan.stale) older than you keep.")
+                Text("\(plan.moves.count) screenshot\(plan.moves.count == 1 ? "" : "s") in \(model.folder.lastPathComponent) \(plan.destination == .delete ? "would be deleted for good" : "would move to \(plan.destination.label)"): \(plan.duplicates) duplicate\(plan.duplicates == 1 ? "" : "s"), \(plan.stale) older than you keep.")
                     .font(.caption.weight(.medium))
                     .fixedSize(horizontal: false, vertical: true)
                 // Every row, scrolling past a screenful: a list you confirm is
@@ -1399,7 +1412,7 @@ private struct GalleryTile: View {
                             .help("Fold these \(session.count) back into one tile")
                         }
                         if hovered, !model.selecting {
-                            DeletePill(onImage: true) {
+                            DeletePill(onImage: true, forGood: model.deletesForGood) {
                                 withAnimation(.easeIn(duration: 0.18)) { leaving = true }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
                             }
@@ -1439,7 +1452,7 @@ private struct GalleryTile: View {
                 Button("Restore original name") { model.undo(shot) }
             }
             Divider()
-            Button("Move to Trash", role: .destructive) { model.trash(shot) }
+            Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
         }
     }
 }
@@ -1517,6 +1530,8 @@ private struct DeletePill: View {
     /// List rows: faint until hovered, so a column of bins is not a column of
     /// warnings.
     var quiet = false
+    /// The Keep tab's choice, so the help tells the truth about Put Back.
+    var forGood = false
     let action: () -> Void
 
     @State private var stage = Stage.idle
@@ -1569,7 +1584,8 @@ private struct DeletePill: View {
         .onHover { hovering = $0 }
         .animation(.spring(response: 0.28, dampingFraction: 0.75), value: wordShown)
         .animation(.easeOut(duration: 0.14), value: hovering)
-        .help("Move to the Trash. Finder’s Put Back undoes it.")
+        .help(forGood ? "Delete for good — there is no Put Back. (Keep tab: Deleted captures go to.)"
+                      : "Move to the Trash. Finder’s Put Back undoes it.")
     }
 
     private func fire() {

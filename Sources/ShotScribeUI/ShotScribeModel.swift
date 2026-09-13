@@ -799,10 +799,28 @@ public final class ShotScribeModel: ObservableObject {
         trash(selected.map { URL(fileURLWithPath: $0) })
     }
 
+    /// The Keep tab's choice: a discarded capture goes to the Trash (Finder's
+    /// Put Back undoes it) or is deleted outright. The bins and clean-up obey
+    /// the same setting; an archive folder counts as the Trash for a single
+    /// shot, since filing one shot away is not what a bin means.
+    public var deletesForGood: Bool { keepPolicy.destination == .delete }
+
     func trash(_ shot: IndexedShot) { trash([shot.url]) }
 
     private func trash(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
+        if deletesForGood {
+            var failure: String?
+            for u in urls {
+                do { try FileManager.default.removeItem(at: u) } catch { failure = error.localizedDescription }
+            }
+            Log.write("deleted for good: \(urls.count) file(s)")
+            lastError = failure.map { "Couldn't delete: \($0)" }
+            for u in urls { ShotIndex.forget(u.path) }
+            selected.removeAll(); selecting = false
+            loadIndex(); runSearch()
+            return
+        }
         NSWorkspace.shared.recycle(urls) { [weak self] _, error in
             Task { @MainActor in
                 guard let self else { return }

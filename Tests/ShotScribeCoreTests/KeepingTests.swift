@@ -156,6 +156,29 @@ final class KeepingTests: XCTestCase {
         XCTAssertTrue(ShotIndex.load().shots.isEmpty, "moved shots leave the index")
     }
 
+    /// The Keep tab's third choice: gone outright. The user picks it; the
+    /// default stays the Trash.
+    func testTheDeleteDestinationRemovesTheFileOutright() throws {
+        try useScratchIndex()
+        let dir = try tempFolder()
+        let a = dir.appendingPathComponent("gone.png")
+        try Data("a".utf8).write(to: a)
+        var store = ShotIndex.Store()
+        store.shots[a.path] = shot("gone", minutes: 0, path: a.path)
+        ShotIndex.save(store)
+        XCTAssertEqual(KeepPolicy.default.destination, .trash, "never outright by default")
+
+        let out = Cleanup.apply(Cleanup.Plan(moves: [.init(shot: store.shots[a.path]!, reason: .olderThan(days: 1))],
+                                             destination: .delete))
+        XCTAssertEqual(out.moved, [a.path]); XCTAssertTrue(out.failures.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: a.path))
+        XCTAssertTrue(ShotIndex.load().shots.isEmpty)
+        XCTAssertEqual(KeepPolicy.Destination.delete.label, "nowhere — deleted for good")
+        let round = try JSONDecoder().decode(KeepPolicy.self, from: JSONEncoder().encode(
+            KeepPolicy(destination: .delete)))
+        XCTAssertEqual(round.destination, .delete, "the choice survives the settings round trip")
+    }
+
     func testAFailedMoveIsReportedAndStaysIndexed() throws {
         try useScratchIndex()
         let ghost = shot("ghost", minutes: 0, path: "/nonexistent/ghost.png")

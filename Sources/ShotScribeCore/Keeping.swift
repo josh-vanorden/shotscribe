@@ -24,14 +24,19 @@ public struct KeepPolicy: Codable, Equatable, Sendable {
     /// Where a flagged capture goes.
     public var destination: Destination
 
+    /// Where a discarded capture goes — from clean-up and from the bin on
+    /// every shot alike. `.delete` is the one the user must choose: nothing
+    /// is ever removed outright by default.
     public enum Destination: Codable, Equatable, Sendable {
         case trash
         case archive(path: String)
+        case delete
 
         public var label: String {
             switch self {
             case .trash:              return "Trash"
             case .archive(let path):  return (path as NSString).lastPathComponent
+            case .delete:             return "nowhere — deleted for good"
             }
         }
     }
@@ -241,6 +246,8 @@ public enum Cleanup {
                 switch plan.destination {
                 case .trash:
                     try fileManager.trashItem(at: url, resultingItemURL: nil)
+                case .delete:
+                    try fileManager.removeItem(at: url)
                 case .archive(let path):
                     let dir = URL(fileURLWithPath: path)
                     try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
