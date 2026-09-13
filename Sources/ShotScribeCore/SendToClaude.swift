@@ -19,9 +19,10 @@ public enum SendToClaude {
         + "If its name is still a raw capture name, rename it with a 2-3 word title, date first."
     }
 
-    /// The line for a given assistant.
+    /// The line for a given titler: the skill's form for Claude Code, where
+    /// `/screenshot` lives; the plain ask for everything else.
     public static func line(forImageAt path: String, kind: AIProvider.Kind) -> String {
-        kind == .claude || kind.assistant == "Claude" ? line(forImageAt: path) : plainLine(forImageAt: path)
+        kind == .claude ? line(forImageAt: path) : plainLine(forImageAt: path)
     }
 
     private static func quoted(_ path: String) -> String {

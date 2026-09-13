@@ -323,7 +323,7 @@ public final class ShotScribeModel: ObservableObject {
             let brief = await Task.detached(priority: .userInitiated) { CodeBrief.text(forImageAt: path) }.value
             // A later hand-off (another shot, or Send to Claude) owns the pasteboard.
             guard let self, self.handoffGeneration == generation else { return }
-            let agent = self.aiProvider.kind.assistant == "Claude" ? "Claude Code" : "\(self.aiProvider.kind.assistant) (or any coding agent)"
+            let agent = self.aiProvider.kind == .claude ? "Claude Code" : "your coding agent"
             self.handOver(brief, saying: HandoffNote(
                 text: "Copied. Paste into \(agent) inside the project the code should land in.", symbol: "hammer"))
         }
@@ -335,7 +335,13 @@ public final class ShotScribeModel: ObservableObject {
     /// plain ask for any other chat. Dragging the tile in is the wordless version.
     public func sendToAssistant(_ shot: IndexedShot) {
         let kind = aiProvider.kind
-        let where_ = kind.assistant == "Claude" ? "any Claude Code session; /screenshot reads this shot there" : "a \(kind.assistant) chat"
+        let where_: String
+        switch kind {
+        case .claude:                       where_ = "any Claude Code session; /screenshot reads this shot there"
+        case .codex, .gemini, .cursor:      where_ = "a \(kind.assistant) chat"
+        case .ollama:                       where_ = "Ollama’s chat (a vision model can also take the image dragged in)"
+        case .offline, .command, .endpoint: where_ = "any assistant’s chat"
+        }
         handOver(SendToClaude.line(forImageAt: shot.path, kind: kind), saying: HandoffNote(
             text: "Copied. Paste into \(where_).", symbol: "paperplane"))
     }

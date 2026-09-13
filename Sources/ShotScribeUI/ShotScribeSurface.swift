@@ -301,7 +301,11 @@ public struct ShotScribeView: View {
                     FlowLayout(spacing: 6) {
                         ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
                         ShareRow(url: shot.url).id(shot.path)
-                        if let mark = AppIcons.icon(for: model.aiProvider.kind) {
+                        // The mark of the titler in use — offline included — so the
+                        // landing zone says which AI this is at a glance.
+                        if let symbol = model.aiProvider.kind.symbol {
+                            ActionTile("Send to \(model.assistantName)", icon: Image(systemName: symbol)) { model.sendToAssistant(shot) }
+                        } else if let mark = AppIcons.icon(for: model.aiProvider.kind) {
                             ActionTile("Send to \(model.assistantName)", icon: mark, art: true) { model.sendToAssistant(shot) }
                         } else {
                             ActionTile("Send to \(model.assistantName)", monogram: model.assistantName) { model.sendToAssistant(shot) }
@@ -1614,17 +1618,17 @@ private struct TileButtonStyle: ButtonStyle {
 private enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
 
-    /// The assistant's mark: the installed app's own icon first (Claude.app,
-    /// Cursor.app, ChatGPT.app or Codex.app for Codex, Ollama.app), then the
-    /// brand mark embedded from `assets/brands/`, else nothing and the tile
-    /// draws the assistant's initial. Never a generic glyph for a known name.
+    /// The titler's mark: the brand mark embedded from `assets/brands/` when
+    /// there is one (it is the mark people know), else the installed app's own
+    /// icon (Claude.app, Cursor.app, Ollama.app), else nothing and the tile
+    /// draws an initial. Never a generic glyph for a known name.
     static func icon(for kind: AIProvider.Kind) -> Image? {
-        switch kind.assistant {
-        case "Claude": return app("com.anthropic.claudefordesktop") ?? BrandArt.image("claude")
-        case "Cursor": return app("com.todesktop.230313mzl4w4u92") ?? BrandArt.image("cursor")
-        case "Codex":  return app("com.openai.codex") ?? app("com.openai.chat") ?? BrandArt.image("codex")
-        case "Gemini": return app("com.google.gemini") ?? BrandArt.image("gemini")
-        default:       return nil
+        if let brand = kind.brand, let mark = BrandArt.image(brand) { return mark }
+        switch kind {
+        case .claude: return app("com.anthropic.claudefordesktop")
+        case .cursor: return app("com.todesktop.230313mzl4w4u92")
+        case .ollama: return app("com.electron.ollama")
+        default:      return nil
         }
     }
 
@@ -1646,7 +1650,12 @@ private enum BrandArt {
         let image = BrandArtData.png[name]
             .flatMap { Data(base64Encoded: $0) }
             .flatMap { NSImage(data: $0) }
-            .map { Image(nsImage: $0) }
+            .map { ns -> Image in
+                // A single-colour mark is a template: it takes the tile's
+                // foreground, so it reads in light and dark alike.
+                ns.isTemplate = BrandArtData.monochrome.contains(name)
+                return Image(nsImage: ns)
+            }
         cache[name] = image
         return image
     }

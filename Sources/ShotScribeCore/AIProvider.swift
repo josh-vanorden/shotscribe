@@ -28,16 +28,41 @@ public struct AIProvider: Codable, Equatable, Sendable {
             }
         }
 
-        /// The assistant a shot is handed to — the tile's name and the paste
-        /// line's target. Titlers that are not a chat hand off to Claude Code,
-        /// where the `/screenshot` gesture lives.
+        /// Who the Send-to tile hands a shot to: the titler itself, by name.
+        /// The tile carries this kind's mark, so a glance at the landing zone
+        /// says which AI is in use — offline included.
         public var assistant: String {
             switch self {
-            case .claude:  return "Claude"
-            case .codex:   return "Codex"
-            case .gemini:  return "Gemini"
-            case .cursor:  return "Cursor"
-            default:       return "Claude"
+            case .offline:  return "an assistant"
+            case .claude:   return "Claude"
+            case .codex:    return "Codex"
+            case .gemini:   return "Gemini"
+            case .cursor:   return "Cursor"
+            case .ollama:   return "Ollama"
+            case .command:  return "your assistant"
+            case .endpoint: return "your model"
+            }
+        }
+
+        /// The brand mark's name under `assets/brands/`, for kinds that have one.
+        public var brand: String? {
+            switch self {
+            case .claude: return "claude"
+            case .codex:  return "codex"
+            case .gemini: return "gemini"
+            case .cursor: return "cursor"
+            case .ollama: return "ollama"
+            default:      return nil
+            }
+        }
+
+        /// The SF Symbol for kinds that have no brand: no network, a shell, a URL.
+        public var symbol: String? {
+            switch self {
+            case .offline:  return "wifi.slash"
+            case .command:  return "terminal"
+            case .endpoint: return "network"
+            default:        return nil
             }
         }
 

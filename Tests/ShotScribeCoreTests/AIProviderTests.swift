@@ -108,9 +108,12 @@ final class AIProviderTests: XCTestCase {
 
     func testTheHandoffLineFollowsTheAssistant() {
         XCTAssertTrue(SendToClaude.line(forImageAt: "/a/b.png", kind: .claude).hasPrefix("/screenshot "))
-        XCTAssertTrue(SendToClaude.line(forImageAt: "/a/b.png", kind: .ollama).hasPrefix("/screenshot "), "a non-chat titler hands off to Claude Code")
+        XCTAssertTrue(SendToClaude.line(forImageAt: "/a/b.png", kind: .ollama).hasPrefix("Look at the screenshot"), "only Claude Code has /screenshot")
         XCTAssertTrue(SendToClaude.line(forImageAt: "/a/b.png", kind: .cursor).hasPrefix("Look at the screenshot"))
         XCTAssertEqual(AIProvider.Kind.cursor.assistant, "Cursor")
+        XCTAssertEqual(AIProvider.Kind.ollama.assistant, "Ollama")
+        XCTAssertEqual(AIProvider.Kind.offline.symbol, "wifi.slash", "offline wears its own mark")
+        XCTAssertEqual(AIProvider.Kind.gemini.brand, "gemini")
     }
 
     func testTheMachinePreferenceMapsToAProvider() {

@@ -675,3 +675,12 @@ already signed in to, or an OpenAI-compatible endpoint.
   README says so. Whether that April build was compromised or the verdict a
   false positive is not knowable without fetching it again, which this
   session did not do.
+- Later that morning: the picker was rewired (see Triage), and the Send-to
+  tile now carries the mark of the titler itself — Josh: "those three are
+  really well known and should have their respective logo icons." The marks
+  come from Lobe Icons 1.95.0 (MIT collection; the marks stay their owners'),
+  rasterised to 128 px (Gemini's gradient needed Quick Look's WebKit path;
+  CoreSVG dropped it), embedded as base64, monochrome ones as templates.
+  Offline wears `wifi.slash`, a command `terminal`, an endpoint `network`.
+  Verified with `scripts/render-pane.swift`: six snapshots, one per kind.
+
