@@ -19,6 +19,38 @@ It's one small, single-purpose tool. The logic lives in a reusable core
 (`ShotScribeCore`) so the same engine backs the CLI today and — next — an MCP
 server, a menu-bar app, and a widget.
 
+## Before you install — what it touches
+
+ShotScribe is a small tool with a sharp edge: it renames files. Read this
+once.
+
+- **It renames only macOS default capture names** (`Screenshot …`, `Screen
+  Shot …`, `Screen Recording …`, and the equivalents in other languages when
+  the file carries macOS's own capture flag). A file you named yourself is
+  never touched unless you pass `--force` on the CLI. **Auto-rename is on by
+  default** the moment the app runs; the switch is on the Rename tab.
+- **It writes Finder tags** (up to two per capture, from a list you control)
+  onto the renamed file. Tags you added by hand are kept; the switch is on the
+  File tab.
+- **It keeps a search index at `~/.shotscribe/index.json`**: the text read off
+  every capture. It never leaves the machine and is readable by your user
+  only, but it is more sensitive than the screenshots — see *Privacy*.
+- **With "Title with Claude" on, the text read off each capture is sent to
+  Anthropic** through the `claude` CLI on your own subscription. Off (the
+  offline titler), nothing leaves the machine. The app makes no network
+  connections of its own and has no telemetry.
+- **macOS may ask for folder access.** If your captures land on the Desktop
+  (or in Documents or Downloads), the first look there triggers the standard
+  folder-access prompt; denying it leaves the app idle. `~/Pictures` needs no
+  prompt.
+- **Signed and notarized** by Apple's notary service under a Developer ID, so
+  Gatekeeper opens it without a warning. It is not App Store sandboxed.
+- **One watcher at a time.** ShotScribe.app and a copy mounted in another host
+  (Toolbelt) both watch the same folder; the hosted copy notices the app
+  running and stands down.
+
+Everything it writes and how to remove it is under *Uninstall*.
+
 ## Whose Claude is it?
 
 **Yours.** ShotScribe ships no API keys and has no account of its own. When
@@ -46,8 +78,17 @@ does the mechanical, on-device parts and takes the model's title as input.
 
 ## Install
 
+**The app:** download `ShotScribe-<version>.dmg` from the
+[latest release](https://github.com/josh-vanorden/shotscribe/releases/latest),
+open it, drag ShotScribe to Applications. The app and the disk image are
+Developer ID signed, notarized and stapled, so macOS 13 and later open them
+without a warning. Requires macOS 13.
+
+**The CLI and the MCP server** build from source in under a minute, with no
+dependencies beyond Xcode's toolchain:
+
 ```bash
-git clone <repo> shotscribe && cd shotscribe
+git clone https://github.com/josh-vanorden/shotscribe.git && cd shotscribe
 swift build -c release
 cp .build/release/shotscribe /usr/local/bin/   # or anywhere on your PATH
 ```
@@ -240,7 +281,48 @@ Toolbelt and never will.
 OCR runs entirely on-device (Apple Vision). Only the *extracted text* is sent
 to the titler — and with `--no-claude`, nothing leaves the machine at all. With
 the default `ClaudeTitler`, that text is sent to `claude -p` (which runs
-inference on Anthropic's servers, billed to your Claude subscription).
+inference on Anthropic's servers, billed to your Claude subscription). That
+call runs with Claude Code's tools disabled and no MCP servers, because the
+text on your screen is not always text you wrote.
+
+What ShotScribe keeps on the machine, and where:
+
+| What | Where | Contains |
+|---|---|---|
+| Search index | `~/.shotscribe/index.json` (mode 0600) | The text read off every capture, its name, tags, original name |
+| Settings | `defaults` domain `com.joshvanorden.shotscribe` | Watch folder, template, vocabulary, switches, recent renames |
+| Log | `~/Library/Logs/ShotScribe.log` | File names and outcomes — never the text of a capture |
+| Finder tags | On the renamed files themselves | The tags chosen from your list |
+
+Treat the index like the screenshots it describes: keep it out of backups
+and shared folders you would not trust with them. Nothing here is uploaded,
+synced or reported anywhere.
+
+## Uninstall
+
+```bash
+osascript -e 'tell application "ShotScribe" to quit'
+rm -rf /Applications/ShotScribe.app
+rm -rf ~/.shotscribe                       # the search index
+defaults delete com.joshvanorden.shotscribe # settings
+rm -f ~/Library/Logs/ShotScribe.log
+```
+
+Renamed files keep their names and tags; nothing else is left behind. If you
+turned on launch at login, the entry under System Settings › General › Login
+Items goes with the app.
+
+## Known limitations
+
+- `{app}` on a browser window names the tab, not the browser: it reads what
+  the window's chrome says.
+- Screen recordings are recognised by their English default name only; macOS
+  puts no capture flag on a recording, so other languages are not detected.
+- The offline titler picks salient words, which can include OCR noise; sign
+  in to `claude` for titles that read like titles, and `shotscribe eval` to
+  measure the difference.
+- The window and the menu bar item are one process; a copy of the pane hosted
+  in another app stands down while ShotScribe.app runs.
 
 ## Roadmap
 
