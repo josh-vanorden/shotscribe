@@ -81,12 +81,22 @@ public enum Executables {
         return found
     }
 
+    /// A bare command name: letters, digits, `._+-`. Anything else — a space,
+    /// a `;`, a `$(` — is not a name, and is refused before it can reach the
+    /// shell below. (The user types the template, so this is belt-and-braces
+    /// against a pasted setting, not against the user.)
+    static func isPlainName(_ name: String) -> Bool {
+        !name.isEmpty && name.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || "._+-".unicodeScalars.contains($0) }
+    }
+
     private static func compute(_ name: String) -> String? {
         let fm = FileManager.default
         if name.contains("/") {
+            // A path is checked as a path, never handed to a shell.
             let path = (name as NSString).expandingTildeInPath
             return fm.isExecutableFile(atPath: path) ? path : nil
         }
+        guard isPlainName(name) else { return nil }
         let home = NSHomeDirectory()
         var candidates = ["\(home)/.local/bin/\(name)", "/opt/homebrew/bin/\(name)",
                           "/usr/local/bin/\(name)", "/usr/bin/\(name)", "/bin/\(name)"]

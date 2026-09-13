@@ -125,6 +125,32 @@ final class AIProviderTests: XCTestCase {
         XCTAssertNil(AIProvider.suggested(from: LLMPreference(provider: .claude, endpoint: nil, model: nil, isSet: false)))
     }
 
+    /// The command's first token goes to `command -v` in a login shell, so it
+    /// must be a name and nothing else.
+    func testOnlyAPlainNameReachesTheShell() {
+        XCTAssertTrue(Executables.isPlainName("codex"))
+        XCTAssertTrue(Executables.isPlainName("cursor-agent"))
+        XCTAssertTrue(Executables.isPlainName("llm2.0_beta+"))
+        XCTAssertFalse(Executables.isPlainName("codex; rm -rf ~"))
+        XCTAssertFalse(Executables.isPlainName("$(open /Applications/Calculator.app)"))
+        XCTAssertFalse(Executables.isPlainName(""))
+        XCTAssertNil(Executables.resolve("no-such; echo pwned"))
+        // "echo hi; rm" is harmless: argv, no shell — "hi;" and "rm" are echo's words.
+        // A metacharacter glued to the name is what must never reach `command -v`.
+        XCTAssertFalse(AIProvider(kind: .command, command: "codex;rm -rf ~ {prompt}").availability().isReady)
+        XCTAssertTrue(AIProvider(kind: .command, command: "/bin/echo hi; rm {prompt}").availability().isReady)
+    }
+
+    func testPlainHTTPToARemoteHostIsSaidOutLoud() {
+        let remote = AIProvider(kind: .endpoint, model: "m", endpoint: "http://gateway.example.com/v1").availability()
+        XCTAssertTrue(remote.isReady)
+        XCTAssertTrue(remote.text.contains("unencrypted"), remote.text)
+        let local = AIProvider(kind: .endpoint, model: "m", endpoint: "http://localhost:11434/v1").availability()
+        XCTAssertFalse(local.text.contains("unencrypted"), "a local server is not a wire")
+        let tls = AIProvider(kind: .endpoint, model: "m", endpoint: "https://api.openai.com/v1").availability()
+        XCTAssertFalse(tls.text.contains("unencrypted"))
+    }
+
     func testSecretsStayOutOfDefaults() {
         Secrets.store.set("sk-abc", for: Secrets.endpointKeyAccount)
         XCTAssertEqual(Secrets.store.get(Secrets.endpointKeyAccount), "sk-abc")

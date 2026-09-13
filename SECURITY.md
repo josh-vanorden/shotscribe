@@ -16,13 +16,17 @@ week; a fix ships as a patch release and is named in `CHANGELOG.md`.
   execute. The other CLI presets ship with their tool-denying flags (`codex
   exec --sandbox read-only`, `gemini --sandbox`); they are commands the user
   can see and edit, and the AI tab says to keep those flags. A custom command
-  is the user's own responsibility. The reply is cut to a few words and
+  is the user's own responsibility; its first token must be a plain name
+  (letters, digits, `._+-`) or a path before the login-shell lookup runs, so
+  a pasted setting cannot smuggle a shell metacharacter into `command -v`. The reply is cut to a few words and
   stripped of path characters before it becomes a file name; a title cannot
   carry a path component.
 - **The endpoint titler is the only network code.** It POSTs to the base URL
   the user typed, only when an endpoint is the chosen titler, with a key read
   from the login Keychain (`com.joshvanorden.shotscribe` / `endpoint-api-key`)
-  and never written to the settings file.
+  and never written to the settings file. A plain-`http` base URL to a
+  host that is not local is accepted but said out loud in the AI tab: the text
+  read off each capture would travel unencrypted.
 - **Tags come only from the user's list.** Whatever proposes a tag — the
   model, an MCP caller, anything — `Tagging.accepted` drops what is not in the
   vocabulary. A screenshot never invents its own filing.

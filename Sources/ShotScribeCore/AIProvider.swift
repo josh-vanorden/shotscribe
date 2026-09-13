@@ -185,7 +185,12 @@ public struct AIProvider: Codable, Equatable, Sendable {
             guard let e = endpoint, let url = URL(string: e), url.scheme != nil, url.host != nil
             else { return .missing("Enter the endpoint’s base URL, like http://localhost:11434/v1.") }
             guard let m = model, !m.isEmpty else { return .missing("Enter a model name.") }
-            return .ready("\(url.host ?? e) · \(m)")
+            let host = url.host ?? e
+            let local = ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".local")
+            if url.scheme?.lowercased() == "http", !local {
+                return .ready("\(host) · \(m) — plain http: the text read off each capture travels unencrypted to that host.")
+            }
+            return .ready("\(host) · \(m)")
         }
     }
 
