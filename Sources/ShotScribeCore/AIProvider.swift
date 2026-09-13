@@ -188,7 +188,7 @@ public struct AIProvider: Codable, Equatable, Sendable {
             let host = url.host ?? e
             let local = ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".local")
             if url.scheme?.lowercased() == "http", !local {
-                return .ready("\(host) · \(m) — plain http: the text read off each capture travels unencrypted to that host.")
+                return .ready("\(host) · \(m) — plain http: the text read off each capture, and any saved API key, travel unencrypted to that host.")
             }
             return .ready("\(host) · \(m)")
         }
