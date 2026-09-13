@@ -709,4 +709,12 @@ already signed in to, or an OpenAI-compatible endpoint.
   arc for a beat — the Trash move is milliseconds, so the beat is a floor, not
   a measurement — seals, then the shot leaves. Same control in the tile
   corner, the landing zone and the list row.
+- 11:41: **the icon is Josh's.** Five vector directions in a /preview
+  (localhost:9012) did not land — symbols of a screenshot, none of the
+  naming; the recap and the elevator pitch came out of that conversation
+  instead ("Every screenshot, named — the moment it lands"). Josh brought his
+  own artwork (`assets/ShotScribe-artwork.png`, 1254 px with alpha):
+  `scripts/fit-icon.swift` finds the squircle's edge from the alpha and fits
+  it to 824 of 1024, `scripts/make-iconset.sh` builds the iconset and icns.
+  The mascot and the old `make-icon.swift` generator are gone.
 

@@ -15,6 +15,10 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 - **Send to …** wears the mark of the titler in use — Claude, Codex (the
   OpenAI mark), Gemini, Cursor, Ollama, offline — and copies the line that
   chat understands.
+- **A new app icon** — Josh's artwork: the capture in its crop marks, the name
+  and its tag, the arrow into code. `scripts/fit-icon.swift` puts it on Apple's
+  icon grid and `scripts/make-iconset.sh` builds the iconset and icns; the
+  robot mascot is gone.
 - **A bin on every shot** — the upper corner of a tile and of the landing
   zone (on hover), and beside the date in the list. Hover unfurls "Delete";
   the click sends the letters into the bin, furls the pill to the bin, turns
