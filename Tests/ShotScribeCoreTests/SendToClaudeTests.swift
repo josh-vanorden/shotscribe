@@ -10,6 +10,8 @@ final class SendToClaudeTests: XCTestCase {
                        "/screenshot \"/Users/me/Pictures/Screenshots/2026-09-11 2244 Name Folder.png\"")
         XCTAssertEqual(SendToClaude.line(forImageAt: "/a/say \"hi\".png"), "/screenshot \"/a/say \\\"hi\\\".png\"",
                        "a quote in the path stays inside the quotes")
+        XCTAssertEqual(SendToClaude.line(forImageAt: "/a/back\\slash.png"), "/screenshot \"/a/back\\\\slash.png\"",
+                       "a backslash is escaped too, so a path ending in one cannot eat the closing quote")
     }
 
     func testTheSkillDocumentsThePathArgumentTheAppCopies() throws {

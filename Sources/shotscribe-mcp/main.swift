@@ -123,7 +123,7 @@ let toolDefs: [[String: Any]] = [
                 ],
                 "force": [
                     "type": "boolean",
-                    "description": "Also rename files that aren't raw macOS captures",
+                    "description": "Also rename a capture (image or recording) that no longer wears a raw macOS capture name. Never a file that isn't a capture.",
                 ],
             ],
             "required": ["path"],
@@ -246,6 +246,8 @@ func runRenameScreenshot(_ args: [String: Any]) async -> [String: Any] {
             return textResult("Dry run: would rename \"\(from.lastPathComponent)\" → \"\(to.lastPathComponent)\".")
         case .skippedNotRawCapture(let u):
             return textResult("Skipped: \"\(u.lastPathComponent)\" isn't a raw macOS capture name (user-named files are protected; pass force=true to override).")
+        case .skippedNotACapture(let u):
+            return textResult("Skipped: \"\(u.lastPathComponent)\" isn't an image or a screen recording; ShotScribe only names captures, force or not.")
         case .skippedNoLabel(let u):
             return textResult("Skipped: no usable label for \"\(u.lastPathComponent)\".")
         case .fileMissing(let u):

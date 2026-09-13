@@ -21,4 +21,19 @@ final class HardeningTests: XCTestCase {
         XCTAssertEqual(Naming.sanitize(". .. ... Real"), "Real")
         XCTAssertEqual(Naming.sanitize("v1.5.0 notes"), "v1.5.0 notes", "dots inside a word are words")
     }
+
+    /// `force` waives the raw-name rule for a capture; it never makes a PDF a
+    /// capture. An MCP caller talked into `force: true` still cannot scramble
+    /// arbitrary files.
+    func testForceNeverRenamesAFileThatIsNotACapture() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("force-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let doc = dir.appendingPathComponent("notes.pdf")
+        try Data("%PDF-1.4".utf8).write(to: doc)
+        let outcome = try await Renamer(titler: KeywordTitler()).rename(fileAt: doc, label: "Anything", force: true, dryRun: true)
+        XCTAssertEqual(outcome, .skippedNotACapture(doc))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: doc.path))
+    }
 }
+

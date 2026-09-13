@@ -151,6 +151,23 @@ final class AIProviderTests: XCTestCase {
         XCTAssertFalse(tls.text.contains("unencrypted"))
     }
 
+    /// The screen text may cross plain http with a warning; the key never does.
+    func testTheKeyNeverTravelsInTheClear() async {
+        Secrets.store.set("sk-live", for: Secrets.endpointKeyAccount)
+        let remote = AIProvider(kind: .endpoint, model: "m", endpoint: "http://gateway.example.com/v1")
+        XCTAssertFalse(remote.availability().isReady, "the AI tab refuses before any request")
+        XCTAssertTrue(remote.availability().text.contains("won’t be sent"))
+        do {
+            _ = try await remote.makeTitler()!.title(forOCRText: "enough text on the screen")
+            XCTFail("the request must not be made")
+        } catch EndpointTitler.Error.keyOverCleartext(let host) { XCTAssertEqual(host, "gateway.example.com") }
+        catch { XCTFail("wrong error: \(error)") }
+        XCTAssertTrue(AIProvider(kind: .endpoint, model: "m", endpoint: "http://localhost:11434/v1").availability().isReady, "a local server is not a wire")
+        XCTAssertTrue(AIProvider(kind: .endpoint, model: "m", endpoint: "https://api.openai.com/v1").availability().isReady)
+        Secrets.store.set(nil, for: Secrets.endpointKeyAccount)
+        XCTAssertTrue(remote.availability().isReady, "no key, only the text warning")
+    }
+
     func testSecretsStayOutOfDefaults() {
         Secrets.store.set("sk-abc", for: Secrets.endpointKeyAccount)
         XCTAssertEqual(Secrets.store.get(Secrets.endpointKeyAccount), "sk-abc")

@@ -8,13 +8,29 @@ import Foundation
 /// endpoint is the chosen titler.
 public struct EndpointTitler: Titler {
     public enum Error: LocalizedError {
-        case http(Int, String), badReply
+        case http(Int, String), badReply, keyOverCleartext(String)
         public var errorDescription: String? {
             switch self {
             case .http(let code, let body): return "The endpoint answered \(code): \(body)"
             case .badReply:                 return "The endpoint’s reply had no message in it."
+            case .keyOverCleartext(let host):
+                return "Won’t send your saved API key over plain http to \(host). Use https, a local address, or remove the key."
             }
         }
+    }
+
+    /// A host the text never leaves the machine for: loopback, or a `.local`
+    /// name on the LAN.
+    public static func isLocal(host: String?) -> Bool {
+        guard let host, !host.isEmpty else { return false }
+        return ["localhost", "127.0.0.1", "::1", "0.0.0.0"].contains(host.lowercased()) || host.lowercased().hasSuffix(".local")
+    }
+
+    /// True when a request to `url` with a key would put that key on the wire
+    /// in the clear: plain http to a host that is not local.
+    public static func wouldExposeKey(_ url: URL, apiKey: String?) -> Bool {
+        guard let apiKey, !apiKey.isEmpty else { return false }
+        return url.scheme?.lowercased() == "http" && !isLocal(host: url.host)
     }
 
     public let baseURL: URL
@@ -70,6 +86,9 @@ public struct EndpointTitler: Titler {
     }
 
     private func complete(system: String, text: String) async throws -> String {
+        // The credential never travels in the clear. The screen text may, with
+        // the AI tab's warning; the key is a different class of thing.
+        if Self.wouldExposeKey(baseURL, apiKey: apiKey) { throw Error.keyOverCleartext(baseURL.host ?? baseURL.absoluteString) }
         let req = Self.request(baseURL: baseURL, model: model, apiKey: apiKey, system: system,
                                user: "OCR text:\n\(text)\n\nLabel:", timeout: timeout)
         let (data, response) = try await URLSession.shared.data(for: req)

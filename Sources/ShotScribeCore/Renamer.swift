@@ -6,6 +6,7 @@ public enum RenameOutcome: Sendable, Equatable {
     case renamed(from: URL, to: URL)
     case wouldRename(from: URL, to: URL)   // dry run
     case skippedNotRawCapture(URL)         // user-named file — left alone
+    case skippedNotACapture(URL)           // not an image or recording at all — never ours, even under force
     case skippedNoLabel(URL)               // nothing usable to name it
     case fileMissing(URL)
 }
@@ -69,7 +70,10 @@ public struct Renamer: Sendable {
                        tags explicitTags: [String] = [],
                        force: Bool = false, dryRun: Bool = false) async throws -> RenameOutcome {
         guard fileManager.fileExists(atPath: url.path) else { return .fileMissing(url) }
-
+        // `force` waives the raw-name rule, never the kind of file: ShotScribe
+        // names captures. A caller with force cannot be talked into renaming a
+        // PDF or a script (security sweep, 2026-09-13).
+        guard Capture.isCapture(url) else { return .skippedNotACapture(url) }
         guard force || Naming.isRawCapture(at: url) else { return .skippedNotRawCapture(url) }
 
         let label: String

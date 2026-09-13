@@ -26,6 +26,6 @@ public enum SendToClaude {
     }
 
     private static func quoted(_ path: String) -> String {
-        path.replacingOccurrences(of: "\"", with: "\\\"")
+        path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
     }
 }

@@ -186,8 +186,10 @@ public struct AIProvider: Codable, Equatable, Sendable {
             else { return .missing("Enter the endpoint’s base URL, like http://localhost:11434/v1.") }
             guard let m = model, !m.isEmpty else { return .missing("Enter a model name.") }
             let host = url.host ?? e
-            let local = ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".local")
-            if url.scheme?.lowercased() == "http", !local {
+            if url.scheme?.lowercased() == "http", !EndpointTitler.isLocal(host: url.host) {
+                if EndpointTitler.wouldExposeKey(url, apiKey: Secrets.store.get(Secrets.endpointKeyAccount)) {
+                    return .missing("\(host) · \(m) — plain http with a saved API key: the key would travel unencrypted, so it won’t be sent. Use https, a local address, or remove the key.")
+                }
                 return .ready("\(host) · \(m) — plain http: the text read off each capture travels unencrypted to that host.")
             }
             return .ready("\(host) · \(m)")

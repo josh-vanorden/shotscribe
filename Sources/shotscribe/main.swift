@@ -23,6 +23,12 @@ func makeTitler(noClaude: Bool) -> Titler {
     return KeywordTitler()
 }
 
+/// Names and snippets reach the terminal from the filesystem and the index —
+/// other software's file names can carry escapes. Strip Cc and Cf at print.
+func safe(_ s: String) -> String {
+    String(String.UnicodeScalarView(s.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }))
+}
+
 func expand(_ path: String) -> URL {
     URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
 }
@@ -32,11 +38,13 @@ func describe(_ outcome: RenameOutcome) -> String {
     case .renamed(let from, let to):
         let tags = Tagging.finderTags(of: to)
         let filed = tags.isEmpty ? "" : "\n   tags  \(tags.joined(separator: ", "))"
-        return "renamed  \(from.lastPathComponent)\n      →  \(to.lastPathComponent)\(filed)"
+        return "renamed  \(safe(from.lastPathComponent))\n      →  \(safe(to.lastPathComponent))\(filed)"
     case .wouldRename(let from, let to):
-        return "would rename  \(from.lastPathComponent)\n           →  \(to.lastPathComponent)"
+        return "would rename  \(safe(from.lastPathComponent))\n           →  \(safe(to.lastPathComponent))"
     case .skippedNotRawCapture(let url):
-        return "skipped (not a macOS capture; use --force): \(url.lastPathComponent)"
+        return "skipped (not a macOS capture; use --force): \(safe(url.lastPathComponent))"
+    case .skippedNotACapture(let url):
+        return "skipped (not an image or a recording; ShotScribe only names captures): \(safe(url.lastPathComponent))"
     case .skippedNoLabel(let url):
         return "skipped (no usable label): \(url.lastPathComponent)"
     case .fileMissing(let url):
@@ -167,9 +175,9 @@ case "find":
         let mark = h.matchedInName ? "*" : " "
         let tags = h.shot.tags ?? []
         let filed = tags.isEmpty ? "" : "  [\(tags.joined(separator: "] ["))]"
-        print("\(mark) \(fmt.string(from: h.shot.captured))  \(h.shot.name)\(filed)")
-        if !h.snippet.isEmpty { print("     \(h.snippet)") }
-        print("     \(h.shot.path)")
+        print("\(mark) \(fmt.string(from: h.shot.captured))  \(safe(h.shot.name))\(filed)")
+        if !h.snippet.isEmpty { print("     \(safe(h.snippet))") }
+        print("     \(safe(h.shot.path))")
     }
     if hits.count > 20 { print("… and \(hits.count - 20) more") }
 
