@@ -25,19 +25,19 @@ where README.md now duplicates them.
 - `Sources/shotscribe-menubar/` — MenuBarExtra app: the `@main`, the app
   delegate, and the welcome window. Draws `ShotScribeView(chrome: .menuBar)`.
 - `Tests/ShotScribeCoreTests/` — unit tests for the core.
-- `scripts/` — `package-app.sh` (build/sign/notarize/staple), `make-icon.swift`.
+- `scripts/` — `package-app.sh` (build/sign/notarize/staple), `fit-icon.swift` + `make-iconset.sh` (the icon), `make-brand-art.swift` + `svg-to-png.swift` (the marks), `render-pane.swift` (off-screen QA).
 - `assets/` — app icon source (`.iconset` + `.icns`).
 - `skills/screenshot/SKILL.md` — the installable `/screenshot` Claude Code skill.
 - `dist/` — build output (`.app`, `.dmg`); gitignored, not tracked.
 
 <!-- markerblock:index-map -->
-## Map — `97` tracked files, read from `git ls-files` at `3195d5a` on 2026-09-13
+## Map — `100` tracked files, read from `git ls-files` at `26de64b` on 2026-09-13
 
 ```
 Sources/  35 tracked files
 Tests/    16 tracked files
-assets/   25 tracked files
-scripts/  5 tracked files
+assets/   27 tracked files
+scripts/  6 tracked files
 skills/   1 tracked file
 ```
 
