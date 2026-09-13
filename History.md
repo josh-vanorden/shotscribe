@@ -528,3 +528,5 @@ needs a fast fix right there.
   no cap, no-stamp names, empty and illegal titles). The app was repackaged
   and relaunched at 18:59, so the next look is this build; the tiles, the
   bubbles and an actual edit are Josh's to see.
+- Later: the `{}` tile became a hammer. Josh: outside engineering nobody
+  knows what those symbols are for; "rebuild" is a word everyone has.
