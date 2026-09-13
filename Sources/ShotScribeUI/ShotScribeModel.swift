@@ -278,6 +278,36 @@ public final class ShotScribeModel: ObservableObject {
         return handoffGeneration
     }
 
+    /// The title, edited in the landing zone. The stamp stays as spelled, only
+    /// the words change, and the file moves at once. A shot ShotScribe named
+    /// keeps its raw original for undo; one it did not gets its previous name
+    /// there, so this is undoable too.
+    public func retitle(_ shot: IndexedShot, to title: String) {
+        guard let stem = Naming.retitled(shot.name, to: title, style: nameTemplate.titleStyle),
+              stem != shot.name else { return }
+        let dir = shot.url.deletingLastPathComponent()
+        let ext = shot.url.pathExtension
+        let name = Naming.uniqueName(ext.isEmpty ? stem : "\(stem).\(ext)") {
+            FileManager.default.fileExists(atPath: dir.appendingPathComponent($0).path)
+        }
+        let target = dir.appendingPathComponent(name)
+        watcher?.ignore(target)
+        do {
+            try Renamer.restore(fileAt: shot.url, to: target)
+            Log.write("retitle: \(shot.url.lastPathComponent) → \(name)")
+            lastError = nil
+            let original = shot.original ?? shot.url.lastPathComponent
+            Task.detached(priority: .utility) { [weak self] in
+                ShotIndex.forget(shot.path)
+                ShotIndex.record(target, original: original)
+                await MainActor.run { self?.loadIndex(); self?.runSearch() }
+            }
+        } catch {
+            Log.write("retitle FAILED: \(error)")
+            lastError = "Couldn’t rename \(shot.name): \(error.localizedDescription)"
+        }
+    }
+
     /// File a shot that is already named — the only way to reach an older
     /// capture, since the vocabulary otherwise only applies at rename time.
     public func tag(_ shot: IndexedShot, with tag: String) {

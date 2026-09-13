@@ -67,6 +67,26 @@ public enum Naming {
         return (value as? Bool) ?? false
     }
 
+    /// A name with its title swapped and everything else kept as spelled: the
+    /// stamp the template put around it stays, so an edit in the window never
+    /// re-renders yesterday's date. `name` carries no extension, as
+    /// `IndexedShot.name` does. The title takes the template's joining style but
+    /// not its word cap — someone who typed six words meant six. nil when the
+    /// title sanitises to nothing.
+    public static func retitled(_ name: String, to title: String, style: NameTemplate.TitleStyle = .asIs) -> String? {
+        let words = sanitize(title).split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return nil }
+        let clean: String
+        switch style {
+        case .asIs:  clean = words.joined(separator: " ")
+        case .kebab: clean = words.joined(separator: "-").lowercased()
+        case .snake: clean = words.joined(separator: "_").lowercased()
+        }
+        let stem = Sessions.stem(of: name)
+        guard stem != name, let range = name.range(of: stem) else { return clean }
+        return name.replacingCharacters(in: range, with: clean)
+    }
+
     /// Strip characters that break paths or read badly, collapse spaces, cap length.
     public static func sanitize(_ label: String, maxChars: Int = 60) -> String {
         let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\n\t")

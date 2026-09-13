@@ -38,6 +38,7 @@ public struct ShotScribeSurface: View {
 /// `@ObservedObject`: a stored `let` here means the view never redraws when a
 /// rename lands.
 public struct ShotScribeView: View {
+    @State private var editingTitle = false
     @ObservedObject var model: ShotScribeModel
     let chrome: ShotScribeChrome
     @State private var folderTargeted = false
@@ -281,9 +282,7 @@ public struct ShotScribeView: View {
                     (Text("Latest, ").foregroundColor(.secondary)
                         + Text(shot.captured, format: .dateTime.hour().minute()).fontWeight(.semibold)
                         + Text(" \(dayWord(shot.captured))").foregroundColor(.secondary))
-                    Text(Sessions.stem(of: shot.name))
-                        .font(.system(size: 22, weight: .bold)).tracking(-0.6)
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    HeroTitle(shot: shot, editing: $editingTitle) { model.retitle(shot, to: $0) }
                     if let original = shot.original {
                         Text("was \(original)").font(.caption2).foregroundStyle(.tertiary)
                             .lineLimit(1).truncationMode(.middle)
@@ -291,31 +290,21 @@ public struct ShotScribeView: View {
                     if !(shot.tags ?? []).isEmpty {
                         HStack(spacing: 6) { tagChips(shot) }.padding(.top, 2)
                     }
-                    FlowLayout(spacing: 6) {
-                        Button { model.reveal(shot) } label: {
-                            Label("Reveal in Finder", systemImage: "arrow.up.forward.square")
-                        }
-                        .buttonStyle(CapsuleButtonStyle())
+                    // The landing zone's actions: one row of tiles, each the icon of
+                    // the service it reaches, named the moment it is hovered.
+                    FlowLayout(spacing: 8) {
+                        ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
                         ShareRow(url: shot.url).id(shot.path)
-                        Button { model.sendToClaude(shot) } label: {
-                            Label("Send to Claude", systemImage: "paperplane")
-                        }
-                        .buttonStyle(CapsuleButtonStyle())
-                        .help("Copies a /screenshot line for this shot. Paste it into any Claude Code session and Claude reads the shot there.")
-                        Button { model.copyCodeBrief(for: shot) } label: {
-                            Label("Rebuild as code", systemImage: "curlybraces")
-                        }
-                        .buttonStyle(CapsuleButtonStyle())
-                        .help("Copies a brief for Claude Code: the file, its text with positions, and how to work. Paste it in the project the code should land in.")
+                        ActionTile("Send to Claude", icon: AppIcons.claude ?? Image(systemName: "paperplane"),
+                                   art: AppIcons.claude != nil) { model.sendToClaude(shot) }
+                        ActionTile("Rebuild as code", icon: Image(systemName: "curlybraces")) { model.copyCodeBrief(for: shot) }
+                        ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
                         if shot.original != nil, !model.otherInstanceRunning {
-                            Button { model.undo(shot) } label: {
-                                Label("Restore name", systemImage: "arrow.uturn.backward")
-                            }
-                            .buttonStyle(CapsuleButtonStyle(quiet: true))
+                            ActionTile("Restore original name", icon: Image(systemName: "arrow.uturn.backward")) { model.undo(shot) }
                         }
                         if model.taggingEnabled { fileAsMenu(shot) }
                     }
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                 }
                 .font(.caption)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -526,11 +515,16 @@ public struct ShotScribeView: View {
                     .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
             }
         } label: {
-            Label("File as", systemImage: "tag")
+            Image(systemName: "tag").resizable().aspectRatio(contentMode: .fit)
+                .frame(width: 14, height: 14).frame(width: 30, height: 30).contentShape(Circle())
         }
-        .menuStyle(.borderlessButton).fixedSize()
-        .padding(.horizontal, 10).frame(height: 26)
-        .background(Color.primary.opacity(0.06), in: Capsule())
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .frame(width: 30, height: 30)
+        .background {
+            Circle().fill(Color.primary.opacity(0.08))
+                .overlay(Circle().strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        }
+        .modifier(NamedOnHover(title: "File as"))
     }
 
     @ViewBuilder
@@ -1410,6 +1404,99 @@ private extension View {
     }
 }
 
+/// The title in the landing zone, editable in place: click it (or the pencil
+/// tile) and it becomes a field; Return renames the file with the stamp kept,
+/// Escape puts it back. The fastest fix for a rename the person would not
+/// have written.
+private struct HeroTitle: View {
+    let shot: IndexedShot
+    @Binding var editing: Bool
+    let onRename: (String) -> Void
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    init(shot: IndexedShot, editing: Binding<Bool>, onRename: @escaping (String) -> Void) {
+        self.shot = shot; _editing = editing; self.onRename = onRename
+    }
+
+    var body: some View {
+        Group {
+            if editing {
+                TextField("Title", text: $draft)
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+                    .onSubmit(commit)
+                    .onExitCommand { editing = false }
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(ShotPalette.accent.opacity(0.5), lineWidth: 1))
+                    .padding(.horizontal, -8)
+                    .onAppear { draft = Sessions.stem(of: shot.name); focused = true }
+            } else {
+                Text(Sessions.stem(of: shot.name))
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editing = true }
+                    .help("Click to edit the title")
+            }
+        }
+        .font(.system(size: 22, weight: .bold)).tracking(-0.6)
+        .onChange(of: shot.path) { _ in editing = false }
+    }
+
+    private func commit() {
+        let title = draft.trimmingCharacters(in: .whitespaces)
+        editing = false
+        if !title.isEmpty, title != Sessions.stem(of: shot.name) { onRename(title) }
+    }
+}
+
+/// One action in the landing zone: a round tile carrying the icon of the
+/// service it reaches, named on hover.
+private struct ActionTile: View {
+    let name: String
+    let icon: Image
+    let art: Bool
+    let action: () -> Void
+
+    init(_ name: String, icon: Image, art: Bool = false, action: @escaping () -> Void) {
+        self.name = name; self.icon = icon; self.art = art; self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            icon.resizable().aspectRatio(contentMode: .fit)
+                .frame(width: art ? 20 : 14, height: art ? 20 : 14)
+                .frame(width: 30, height: 30)
+                .contentShape(Circle())
+        }
+        .buttonStyle(TileButtonStyle())
+        .modifier(NamedOnHover(title: name))
+    }
+}
+
+private struct TileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .background {
+                Circle().fill(Color.primary.opacity(0.08))
+                    .overlay(Circle().strokeBorder(.white.opacity(0.1), lineWidth: 1))
+            }
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// Real app icons, so a tile reflects its service: Finder's face for Reveal
+/// in Finder, Claude's mark for Send to Claude (a glyph when it is not installed).
+private enum AppIcons {
+    static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
+    static let claude: Image? = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop")
+        .map { Image(nsImage: NSWorkspace.shared.icon(forFile: $0.path)) }
+}
+
 /// Share, unfolding in place: one capsule that opens into the Mac's own
 /// destinations for this file — AirDrop, Messages, Mail, Notes, whatever is
 /// installed — each named the moment it is hovered, with the full picker one
@@ -1430,15 +1517,13 @@ private struct ShareRow: View {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) { open = true }
                 }
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "square.and.arrow.up")
-                    if !open { Text("Share") }
-                }
-                .foregroundColor(open ? ShotPalette.accent : .primary)
-                .contentShape(Rectangle())
+                Image(systemName: "square.and.arrow.up").resizable().aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14).frame(width: 22, height: 22)
+                    .foregroundColor(open ? ShotPalette.accent : .primary)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help(open ? "Close" : "Share the file: AirDrop, Messages, Mail…")
+            .modifier(NamedOnHover(title: open ? "" : "Share"))
 
             if open {
                 ForEach(Array(services.enumerated()), id: \.offset) { _, service in
@@ -1464,7 +1549,7 @@ private struct ShareRow: View {
             }
         }
         .font(.caption.weight(.medium))
-        .padding(.horizontal, 12).frame(height: 27)
+        .padding(.horizontal, open ? 8 : 4).frame(height: 30)
         .background {
             Capsule().fill(Color.primary.opacity(open ? 0.1 : 0.08))
                 .overlay(Capsule().strokeBorder(open ? ShotPalette.accent.opacity(0.35) : .white.opacity(0.1), lineWidth: 1))
@@ -1489,7 +1574,7 @@ private struct NamedOnHover: ViewModifier {
         content
             .onHover { hovering = $0 }
             .overlay(alignment: .top) {
-                if hovering {
+                if hovering, !title.isEmpty {
                     Text(title).font(.caption2.weight(.medium)).fixedSize()
                         .padding(.horizontal, 7).padding(.vertical, 3)
                         .background(.regularMaterial, in: Capsule())
