@@ -690,4 +690,7 @@ already signed in to, or an OpenAI-compatible endpoint.
   visual defect, fixed by the WebKit renderer. The ship list for Monday
   2026-09-14 is in `roadmap.md`; the release notes are drafted. Docs and code
   pushed under the evening's `/clean-tree`; no 1.6.0 tag yet.
+- 09:30: the list view had no landing zone — the hero was built only on the
+  tiles branch. Fixed (hero first, the newest shot left out of the rows);
+  `scripts/render-pane.swift` grew a `HARNESS_VIEW=list` switch to prove it.
 

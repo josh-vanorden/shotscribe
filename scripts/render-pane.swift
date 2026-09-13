@@ -10,6 +10,7 @@
 //     -framework Security -framework ServiceManagement -o /tmp/render-pane
 //   mkdir -p /tmp/pane/shots && ln ~/Pictures/Screenshots/<a few>.png /tmp/pane/shots/
 //   /tmp/render-pane /tmp/pane          # writes /tmp/pane/*.png
+//   HARNESS_VIEW=list /tmp/render-pane /tmp/pane   # the list view instead of tiles
 //
 // Hard-link the fixtures (a copy gets today's date and no hero). The pane
 // stands down while ShotScribe.app runs, which is fine for a render.
@@ -27,6 +28,7 @@ let suiteName = "shotscribe-harness-\(Int(Date().timeIntervalSince1970))"
 let suite = UserDefaults(suiteName: suiteName)!
 suite.set(false, forKey: "shotscribe.watching")
 suite.set("\(root)/shots", forKey: "shotscribe.folder")
+if let view = ProcessInfo.processInfo.environment["HARNESS_VIEW"] { suite.set(view, forKey: "shotView") }
 ShotScribeDefaults.suiteOverride = suite
 ShotIndex.storeOverride = URL(fileURLWithPath: "\(root)/index.json")
 for url in ShotIndex.imageFiles(in: URL(fileURLWithPath: "\(root)/shots")) { ShotIndex.record(url) }
@@ -55,6 +57,12 @@ model.setAIProvider(AIProvider(kind: .codex))
 spin(1.5); snap("2-codex")
 model.setAIProvider(AIProvider(kind: .cursor))
 spin(1.5); snap("3-cursor")
+model.setAIProvider(AIProvider(kind: .ollama))
+spin(1.5); snap("4-ollama")
+model.setAIProvider(AIProvider(kind: .offline))
+spin(1.5); snap("5-offline")
+model.setAIProvider(AIProvider(kind: .claude))
+spin(1.5); snap("6-claude")
 suite.removePersistentDomain(forName: suiteName)
 }
 MainActor.assumeIsolated { run() }

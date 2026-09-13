@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 09:30 — The list view had no landing zone
+- **Bug/Issue:** Josh, from a screenshot of the window in list view: the newest capture's landing zone — the hero, with the title edit and the tiles — was missing; only the rows showed. "The landing zone is the key to our system so it missing degrades user functionality."
+- **RCA:** `content` built the hero only on the tiles branch; the list branch went `gridHead` → `shotsList` and never asked for `heroShot`. The list predates the hero (2026-09-12) and was not revisited when it landed.
+- **Evidence:** `2026-09-13 0925 Sep Screenshots Claude.png` in the Screenshots folder; the off-screen render `7-list.png` (session scratchpad) after the fix, hero above two rows.
+- **Fix/Repair:** The list branch renders the hero first and `shotsList(excluding:)` drops the hero's path from the rows, as the grid's day groups already did. Same day, unreleased (1.6.0).
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 08:00 — The AI picker changed its face, not the setting
 - **Bug/Issue:** Josh: switching the titler "is not switching our icons… I had to choose twice", and with the picker reading Codex the Send-to tile still showed Gemini's "G".
 - **RCA:** The menu-style `Picker` was bound to a computed `Binding(get:set:)`; its popup updated its own displayed value while the setter did not reach the model, so nothing published and the tile (which follows the model, proven by an off-screen render driving `setAIProvider` directly) had nothing to follow. The body also called `availability()`, which can spawn a login shell to find a CLI, on the main thread during the menu's commit.

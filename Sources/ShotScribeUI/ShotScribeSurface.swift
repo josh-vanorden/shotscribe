@@ -219,8 +219,12 @@ public struct ShotScribeView: View {
         } else if model.visibleShots.isEmpty {
             if model.query.trimmingCharacters(in: .whitespaces).isEmpty { emptyState } else { noMatches }
         } else if model.shotView == .list {
+            // The landing zone is the point of the window; the list is a denser
+            // way to see the rest, not a way to lose the newest capture.
+            let hero = heroShot
+            if let hero { heroCard(hero) }
             gridHead
-            shotsList
+            shotsList(excluding: hero)
         } else {
             let hero = heroShot
             if let hero { heroCard(hero) }
@@ -473,9 +477,9 @@ public struct ShotScribeView: View {
         }
     }
 
-    private var shotsList: some View {
+    private func shotsList(excluding hero: IndexedShot?) -> some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(model.visibleShots.prefix(300)) { shot in
+            ForEach(model.visibleShots.filter { $0.path != hero?.path }.prefix(300)) { shot in
                 Button {
                     model.selecting ? model.toggleSelected(shot) : model.reveal(shot)
                 } label: {
