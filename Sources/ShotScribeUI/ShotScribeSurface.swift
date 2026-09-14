@@ -306,6 +306,7 @@ public struct ShotScribeView: View {
                     .onHover { heroHovered = $0 }
                     .animation(.easeOut(duration: 0.16), value: heroHovered)
                     .help("Drag to attach a copy elsewhere.")
+                    .contextMenu { ShotMenu(model: model, shot: shot) }
                 VStack(alignment: .leading, spacing: 6) {
                     // foregroundColor, not foregroundStyle: on a concatenated Text the
                     // latter is macOS 14+, and this package floors at 13.
@@ -332,19 +333,19 @@ public struct ShotScribeView: View {
                     // The landing zone's actions: one row of tiles, each the icon of
                     // the service it reaches, named the moment it is hovered.
                     FlowLayout(spacing: 6) {
-                        ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true) { model.reveal(shot) }
-                        ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true) { model.markUp(shot) }
+                        ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true, sets: .reveal, model: model) { model.reveal(shot) }
+                        ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true, sets: .markUp, model: model) { model.markUp(shot) }
                         ShareRow(url: shot.url).id(shot.path)
                         // The mark of the titler in use — offline included — so the
                         // landing zone says which AI this is at a glance.
                         if let symbol = model.aiProvider.kind.symbol {
-                            ActionTile("Send to \(model.assistantName)", icon: Image(systemName: symbol)) { model.sendToAssistant(shot) }
+                            ActionTile("Send to \(model.assistantName)", icon: Image(systemName: symbol), sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
                         } else if let mark = AppIcons.icon(for: model.aiProvider.kind) {
-                            ActionTile("Send to \(model.assistantName)", icon: mark, art: true) { model.sendToAssistant(shot) }
+                            ActionTile("Send to \(model.assistantName)", icon: mark, art: true, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
                         } else {
-                            ActionTile("Send to \(model.assistantName)", monogram: model.assistantName) { model.sendToAssistant(shot) }
+                            ActionTile("Send to \(model.assistantName)", monogram: model.assistantName, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
                         }
-                        ActionTile("Rebuild as code", icon: Image(systemName: "hammer")) { model.copyCodeBrief(for: shot) }
+                        ActionTile("Rebuild as code", icon: Image(systemName: "hammer"), sets: .rebuildAsCode, model: model) { model.copyCodeBrief(for: shot) }
                         ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
                         if model.taggingEnabled { fileAsMenu(shot) }
                     }
@@ -591,7 +592,7 @@ public struct ShotScribeView: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(model.visibleShots.filter { $0.path != hero?.path }.prefix(300)) { shot in
                 Button {
-                    model.selecting ? model.toggleSelected(shot) : model.reveal(shot)
+                    model.click(shot)
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         if model.selecting {
@@ -656,24 +657,7 @@ public struct ShotScribeView: View {
     }
 
     @ViewBuilder
-    func shotMenu(_ shot: IndexedShot) -> some View {
-        Button("Reveal in Finder") { model.reveal(shot) }
-        Button("Mark up in Preview") { model.markUp(shot) }
-        ShareLink(item: shot.url) { Text("Share…") }
-        Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
-        Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
-        Menu("File as") {
-            ForEach(model.vocabulary, id: \.self) { tag in
-                Button(tag) { model.tag(shot, with: tag) }
-                    .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
-            }
-        }
-        if shot.original != nil, !model.otherInstanceRunning {
-            Button("Restore original name") { model.undo(shot) }
-        }
-        Divider()
-        Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
-    }
+    func shotMenu(_ shot: IndexedShot) -> some View { ShotMenu(model: model, shot: shot) }
 
     // MARK: Inspector
 
@@ -1469,7 +1453,7 @@ private struct GalleryTile: View {
         let picked = model.selected.contains(shot.path)
         let leadsSession = session?.shots.first?.path == shot.path
         Button {
-            model.selecting ? model.toggleSelected(shot) : model.reveal(shot)
+            model.click(shot)
         } label: {
             AspectThumbnail(path: shot.path)
                 .overlay(alignment: .bottom) {
@@ -1532,30 +1516,14 @@ private struct GalleryTile: View {
                 .animation(.easeOut(duration: 0.18), value: hovered)
                 .contentShape(Rectangle())
         }
+        .contextMenu { ShotMenu(model: model, shot: shot) }
         .buttonStyle(.plain)
         // Drag it out as the file itself: Mail, Jira, Slack get a copy, the
         // way they would from Finder.
         .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
         .onHover { hovered = $0 }
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
-        .contextMenu {
-            Button("Reveal in Finder") { model.reveal(shot) }
-            Button("Mark up in Preview") { model.markUp(shot) }
-            ShareLink(item: shot.url) { Text("Share…") }
-            Button("Send to \(model.assistantName)") { model.sendToAssistant(shot) }
-            Button("Rebuild as code") { model.copyCodeBrief(for: shot) }
-            Menu("File as") {
-                ForEach(model.vocabulary, id: \.self) { tag in
-                    Button(tag) { model.tag(shot, with: tag) }
-                        .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
-                }
-            }
-            if shot.original != nil, !model.otherInstanceRunning {
-                Button("Restore original name") { model.undo(shot) }
-            }
-            Divider()
-            Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
-        }
+        .contextMenu { ShotMenu(model: model, shot: shot) }
     }
 }
 
@@ -1617,6 +1585,40 @@ private struct GallerySessionTile: View {
 /// is and what clicking does. It was a bare pill, and a pill that says "code"
 /// beside a feature called code reads as a button. Nothing here runs anything;
 /// it filters.
+/// The right-click menu on a screenshot — the landing zone's functions, in
+/// the same order, wherever a shot is: a tile, a list row, the hero, the
+/// popover. The click action is marked so a person can see what a plain
+/// click will do without trying it.
+private struct ShotMenu: View {
+    @ObservedObject var model: ShotScribeModel
+    let shot: IndexedShot
+
+    private func title(_ a: ShotScribeModel.ShotAction) -> String {
+        model.defaultAction == a ? "\(model.title(of: a))  ✓ click" : model.title(of: a)
+    }
+
+    var body: some View {
+        Button(title(.reveal)) { model.reveal(shot) }
+        Button(title(.markUp)) { model.markUp(shot) }
+        ShareLink(item: shot.url) { Text("Share…") }
+        Button(title(.sendToAssistant)) { model.sendToAssistant(shot) }
+        Button(title(.rebuildAsCode)) { model.copyCodeBrief(for: shot) }
+        if model.taggingEnabled {
+            Menu("File as") {
+                ForEach(model.vocabulary, id: \.self) { tag in
+                    Button(tag) { model.tag(shot, with: tag) }
+                        .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
+                }
+            }
+        }
+        if shot.original != nil, !model.otherInstanceRunning {
+            Button("Restore original name") { model.undo(shot) }
+        }
+        Divider()
+        Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
+    }
+}
+
 /// The bin that eats the label. Idle it is a bin; hover unfurls the word
 /// "Delete" beside it; the click sends the letters into the bin one after
 /// another — the level inside rises with each — then the pill furls to the bin
@@ -1889,18 +1891,27 @@ private struct ActionTile: View {
     let icon: Image?
     let monogram: String?
     let art: Bool
+    /// The click action this tile can become: right-click, "Set as the click
+    /// action". The one that is wears a soft accent shadow.
+    let sets: ShotScribeModel.ShotAction?
+    let model: ShotScribeModel?
     let action: () -> Void
 
-    init(_ name: String, icon: Image, art: Bool = false, action: @escaping () -> Void) {
-        self.name = name; self.icon = icon; self.monogram = nil; self.art = art; self.action = action
+    init(_ name: String, icon: Image, art: Bool = false, sets: ShotScribeModel.ShotAction? = nil,
+         model: ShotScribeModel? = nil, action: @escaping () -> Void) {
+        self.name = name; self.icon = icon; self.monogram = nil; self.art = art
+        self.sets = sets; self.model = model; self.action = action
     }
 
     /// A tile for a name with no mark on this Mac: its initial, set like a
     /// contact's, until the brand's own artwork is in `assets/brands/`.
-    init(_ name: String, monogram: String, action: @escaping () -> Void) {
+    init(_ name: String, monogram: String, sets: ShotScribeModel.ShotAction? = nil,
+         model: ShotScribeModel? = nil, action: @escaping () -> Void) {
         self.name = name; self.icon = nil; self.monogram = String(monogram.prefix(1)).uppercased()
-        self.art = true; self.action = action
+        self.art = true; self.sets = sets; self.model = model; self.action = action
     }
+
+    private var isDefault: Bool { sets != nil && model?.defaultAction == sets }
 
     var body: some View {
         Button(action: action) {
@@ -1920,7 +1931,19 @@ private struct ActionTile: View {
             .contentShape(Circle())
         }
         .buttonStyle(TileButtonStyle())
-        .modifier(NamedOnHover(title: name))
+        .overlay(Circle().strokeBorder(ShotPalette.accent.opacity(isDefault ? 0.55 : 0), lineWidth: 1.5))
+        .shadow(color: ShotPalette.accent.opacity(isDefault ? 0.45 : 0), radius: 7, y: 3)
+        .modifier(NamedOnHover(title: isDefault ? "\(name) — the click action" : name))
+        .contextMenu {
+            if let sets, let model {
+                if model.defaultAction == sets {
+                    Text("This is the click action")
+                } else {
+                    Button("Set as the click action") { model.defaultAction = sets }
+                }
+                Text("A plain click on any screenshot does this.")
+            }
+        }
     }
 }
 

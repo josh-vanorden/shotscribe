@@ -816,4 +816,10 @@ backslash in the hand-off line; those four went in on `4a91e04` before the
 merge. Left as the operator's call, on purpose: confining MCP OCR to the
 watched folder (a feature), pinning the README's skill URL to a tag, CI.
 Reports in `docs/security/2026-09-13/`; `SECURITY.md` carries the summary.
+- 20:32: Josh, holding the tag: the main window's tiles had no right-click
+  (the list rows and the popover did; `GalleryTile` was new and never got
+  one), and a click had no configurable default. One `ShotMenu` now backs
+  every shot everywhere; `ShotScribeModel.defaultAction` (Reveal, Mark up,
+  Send to, Rebuild) is what a click does, set by right-clicking a landing-zone
+  tile, shown with an accent shadow and a ✓ in the menu. 154 tests.
 

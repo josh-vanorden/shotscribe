@@ -804,6 +804,55 @@ public final class ShotScribeModel: ObservableObject {
         trash(selected.map { URL(fileURLWithPath: $0) })
     }
 
+    // MARK: The click
+
+    /// What a single click on a screenshot does. Set from the landing zone:
+    /// right-click a tile, "Set as the click action". Reveal in Finder is the
+    /// default, as it always was.
+    public enum ShotAction: String, CaseIterable, Codable, Sendable {
+        case reveal, markUp, sendToAssistant, rebuildAsCode
+        public var symbol: String {
+            switch self {
+            case .reveal:          return "arrow.up.forward.square"
+            case .markUp:          return "pencil.tip"
+            case .sendToAssistant: return "paperplane"
+            case .rebuildAsCode:   return "hammer"
+            }
+        }
+    }
+
+    static let defaultActionKey = "shotscribe.defaultAction"
+
+    @Published public var defaultAction: ShotAction = {
+        ShotScribeModel.defaults.string(forKey: ShotScribeModel.defaultActionKey).flatMap(ShotAction.init(rawValue:)) ?? .reveal
+    }() {
+        didSet { Self.defaults.set(defaultAction.rawValue, forKey: Self.defaultActionKey) }
+    }
+
+    /// The action's name, with the assistant's.
+    public func title(of action: ShotAction) -> String {
+        switch action {
+        case .reveal:          return "Reveal in Finder"
+        case .markUp:          return "Mark up in Preview"
+        case .sendToAssistant: return "Send to \(assistantName)"
+        case .rebuildAsCode:   return "Rebuild as code"
+        }
+    }
+
+    public func perform(_ action: ShotAction, on shot: IndexedShot) {
+        switch action {
+        case .reveal:          reveal(shot)
+        case .markUp:          markUp(shot)
+        case .sendToAssistant: sendToAssistant(shot)
+        case .rebuildAsCode:   copyCodeBrief(for: shot)
+        }
+    }
+
+    /// What a click does when nothing else (selection) claims it.
+    public func click(_ shot: IndexedShot) {
+        selecting ? toggleSelected(shot) : perform(defaultAction, on: shot)
+    }
+
     /// The Keep tab's choice: a discarded capture goes to the Trash (Finder's
     /// Put Back undoes it) or is deleted outright. The bins and clean-up obey
     /// the same setting; an archive folder counts as the Trash for a single
