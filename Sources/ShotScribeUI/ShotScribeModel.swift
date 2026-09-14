@@ -837,6 +837,24 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     static let defaultActionKey = "shotscribe.defaultAction"
+    static let inspectorOpenKey = "shotscribe.inspectorOpen"
+    static let greetedKey = "shotscribe.greeted"
+
+    /// The inspector starts **closed**. The window's point is the screenshots,
+    /// and opening onto a settings pane says the opposite — settings are what
+    /// you visit, not what you arrive at. Remembered after that, so a person
+    /// who works with it open keeps it open. `bool(forKey:)` is false when
+    /// nothing is stored, which is the wanted default on a first run.
+    @Published public var inspectorOpen: Bool = ShotScribeModel.defaults.bool(forKey: ShotScribeModel.inspectorOpenKey) {
+        didSet { Self.defaults.set(inspectorOpen, forKey: Self.inspectorOpenKey) }
+    }
+
+    /// Whether this Mac has been greeted. False until the welcome is closed,
+    /// so the first run says what this is and confirms the one setting that
+    /// has to be right — which folder.
+    @Published public var greeted: Bool = ShotScribeModel.defaults.bool(forKey: ShotScribeModel.greetedKey) {
+        didSet { Self.defaults.set(greeted, forKey: Self.greetedKey) }
+    }
 
     /// Which tiles the landing zone shows, in what order, and the tally of how
     /// often each has been used. Arranged by right-clicking the row itself.

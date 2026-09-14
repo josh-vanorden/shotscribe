@@ -4,6 +4,15 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.6.3 — unreleased
 
+- **A welcome, once.** The first run says what ShotScribe is and asks the one
+  thing that has to be right before anything else means anything: which folder
+  it watches, and whether it names what lands there. The empty state said the
+  same words, but only someone whose folder was already empty ever saw it.
+- **The window opens on the screenshots.** The inspector starts closed rather
+  than open — settings are what you visit, not what you arrive at — and it
+  remembers how you left it. When it does open, it opens on **Folder**, not
+  Rename.
+
 - **The carousel replaces the grid, and is what opens.** Each day lays out on
   one line as overlapping cards — upright, on one baseline, no arch. The card
   under the cursor rises out of the row and the ones after it step aside.

@@ -56,8 +56,11 @@ public struct ShotScribeView: View {
     @State private var newTag = ""
     /// The floating inspector: open on first launch so the settings are found,
     /// one tab at a time so it never scrolls.
-    @State private var inspectorOpen = true
-    @State private var tab: InspectorTab = .rename
+    /// Folder first: the one setting that has to be right before anything
+    /// else means anything is where the screenshots live.
+    @State private var tab: InspectorTab = .folder
+    /// Shown once per Mac, on the window only.
+    @State private var showGreeting = false
     /// Supplied by a host that has a window to show — the menu bar app. The
     /// popover cannot open one itself: this package has no idea what is hosting
     /// it, and must never grow one.
@@ -125,7 +128,9 @@ public struct ShotScribeView: View {
     /// has to be content moving behind it.
     ///
     /// Locked in from the glass preview, 2026-09-12: captions on hover, the
-    /// latest capture up top, groups by day, inspector open on Rename.
+    /// latest capture up top, groups by day. The inspector starts closed and
+    /// on **Folder** (2026-09-14): the window opens on the screenshots, and
+    /// the first question a settings pane can answer is where they live.
     private static let inspectorWidth: CGFloat = 300
     private static let inset: CGFloat = 14
 
@@ -144,12 +149,12 @@ public struct ShotScribeView: View {
             .padding(.top, 52)
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
-            .padding(.trailing, inspectorOpen ? Self.inspectorWidth + Self.inset * 2 : 0)
+            .padding(.trailing, model.inspectorOpen ? Self.inspectorWidth + Self.inset * 2 : 0)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay(alignment: .top) { topBar }
         .overlay(alignment: .topTrailing) {
-            if inspectorOpen {
+            if model.inspectorOpen {
                 inspector
                     .padding(.top, 50)
                     .padding(.trailing, Self.inset)
@@ -157,12 +162,18 @@ public struct ShotScribeView: View {
             }
         }
         .tint(ShotPalette.accent)
+        .sheet(isPresented: $showGreeting) { greeting }
+        .onAppear {
+            // The window only. The menu bar popover is 340pt of panel and has
+            // no room to introduce anything.
+            showGreeting = (chrome == .hosted && !model.greeted)
+        }
         // Paint the window colour ourselves: the content is the ScrollView and
         // nothing else, so a host that does not draw a background would show
         // the grid over nothing at all.
         .background(Color(nsColor: .windowBackgroundColor))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: inspectorOpen)
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: model.inspectorOpen)
     }
 
     /// Status on the left, search and the inspector toggle on the right, all
@@ -201,18 +212,18 @@ public struct ShotScribeView: View {
             .padding(.horizontal, 12).frame(width: 250, height: 32)
             .glass(in: Capsule())
 
-            Button { inspectorOpen.toggle() } label: {
+            Button { model.inspectorOpen.toggle() } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 13, weight: .medium))
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(inspectorOpen ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
+            .foregroundStyle(model.inspectorOpen ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
             .background {
-                if inspectorOpen { Capsule().fill(ShotPalette.accent).shadow(color: ShotPalette.accent.opacity(0.45), radius: 10, y: 4) }
+                if model.inspectorOpen { Capsule().fill(ShotPalette.accent).shadow(color: ShotPalette.accent.opacity(0.45), radius: 10, y: 4) }
             }
             .glass(in: Capsule())
-            .help(inspectorOpen ? "Hide the inspector" : "Show the inspector")
+            .help(model.inspectorOpen ? "Hide the inspector" : "Show the inspector")
         }
         .padding(.horizontal, Self.inset).padding(.top, 10)
     }
@@ -528,6 +539,62 @@ public struct ShotScribeView: View {
             folderRow.frame(maxWidth: 470)
         }
         .frame(maxWidth: 560)
+    }
+
+    /// **The first run.** Says what this is, then asks the one thing that has
+    /// to be right before anything else means anything: which folder. The
+    /// empty state says the same words, but only a person whose folder is
+    /// already empty ever sees it — which is nobody who has used a Mac for a
+    /// week. This is shown once, to everyone.
+    private var greeting: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 18) {
+                FolderIcon(url: model.folder, targeted: false, size: 52)
+                    .frame(width: 88, height: 88)
+                    .glass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Every screenshot, named.")
+                        .font(.system(size: 24, weight: .bold)).tracking(-0.6)
+                    Text("The moment it lands, by the AI you already use — and it stays a file in your folder.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Divider().padding(.vertical, 20)
+
+            Text("Where your screenshots live").font(.callout.weight(.semibold))
+            Text("ShotScribe watches this one folder and names what lands in it. Files you named yourself are never touched, and nothing leaves this Mac.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2).padding(.bottom, 10)
+            folderRow
+
+            Toggle(isOn: $model.watching) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Name new screenshots as they land")
+                    Text("Off, and nothing is renamed until you ask — the window always can.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch).controlSize(.small)
+            .padding(.top, 18)
+
+            HStack(spacing: 12) {
+                Text("Everything here is in the inspector later.")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                Spacer(minLength: 8)
+                Button("Start") { model.greeted = true; showGreeting = false }
+                    .buttonStyle(CapsuleButtonStyle(prominent: true))
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 22)
+        }
+        .padding(26)
+        .frame(width: 520)
+        // Closed any other way still counts as greeted: a welcome that comes
+        // back because it was dismissed with Esc is a welcome that nags.
+        .onDisappear { model.greeted = true }
     }
 
     private var noneFiled: some View {
