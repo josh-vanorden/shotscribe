@@ -2,14 +2,15 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.2 — unreleased
+## 1.6.2 — 2026-09-13
 
 - **Right-click any screenshot** — a tile, a list row, the landing zone, the
   popover — for the landing zone's functions: Reveal, Mark up, Share, Send to,
   Rebuild as code, File as, Restore, the bin. **The click has a default:**
-  right-click a landing-zone tile, "Set as the click action", and a plain
-  click on any screenshot does that (Reveal in Finder to start); the chosen
-  tile wears a soft shadow and the menu marks it.
+  right-click a landing-zone tile, "Set as default", and a plain click on any
+  screenshot does that (Reveal in Finder to start). The default tile wears a
+  green halo outside its circle, unmistakable in light and dark, and the menu
+  marks it.
 - **The seven-track security pass**, twelve fixes, none High (see
   `SECURITY.md`, *The sweeps on record*, and `docs/security/2026-09-13/`).
   Behaviour that changes: a saved API key is refused over plain `http` to a
