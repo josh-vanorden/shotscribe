@@ -79,8 +79,10 @@ public struct EndpointTitler: Titler {
                                user: "OCR text:\n\(text)\n\nLabel:", timeout: timeout)
         let (data, response) = try await Self.session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            // The body is the server's to write, and this slice of it reaches
+            // the terminal, the panel and the log — printable first.
             let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            throw Error.http(http.statusCode, String(body.prefix(160)))
+            throw Error.http(http.statusCode, CommandRunner.printable(String(body.prefix(160))))
         }
         return try Self.parse(data)
     }

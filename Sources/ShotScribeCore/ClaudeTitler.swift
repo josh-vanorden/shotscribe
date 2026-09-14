@@ -98,7 +98,10 @@ public struct ClaudeTitler: Titler {
         // The reason can be on EITHER stream: the CLI reports "Failed to
         // authenticate: OAuth session expired" on stdout with exit 1, so
         // reading only stderr made every expired session look like `.empty`.
-        let reason = run.err.isEmpty ? run.out : run.err
-        throw reason.isEmpty ? CLIError.empty : CLIError.failed(String(reason.prefix(200)))
+        // Printable before it is thrown: this string reaches the terminal, the
+        // panel and the log, and the CLI's streams are not trusted with them.
+        let reason = CommandRunner.printable(String((run.err.isEmpty ? run.out : run.err).prefix(200)))
+            .trimmingCharacters(in: .whitespaces)
+        throw reason.isEmpty ? CLIError.empty : CLIError.failed(reason)
     }
 }
