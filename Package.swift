@@ -43,7 +43,9 @@ let package = Package(
         ),
         .testTarget(
             name: "ShotScribeCoreTests",
-            dependencies: ["ShotScribeCore"]
+            // ShotScribeUI is here for `Log` alone — the owner-only rule on
+            // the log file is pinned by LogHardeningTests.
+            dependencies: ["ShotScribeCore", "ShotScribeUI"]
         ),
     ]
 )

@@ -184,6 +184,7 @@ public struct AIProvider: Codable, Equatable, Sendable {
         case .endpoint:
             guard let e = endpoint, let url = URL(string: e), url.scheme != nil, url.host != nil
             else { return .missing("Enter the endpoint’s base URL, like http://localhost:11434/v1.") }
+            guard Self.isWebScheme(url) else { return .missing("The endpoint must be an http or https URL.") }
             guard let m = model, !m.isEmpty else { return .missing("Enter a model name.") }
             let host = url.host ?? e
             if url.scheme?.lowercased() == "http", !EndpointTitler.isLocal(host: url.host) {
@@ -211,9 +212,19 @@ public struct AIProvider: Codable, Equatable, Sendable {
             guard let template = effectiveCommand else { return nil }
             return CommandTitler(template: template, model: effectiveModel, modelFlag: kind.modelFlag, timeout: timeout)
         case .endpoint:
-            guard let e = endpoint, let url = URL(string: e) else { return nil }
+            guard let e = endpoint, let url = URL(string: e), Self.isWebScheme(url) else { return nil }
             return EndpointTitler(baseURL: url, model: model ?? "", apiKey: Secrets.store.get(Secrets.endpointKeyAccount), timeout: timeout)
         }
+    }
+
+    /// The endpoint titler speaks http(s) and nothing else. Any other scheme —
+    /// file:, ftp: — would turn the one network call into a read of something
+    /// else entirely, whose contents then flow into names and tags. The stored
+    /// value does not always come through the field in the AI tab, so the
+    /// factory checks too, not just the tab's readiness line.
+    static func isWebScheme(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased()
+        return scheme == "http" || scheme == "https"
     }
 
     /// The machine-level choice (`~/.config/llm/provider.json`) as a provider,

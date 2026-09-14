@@ -9,6 +9,11 @@ public enum LabelCleaner {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         // first line only
         if let nl = s.firstIndex(where: { $0 == "\n" || $0 == "\r" }) { s = String(s[..<nl]) }
+        // The reply is untrusted (the model read whatever was on screen). A
+        // control or invisible-format character in it would ride into terminal
+        // output and filenames, where an ESC sequence or a bidi override lies
+        // about what the label says. After the line cut, so \n\r still split.
+        s = s.components(separatedBy: .controlCharacters).joined(separator: " ")
         // drop a leading "Label:" / "Summary:" echo
         if let colon = s.firstIndex(of: ":"), s[..<colon].count <= 10 {
             s = String(s[s.index(after: colon)...])

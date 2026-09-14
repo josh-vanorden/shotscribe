@@ -88,8 +88,11 @@ public enum Naming {
     }
 
     /// Strip characters that break paths or read badly, collapse spaces, cap length.
+    /// Control and invisible-format characters (Cc, Cf) count as illegal: a title
+    /// comes from a model that read whatever was on screen, and a bidi override
+    /// (U+202E) or a terminal escape in a filename lies about what the name says.
     public static func sanitize(_ label: String, maxChars: Int = 60) -> String {
-        let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\n\t")
+        let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\n\t").union(.controlCharacters)
         let cleaned = label.components(separatedBy: illegal).joined(separator: " ")
         // A word that is only dots ("..", ".") survives the character strip and
         // reads as a path component; it carries no meaning in a title either.

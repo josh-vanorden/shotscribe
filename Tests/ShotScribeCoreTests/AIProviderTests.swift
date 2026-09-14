@@ -168,6 +168,20 @@ final class AIProviderTests: XCTestCase {
         XCTAssertTrue(remote.availability().isReady, "no key, only the text warning")
     }
 
+    /// The endpoint titler is the one network call. A stored URL whose scheme
+    /// is not http(s) — file:, ftp: — must reach neither the readiness line
+    /// nor the factory, because the stored value does not always arrive
+    /// through the AI tab's field.
+    func testOnlyWebSchemesReachTheEndpointTitler() {
+        for bad in ["ftp://host/v1", "file:///etc/hosts", "gopher://host/v1"] {
+            let p = AIProvider(kind: .endpoint, model: "m", endpoint: bad)
+            XCTAssertFalse(p.availability().isReady, bad)
+            XCTAssertNil(p.makeTitler(), bad)
+        }
+        let upper = AIProvider(kind: .endpoint, model: "m", endpoint: "HTTPS://api.openai.com/v1")
+        XCTAssertTrue(upper.availability().isReady, "the scheme check is not case-sensitive")
+    }
+
     func testSecretsStayOutOfDefaults() {
         Secrets.store.set("sk-abc", for: Secrets.endpointKeyAccount)
         XCTAssertEqual(Secrets.store.get(Secrets.endpointKeyAccount), "sk-abc")

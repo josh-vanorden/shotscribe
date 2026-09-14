@@ -85,16 +85,23 @@ public struct EndpointTitler: Titler {
         return content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Ephemeral on purpose: the request and reply are derived from screen
+    /// text, so no cookie the server sets and no cached response may outlive
+    /// the process on disk. TLS checking and proxies stay the system defaults.
+    private static let session = URLSession(configuration: .ephemeral)
+
     private func complete(system: String, text: String) async throws -> String {
         // The credential never travels in the clear. The screen text may, with
         // the AI tab's warning; the key is a different class of thing.
         if Self.wouldExposeKey(baseURL, apiKey: apiKey) { throw Error.keyOverCleartext(baseURL.host ?? baseURL.absoluteString) }
         let req = Self.request(baseURL: baseURL, model: model, apiKey: apiKey, system: system,
                                user: "OCR text:\n\(text)\n\nLabel:", timeout: timeout)
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await Self.session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            // The body is the server's to write, and this slice of it reaches
+            // the terminal, the panel and the log — printable first.
             let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            throw Error.http(http.statusCode, String(body.prefix(160)))
+            throw Error.http(http.statusCode, CommandRunner.printable(String(body.prefix(160))))
         }
         return try Self.parse(data)
     }

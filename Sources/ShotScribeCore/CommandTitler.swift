@@ -70,7 +70,10 @@ public struct CommandTitler: Titler {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .last { !$0.isEmpty } ?? ""
         if run.status == 0, !answer.isEmpty { return answer }
-        let reason = run.err.isEmpty ? run.out : run.err
-        throw reason.isEmpty ? Error.empty : Error.failed(String(reason.prefix(200)))
+        // Printable before it is thrown — the command's streams reach the
+        // terminal, the panel and the log through this string.
+        let reason = CommandRunner.printable(String((run.err.isEmpty ? run.out : run.err).prefix(200)))
+            .trimmingCharacters(in: .whitespaces)
+        throw reason.isEmpty ? Error.empty : Error.failed(reason)
     }
 }

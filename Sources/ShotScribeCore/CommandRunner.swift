@@ -57,6 +57,16 @@ enum CommandRunner {
             }
         }
     }
+
+    /// Untrusted text made safe to show: control and invisible-format
+    /// characters (Cc, Cf) become spaces. A titler's *answer* goes through
+    /// `LabelCleaner`, which already does this — but its *failure text* (a
+    /// child's stderr, an endpoint's HTTP error body) is shown too, in the
+    /// terminal, the panel and the log, and an ESC sequence in it would drive
+    /// the terminal it lands in. Same rule, applied to the failure path.
+    static func printable(_ s: String) -> String {
+        s.components(separatedBy: .controlCharacters).joined(separator: " ")
+    }
 }
 
 /// Reference box so the background stderr-drain closure hands its result back
