@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 21:10 — The default tile's mark could not be seen in light mode
+- **Bug/Issue:** Josh, matching the system appearance: the landing-zone tile that is the click default was "barely" visible in dark mode and invisible in light.
+- **RCA:** The first mark was the accent (lavender) as a 1.5 pt ring at 0.55 opacity on the tile's own edge plus a soft accent shadow; on the light band, tinted by the hero's thumbnail, a half-transparent lavender over a lavender-grey tile has almost no contrast, and the harness render was only checked in dark.
+- **Evidence:** Josh's report on the 20:32 build; `scripts/render-pane.swift`-style harness renders in `.aqua` and `.darkAqua` side by side (session scratchpad `harness-tags/rows-ld-big.png`).
+- **Fix/Repair:** Three rounds, each rendered in both appearances first: a solid ring (`ed6f6ea` first cut), then the ring moved 4 pt outside the circle with a glow so the icon is untouched (`ed6f6ea`), then the colour to systemGreen as `ShotPalette.chosen` (`b57dca5`). Same evening, 1.6.2.
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 20:40 — A stopped watcher could still rename once
 - **Bug/Issue:** `FolderWatcher.stop()` cancelled the dispatch source but not the debounced scan already queued, so a capture that landed inside the half-second window before the watching toggle went off (or before a hosted copy stood down) could still be renamed — the two-watchers-one-capture race the stand-down exists to close.
 - **RCA:** `stop()` and `ignore()` both confine work to the watcher's queue; `stop()` never touched the pending `DispatchWorkItem`.

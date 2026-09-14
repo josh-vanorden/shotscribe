@@ -823,3 +823,33 @@ Reports in `docs/security/2026-09-13/`; `SECURITY.md` carries the summary.
   Send to, Rebuild) is what a click does, set by right-clicking a landing-zone
   tile, shown with an accent shadow and a ✓ in the menu. 154 tests.
 
+## 2026-09-13, late — 1.6.2: the right-click, the default click, and the pass
+
+Josh, holding the tag: "hold the push and tag, until we fix a missing
+functionality" — every shot needed a right-click with the landing zone's
+functions, and the landing zone needed a way to set what a plain click does.
+Built on `settings-pane` and checked by him in three rounds:
+
+- **One menu everywhere.** `ShotMenu` backs the grid tiles (which had none),
+  the list rows, the hero's thumbnail and the popover: Reveal, Mark up,
+  Share, Send to, Rebuild as code, File as, Restore, then the bin.
+- **The default click.** `ShotScribeModel.defaultAction` (Reveal, Mark up,
+  Send to, Rebuild; stored under `shotscribe.defaultAction`, Reveal to
+  start) is what `click(shot)` performs outside selection mode. Set by
+  right-clicking a landing-zone tile; the tile that is the default says
+  "Default ✓" instead, and the shot menu marks its line "✓ default".
+- **Three rounds on the mark.** First an accent ring on the tile's edge with
+  a soft shadow: "you can barely see it in dark mode but cannot see the
+  light mode" (Triage 21:10). Then the wording cut to "Set as default" and
+  the ring made solid — still a tint on the icon; Josh: "move to the outside
+  of the icon circle." So a 2 pt ring 4 pt off the edge with a glow, the
+  icon untouched (`ed6f6ea`). Then "change the default selection color to
+  green, that is unmistakable" — `ShotPalette.chosen` = systemGreen
+  (`b57dca5`). Each round rendered in `.aqua` and `.darkAqua` through the
+  harness before he looked; "we're there."
+- **Shipped as 1.6.2.** `serverInfo` → 1.6.2, CHANGELOG dated (`69d127e`),
+  tag `v1.6.2`; notarized under `shotscribe-notary` (app and DMG Accepted,
+  stapled, verified), pushed with the tag via `/clean-tree`, published as
+  https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.2, latest.
+  Toolbelt's pin raised to `from: "1.6.2"` and resolved (committed there,
+  unpushed, beside the 1.6.0 pin commit). 154 tests.

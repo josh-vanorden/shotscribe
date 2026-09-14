@@ -5,23 +5,22 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-13
-**Phase:** Ship — 1.6.1 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.1, notarized under `shotscribe-notary`); 1.6.0 went out the same afternoon
-**Next action:** Sign in to `claude` (`claude` in a terminal), then run `/security-team shotscribe` — the seven-track sweep could not run today because each track is a `claude -p`; merge what it finds into 1.6.2. Then `shotscribe eval --limit 25` for the first real quality number.
+**Phase:** Ship — 1.6.2 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.2, notarized under `shotscribe-notary`); 1.6.0 and 1.6.1 went out the same day
+**Next action:** `shotscribe eval --limit 25` with `claude` signed in (it is, since tonight) — the first real quality number against names that were not the titler's own. Then pick up the 1.6.3 ideas in `roadmap.md`: the customizable landing zone (per-tile use counts, hide/reorder/pin) first.
 
 **Open loops**
-- 1.6.2 ideas in `roadmap.md`: a customizable landing zone (per-tile use counts, hide/reorder/pin); two coding agents for comparison builds (where does the second result land?).
-- Toolbelt's pin at 1.6.0 is committed there but unpushed (`4eeb4dd`), beside Josh's own uncommitted `.gitignore` and `Package.resolved` changes; raise to 1.6.1 when convenient.
+- Toolbelt's pin is at `from: "1.6.2"`, committed there and unpushed (with the 1.6.0 pin `4eeb4dd`), beside Josh's own uncommitted `.gitignore`; pushing Toolbelt is his call.
+- `~/.claude.json` still registers the `shotscribe` MCP server under the old project path `~/git/personal/shotscribe` (binary gone); re-register from `active/shotscribe/.build/release/shotscribe-mcp` — Josh's config.
 - The announcement is drafted (`announcement.md`, session scratchpad; two lengths) — Josh: secondary.
-- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. Brand marks are Lobe Icons copies shipped on Josh's call. The icon gallery on localhost:9012 may still be serving.
-- Backlog sweep (93 raw files) unbuilt; the 1.5 punch list's hand tests are largely done by Josh's day of use — recordings and the capture-flag timing remain.
+- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. Backlog sweep (93 raw files) unbuilt; recordings and the capture-flag timing remain hand-untested.
+- Left to the operator by the security pass, on purpose: confining MCP OCR to the watched folder, pinning the README's skill URL to a tag, CI.
 
 **Ruled out**
-- Reusing `cockpit-notary` for ShotScribe; moving a published tag; reporting `/security-team` as run while `claude` is signed out.
-- A menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; initials or ChatGPT.app's icon for Codex; five drawn icon directions; the first-launch welcome as a filter's empty state.
-- Remote Control as a push channel; braces as the code icon; `standardShareMenuItem`; the xattr alone as "raw"; `ImageRenderer`; copied fixtures; extension-only `labelling`; app names in the menu-word list; a Terminal for stage two.
+- A state mark in the accent colour, or inside the tile: invisible on the light band; the default's halo is green and outside the circle (three rounds, 2026-09-13).
+- "Set as the click action" as the wording; reusing `cockpit-notary`; moving a published tag; a menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; `ImageRenderer`; copied fixtures; extension-only `labelling`; Remote Control as a push channel; braces as the code icon.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** 1 (that docs commit), pushed right after
+**Unpushed commits:** none after this block's `/clean-tree`
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
@@ -70,6 +69,16 @@ tag until its `from:` is raised.
   grouping the grid by filing; an empty result keeps the way out. The bin sits
   on a dark scrim over images. Security sweep: a custom command's first token
   must be a plain name or a path; plain http to a remote endpoint is flagged.
+- **1.6.2:** **Right-click any screenshot** — grid tile, list row, the hero's
+  thumbnail, the popover — for one shared menu (`ShotMenu`): Reveal, Mark up,
+  Share, Send to, Rebuild as code, File as, Restore, the bin. **A click has a
+  default** (`ShotScribeModel.defaultAction`: Reveal, Mark up, Send to or
+  Rebuild; Reveal to start): right-click a landing-zone tile, "Set as
+  default", and every plain click on a shot does that. The default tile wears
+  a green halo outside its circle (`ShotPalette.chosen`, systemGreen on
+  purpose — the accent is what everything else wears, and it vanished on the
+  light band) and the menu marks it "✓ default". The seven-track security
+  pass's twelve fixes ride along (`SECURITY.md`).
 - **The icon is Josh's artwork** (`assets/ShotScribe-artwork.png`, fitted to
   Apple's grid by `scripts/fit-icon.swift`, built by `scripts/make-iconset.sh`).
   **The tagline** heads the README and the first-launch welcome: *Every

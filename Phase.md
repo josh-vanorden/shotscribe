@@ -177,3 +177,18 @@ verify, push, `gh release create`.
   (each track is a `claude -p`); the hand sweep is the fallback and is
   recorded in History. Run the skill after sign-in for 1.6.2.
 
+## 2026-09-13, late — 1.6.2 public; phase Ship, gate to maintain unchanged
+The seven-track `/security-team` pass ran for real after `claude` signed in
+(twelve fixes, the deferred four included), and Josh's held-tag item — a
+right-click on every shot and a default for the plain click, set from the
+landing zone — shipped with it as 1.6.2 under `shotscribe-notary`. Toolbelt's
+pin is at 1.6.2 (committed there, unpushed). The gate to *maintain* still
+turns on Josh's call about the README's two roadmap items.
+- **Sub-issue:** the default tile's mark was invisible in light mode as a
+  low-opacity accent ring on the tile's edge (Triage 21:10); it took three
+  rounds — outside the circle, then green — to be "unmistakable". Rule: a
+  state mark must be rendered in both appearances before Josh sees it.
+- **Sub-issue:** `~/.claude.json` still registers the `shotscribe` MCP
+  server for the old project path `~/git/personal/shotscribe` (the repo
+  moved to `active/`); the binary it names does not exist. Josh's to
+  re-register from `active/shotscribe/.build/release/shotscribe-mcp`.
