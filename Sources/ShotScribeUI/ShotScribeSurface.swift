@@ -576,7 +576,36 @@ public struct ShotScribeView: View {
                 Divider()
             }
         }
+        // The preview is drawn **here**, once, from whichever row says it is
+        // hovered — not inside the row. A row's own overlay is layered with its
+        // siblings, so in a `LazyVStack` the rows built after it draw over the
+        // top of it and `zIndex` does not save you (2026-09-14: the preview
+        // came out behind the names). The container's overlay is above every
+        // row by construction.
+        .overlayPreferenceValue(HoveredRow.self) { item in
+            GeometryReader { proxy in
+                if let item {
+                    let row = proxy[item.anchor]
+                    // Pushed well right of the names, so the rows it hangs over
+                    // can still be read; pulled back when the pane is too narrow
+                    // to hold it there, and flipped above when the list ends.
+                    let x = min(max(row.minX + 320, row.minX),
+                                max(row.minX, proxy.size.width - Deck.width - 8))
+                    let below = row.maxY + 8 + Deck.height <= proxy.size.height
+                    let top = below ? row.maxY + 8 : row.minY - 8 - Deck.height
+                    AspectThumbnail(path: item.path, aspect: Deck.width / Deck.height, pixels: 620)
+                        .frame(width: Deck.width, height: Deck.height)
+                        .clipShape(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous)
+                            .strokeBorder(.separator, lineWidth: 1))
+                        .shadow(color: .black.opacity(0.45), radius: Deck.shadowRadius, y: 8)
+                        .position(x: x + Deck.width / 2, y: top + Deck.height / 2)
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
+
 
     /// The filing, on the shot. Tapping one searches for it — the shortest path
     /// from "this one" to "everything like this one".
@@ -1609,13 +1638,28 @@ private enum Deck {
     static let motion = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.6)
 }
 
-/// One line in the list. Hovering shades the row and hangs the capture itself
-/// underneath it — the list is names and matched text, which is fast to scan
-/// and tells you nothing about what the shot *looked* like. The preview is the
-/// carousel's own card size, so "a card" is one size everywhere in the window.
+/// Which row the cursor is on, and where that row sits — published by the row,
+/// read by the list so it can draw one preview above all of them.
+private struct HoveredRow: PreferenceKey {
+    struct Item {
+        let path: String
+        let anchor: Anchor<CGRect>
+    }
+    static var defaultValue: Item? { nil }
+    static func reduce(value: inout Item?, nextValue: () -> Item?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
+/// One line in the list. Hovering shades the row and publishes where the row
+/// is; the list itself draws the capture underneath it, at the carousel's card
+/// size, so "a card" is one size everywhere in the window. The list is names
+/// and matched text, which is fast to scan and says nothing about what the
+/// shot *looked* like.
 ///
-/// The preview takes no hits: without that, moving onto it would end the hover
-/// that summoned it and the thing would flicker in and out under the cursor.
+/// The row does not draw the preview itself — see `shotsList`. And the preview
+/// takes no hits: without that, moving onto it would end the hover that
+/// summoned it and the thing would flicker under the cursor.
 private struct ShotRow: View {
     let shot: IndexedShot
     @ObservedObject var model: ShotScribeModel
@@ -1653,25 +1697,15 @@ private struct ShotRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .overlay(alignment: .bottomLeading) {
-            if hovered, !model.selecting {
-                AspectThumbnail(path: shot.path, aspect: Deck.width / Deck.height, pixels: 620)
-                    .frame(width: Deck.width, height: Deck.height)
-                    .clipShape(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous)
-                        .strokeBorder(.separator, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.4), radius: Deck.shadowRadius, y: 8)
-                    .offset(x: 24, y: Deck.height + 8)
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-            }
+        .anchorPreference(key: HoveredRow.self, value: .bounds) { anchor in
+            hovered && !model.selecting ? HoveredRow.Item(path: shot.path, anchor: anchor) : nil
         }
-        // Over the rows it hangs across, not under them.
-        .zIndex(hovered ? 10 : 0)
         .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.14), value: hovered)
         .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
-        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
+        // No tooltip here on purpose: the preview already says which shot this
+        // is, and the path plus the drag hint on top of it was more words than
+        // the row is worth.
         .contextMenu { ShotMenu(model: model, shot: shot) }
     }
 }
