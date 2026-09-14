@@ -52,8 +52,21 @@ final class ChromeTests: XCTestCase {
     /// End to end on a real image: a menu bar drawn along the top, a body below.
     func testARenameReadsTheAppOffTheImage() async throws {
         let size = NSSize(width: 1200, height: 700)
-        let image = NSImage(size: size)
-        image.lockFocus()
+        // Drawn at 2x, because a real capture is: a 15pt menu-bar label lands on
+        // ~30 device pixels on a Retina screen, and `OCR.recognizeLines` reads
+        // with `.fast` and no language correction. At 1x the same label is ~15px
+        // — right at that reader's threshold, where "Terminal" comes back as
+        // "Terniinal" and the test fails for a reason that is nothing to do with
+        // `Chrome.app`. `lockFocus` took its scale from whichever display was
+        // attached, so the fixture changed when the operator changed monitors
+        // (2026-09-14: two 1x externals, and this went red on every commit).
+        let rep2x = NSBitmapImageRep(bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width) * 2, pixelsHigh: Int(size.height) * 2,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        rep2x.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep2x)
         NSColor.white.setFill(); NSRect(origin: .zero, size: size).fill()
         NSColor(white: 0.93, alpha: 1).setFill(); NSRect(x: 0, y: size.height - 28, width: size.width, height: 28).fill()
         let bar: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 15, weight: .semibold), .foregroundColor: NSColor.black]
@@ -61,9 +74,8 @@ final class ChromeTests: XCTestCase {
         ("Terminal" as NSString).draw(at: NSPoint(x: 40, y: size.height - 22), withAttributes: bar)
         ("Shell   Edit   View   Window   Help" as NSString).draw(at: NSPoint(x: 130, y: size.height - 22), withAttributes: menu)
         ("deploy finished with warnings" as NSString).draw(at: NSPoint(x: 60, y: 340), withAttributes: [.font: NSFont.systemFont(ofSize: 36), .foregroundColor: NSColor.black])
-        image.unlockFocus()
-        let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
-        let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+        NSGraphicsContext.restoreGraphicsState()
+        let png = try XCTUnwrap(rep2x.representation(using: .png, properties: [:]))
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("chrome-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }

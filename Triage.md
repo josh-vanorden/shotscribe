@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-14 08:27 — The app-name test went red on every commit, old ones included
+- **Bug/Issue:** `ChromeTests.testARenameReadsTheAppOffTheImage` began failing consistently — `Chrome.app` read "Terniinal" instead of "Terminal" — after a green run at 08:00 on the same tree, and it failed at 2e6d9cc too, so it was not that morning's UI work.
+- **RCA:** The fixture was drawn through `NSImage.lockFocus()`, which takes its scale from the attached display. `OCR.recognizeLines` reads with `.fast` and `usesLanguageCorrection = false`, and a 15pt menu-bar label at 1x is ~15 device pixels — right at that reader's threshold, where "rn" comes back as "ni". A real capture is 2x, so the test was reading a fixture no screenshot looks like, at a fidelity the code never has to handle. The operator moved to two 1x external displays that morning.
+- **Evidence:** A standalone probe read the identical image correctly with `.accurate` + language correction and failed under the engine's own `.fast` settings; `NSScreen.screens.map(\.backingScaleFactor)` returned `[1.0, 1.0]`; a worktree at 2e6d9cc failed the same way three runs running.
+- **Fix/Repair:** The fixture is drawn into an explicit 2x `NSBitmapImageRep` instead of `lockFocus`, so it matches a real Retina capture and no longer depends on which monitor is plugged in. Green three runs running; 167 tests. 1.6.3.
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-13 21:10 — The default tile's mark could not be seen in light mode
 - **Bug/Issue:** Josh, matching the system appearance: the landing-zone tile that is the click default was "barely" visible in dark mode and invisible in light.
 - **RCA:** The first mark was the accent (lavender) as a 1.5 pt ring at 0.55 opacity on the tile's own edge plus a soft accent shadow; on the light band, tinted by the hero's thumbnail, a half-transparent lavender over a lavender-grey tile has almost no contrast, and the harness render was only checked in dark.
