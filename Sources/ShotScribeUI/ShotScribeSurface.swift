@@ -1703,9 +1703,10 @@ private struct ShotRow: View {
         .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.14), value: hovered)
         .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
-        // No tooltip here on purpose: the preview already says which shot this
-        // is, and the path plus the drag hint on top of it was more words than
-        // the row is worth.
+        // The hint, and only the hint. The path was the noise — the preview
+        // already says which shot this is, and Reveal in Finder is where a
+        // path belongs.
+        .help("Drag to attach a copy elsewhere.")
         .contextMenu { ShotMenu(model: model, shot: shot) }
     }
 }
@@ -1808,9 +1809,9 @@ private struct DeckCard: View {
         }
         .buttonStyle(.plain)
         .contextMenu { ShotMenu(model: model, shot: shot) }
-        // Drag it out as the file itself, the way a tile does.
+        // Drag it out as the file itself, the way the hero does.
         .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
-        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
+        .help("Drag to attach a copy elsewhere.")
     }
 }
 
