@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.3 — unreleased
+## 1.6.3 — 2026-09-14
 
 - **A welcome, once.** The first run says what ShotScribe is and asks the one
   thing that has to be right before anything else means anything: which folder
