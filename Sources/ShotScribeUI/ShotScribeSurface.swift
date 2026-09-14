@@ -1594,7 +1594,7 @@ private struct ShotMenu: View {
     let shot: IndexedShot
 
     private func title(_ a: ShotScribeModel.ShotAction) -> String {
-        model.defaultAction == a ? "\(model.title(of: a))  ✓ click" : model.title(of: a)
+        model.defaultAction == a ? "\(model.title(of: a))  ✓ default" : model.title(of: a)
     }
 
     var body: some View {
@@ -1931,17 +1931,21 @@ private struct ActionTile: View {
             .contentShape(Circle())
         }
         .buttonStyle(TileButtonStyle())
-        .overlay(Circle().strokeBorder(ShotPalette.accent.opacity(isDefault ? 0.55 : 0), lineWidth: 1.5))
-        .shadow(color: ShotPalette.accent.opacity(isDefault ? 0.45 : 0), radius: 7, y: 3)
-        .modifier(NamedOnHover(title: isDefault ? "\(name) — the click action" : name))
+        // The default wears a halo *outside* its circle — the icon itself is
+        // left alone; a 2 pt accent ring sits 3 pt off the edge, with a glow
+        // so it reads in light mode as well as dark.
+        .overlay(
+            Circle()
+                .strokeBorder(ShotPalette.accent, lineWidth: 2)
+                .padding(-4)
+                .shadow(color: ShotPalette.accent.opacity(0.7), radius: 6)
+                .opacity(isDefault ? 1 : 0)
+        )
+        .modifier(NamedOnHover(title: isDefault ? "\(name) — default" : name))
         .contextMenu {
             if let sets, let model {
-                if model.defaultAction == sets {
-                    Text("This is the click action")
-                } else {
-                    Button("Set as the click action") { model.defaultAction = sets }
-                }
-                Text("A plain click on any screenshot does this.")
+                if model.defaultAction == sets { Text("Default ✓") }
+                else { Button("Set as default") { model.defaultAction = sets } }
             }
         }
     }
