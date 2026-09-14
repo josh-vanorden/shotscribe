@@ -50,6 +50,16 @@ public final class FolderWatcher: @unchecked Sendable {
         source?.cancel()
         source = nil
         fd = -1
+        // The debounced scan outlives the source: cancelling the source stops
+        // new events, but a scan already scheduled would still fire up to half
+        // a second later and report a file to a caller who said stop — the
+        // hosted copy stands down (`otherInstanceRunning`) precisely so two
+        // watchers never race one capture, and this window reopened it.
+        // On `queue`, where the item is scheduled, so the write is ordered.
+        queue.sync {
+            debounce?.cancel()
+            debounce = nil
+        }
     }
 
     /// Treat `url` as already seen. An undo puts a file back under the raw
