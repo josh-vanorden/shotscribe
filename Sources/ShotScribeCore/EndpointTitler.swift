@@ -69,10 +69,15 @@ public struct EndpointTitler: Titler {
         return content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Ephemeral on purpose: the request and reply are derived from screen
+    /// text, so no cookie the server sets and no cached response may outlive
+    /// the process on disk. TLS checking and proxies stay the system defaults.
+    private static let session = URLSession(configuration: .ephemeral)
+
     private func complete(system: String, text: String) async throws -> String {
         let req = Self.request(baseURL: baseURL, model: model, apiKey: apiKey, system: system,
                                user: "OCR text:\n\(text)\n\nLabel:", timeout: timeout)
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await Self.session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             throw Error.http(http.statusCode, String(body.prefix(160)))
