@@ -17,4 +17,10 @@ public enum ShotPalette {
     })
 
     public static let warning = Color.orange
+
+    /// The mark on the landing zone's default action — the tile a plain click
+    /// performs. Green on purpose, not the accent: it has to be unmistakable
+    /// at a glance, in light and dark alike, and the accent is what everything
+    /// else already wears.
+    public static let chosen = Color(nsColor: .systemGreen)
 }

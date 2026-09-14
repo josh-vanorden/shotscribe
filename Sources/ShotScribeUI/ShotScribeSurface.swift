@@ -1932,13 +1932,13 @@ private struct ActionTile: View {
         }
         .buttonStyle(TileButtonStyle())
         // The default wears a halo *outside* its circle — the icon itself is
-        // left alone; a 2 pt accent ring sits 3 pt off the edge, with a glow
+        // left alone; a 2 pt green ring sits 4 pt off the edge, with a glow,
         // so it reads in light mode as well as dark.
         .overlay(
             Circle()
-                .strokeBorder(ShotPalette.accent, lineWidth: 2)
+                .strokeBorder(ShotPalette.chosen, lineWidth: 2)
                 .padding(-4)
-                .shadow(color: ShotPalette.accent.opacity(0.7), radius: 6)
+                .shadow(color: ShotPalette.chosen.opacity(0.7), radius: 6)
                 .opacity(isDefault ? 1 : 0)
         )
         .modifier(NamedOnHover(title: isDefault ? "\(name) — default" : name))
