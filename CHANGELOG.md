@@ -2,6 +2,15 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.2 — unreleased
+
+- **The seven-track security pass**, twelve fixes, none High (see
+  `SECURITY.md`, *The sweeps on record*, and `docs/security/2026-09-13/`).
+  Behaviour that changes: a saved API key is refused over plain `http` to a
+  non-local host (the AI tab says so); an endpoint URL must be `http(s)`;
+  `force` renames captures only; the MCP server honours tagging-off; a
+  watcher that stops takes its queued scan with it.
+
 ## 1.6.1 — 2026-09-13
 
 - **Security sweep.** A custom command's first token must be a plain name or

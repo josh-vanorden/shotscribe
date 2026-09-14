@@ -795,3 +795,25 @@ a security sweep."
   (count each tile's use, hide, reorder, pin) and two coding agents for
   comparison builds. And the skill sweep once `claude` is signed in.
 
+## 2026-09-13, night — the seven-track pass, for real
+
+`claude` signed in (the browser handshake completed on its own), then
+`/security-team`. Getting it to run was its own finding: the
+`~/.claude/skills/security-team` link points at the registry's unexpanded
+source, whose `lib/` wrappers fail when sourced; the deploy helper's expanded
+copy at `~/.claude/conduit-skills/library/security-team/` is the working
+entrypoint. `DEVELOPER_DIR` had to ride along for XCTest, and the pipeline's
+check gate does not know Swift packages, so the suite was run by hand on the
+branch (152 green) and again after the merge (154).
+
+Seven tracks, seven passes, twelve surgical commits on
+`security/20260913-1829`, all merged into `settings-pane` with four
+conflicts resolved (the refusal wins over the warning; their tool description;
+both sets of tests). Josh's instruction — "fix any issues uncovered" — also
+covered what the tracks deferred to the operator: the key never over
+cleartext, `force` for captures only, the terminal as a print boundary, the
+backslash in the hand-off line; those four went in on `4a91e04` before the
+merge. Left as the operator's call, on purpose: confining MCP OCR to the
+watched folder (a feature), pinning the README's skill URL to a tag, CI.
+Reports in `docs/security/2026-09-13/`; `SECURITY.md` carries the summary.
+

@@ -47,3 +47,21 @@ week; a fix ships as a patch release and is named in `CHANGELOG.md`.
 ## Supported versions
 
 The latest release. Older tags are not patched.
+
+## The sweeps on record
+
+- **2026-09-12, 1.5.1** — by hand: the index made owner-only; a dot-only title
+  word dropped.
+- **2026-09-13, 1.6.1** — by hand: a command name validated before the shell
+  lookup; plain http to a remote host flagged.
+- **2026-09-13, 1.6.2** — the seven-track `/security-team` pass (reports in
+  `docs/security/2026-09-13/`), twelve surgical fixes, none High: a saved API
+  key is never sent over plain http to a non-local host; only `http(s)` reaches
+  the endpoint titler, on an ephemeral session (no cookies, no cache); `force`
+  renames captures only, and the MCP door honours the tagging-off switch; a
+  label and a titler's failure text cannot carry control or bidi characters;
+  the MCP OCR tools mark their text as data, never instructions; the log is
+  owner-only and the index folder is sealed before bytes land; a stopped
+  watcher takes its pending scan with it; the CLI strips control characters at
+  print; the dependency-free manifest is pinned by a test.
+

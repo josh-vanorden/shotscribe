@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-13 20:40 — A stopped watcher could still rename once
+- **Bug/Issue:** `FolderWatcher.stop()` cancelled the dispatch source but not the debounced scan already queued, so a capture that landed inside the half-second window before the watching toggle went off (or before a hosted copy stood down) could still be renamed — the two-watchers-one-capture race the stand-down exists to close.
+- **RCA:** `stop()` and `ignore()` both confine work to the watcher's queue; `stop()` never touched the pending `DispatchWorkItem`.
+- **Evidence:** `/security-team` track 07 (`docs/security/2026-09-13/track-07.md`); `HardeningTests.testAStoppedWatcherNeverReports` (an inverted expectation across the debounce window).
+- **Fix/Repair:** `stop()` cancels the debounce work item on the queue (`3bef5c4`, merged 2026-09-13). 1.6.2.
+- **Related PR:** none — `security/20260913-1829` merged into `settings-pane`
+
 ### 2026-09-13 16:30 — A tag filter with no way out
 - **Bug/Issue:** Josh isolated a tag and "had no way of clearing or returning to the normal view once drilled into an area."
 - **RCA:** Two causes. The strip's Clear was a quiet, background-less chip easy to miss. Worse, a filter that narrows to zero shots fell into `content`'s empty branch, which is the first-launch welcome — no strip, no Clear, no count line — so isolating a tag whose only shot was the landing zone, or narrowing to two tags nothing carries together, was a dead end.
