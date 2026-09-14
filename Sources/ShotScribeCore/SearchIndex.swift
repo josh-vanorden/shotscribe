@@ -111,6 +111,11 @@ public enum ShotIndex {
         let fm = FileManager.default
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true,
                                 attributes: [.posixPermissions: 0o700])
+        // Seal the folder BEFORE any bytes land in it: `createDirectory` only
+        // applies its permissions when it creates, so a folder made by an
+        // older build could still be traversable while `.atomic`'s adjacent
+        // temp file (default permissions) and the fresh index sit inside it.
+        try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .iso8601
@@ -121,7 +126,6 @@ public enum ShotIndex {
             // only, and an index written before this rule is tightened on the
             // next save. `.atomic` writes a fresh file, so this runs every time.
             try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: indexURL.path)
-            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         }
     }
 
