@@ -560,8 +560,11 @@ public final class ShotScribeModel: ObservableObject {
            let saved = try? JSONDecoder().decode([RenameEvent].self, from: data) {
             events = saved
         }
-        if let raw = ud.string(forKey: "shotView"), let v = ShotView(rawValue: raw) {
-            shotView = v
+        // "tiles" and "deck" are what 1.6.2 and this morning's build stored;
+        // both become the carousel rather than dropping the operator back to
+        // the default by way of a value that no longer decodes.
+        if let raw = ud.string(forKey: "shotView") {
+            shotView = ShotView(rawValue: raw) ?? (raw == "list" ? .list : .carousel)
         }
         if let raw = ud.string(forKey: "shotSort"), let v = ShotSort(rawValue: raw) {
             sort = v
@@ -755,31 +758,20 @@ public final class ShotScribeModel: ObservableObject {
 
     // MARK: - Search
 
-    /// How the shots are shown. Three views because they answer different
-    /// questions: the list answers "what did I just capture", the tiles answer
-    /// "which one was it" — and for a screenshot, recognition beats reading —
-    /// and the deck answers "what did this day look like", a day at a time on
-    /// one line.
+    /// How the shots are shown. Two views, because they answer the two
+    /// questions worth asking: the carousel answers "which one was it" — a day
+    /// at a time, on one line, where recognition beats reading — and the list
+    /// answers "what did I just capture", densely, when the name is the thing
+    /// being scanned. The adaptive grid stood between them and was cut on
+    /// 2026-09-14; the carousel does what it did, larger.
     public enum ShotView: String, CaseIterable, Identifiable, Sendable {
-        case list, tiles, deck
+        case carousel, list
         public var id: String { rawValue }
-        public var label: String {
-            switch self {
-            case .list:  return "List"
-            case .tiles: return "Tiles"
-            case .deck:  return "Deck"
-            }
-        }
-        public var symbol: String {
-            switch self {
-            case .list:  return "list.bullet"
-            case .tiles: return "square.grid.2x2"
-            case .deck:  return "rectangle.stack"
-            }
-        }
+        public var label: String { self == .carousel ? "Carousel" : "List" }
+        public var symbol: String { self == .carousel ? "rectangle.stack" : "list.bullet" }
     }
 
-    @Published var shotView: ShotView = .tiles {
+    @Published var shotView: ShotView = .carousel {
         didSet { Self.defaults.set(shotView.rawValue, forKey: "shotView") }
     }
 

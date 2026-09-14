@@ -4,13 +4,17 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.6.3 — unreleased
 
-- **A third way to see a day: the deck.** Beside List and Tiles, **Deck** lays
-  each day out on one line as overlapping cards — upright, on one baseline, no
-  arch. The card under the cursor rises out of the row and the ones after it
-  step aside. Everything a tile does it does: click, right-click, drag out,
-  the bin, tags. The numbers came off a bake-off rather than a guess: 200pt
-  cards, 40pt of overlap, a 22pt lift, neighbours stepping 60pt, a 10pt corner,
-  over 0.6s.
+- **The carousel replaces the grid, and is what opens.** Each day lays out on
+  one line as overlapping cards — upright, on one baseline, no arch. The card
+  under the cursor rises out of the row and the ones after it step aside.
+  Everything a tile did it does: click, right-click, drag out, the bin, tags.
+  The numbers came off a bake-off rather than a guess: 260pt cards at the
+  tiles' own 4:3, 40pt of overlap, a 22pt lift, neighbours stepping 60pt, a
+  10pt corner, over 0.6s. **Two views now, not three** — Carousel and List.
+  The adaptive grid sat between them and answered neither question better.
+- **The list shows the picture.** Hovering a row shades it and hangs the
+  capture itself underneath, at the carousel's card size — the list was names
+  and matched text, which says nothing about what the shot looked like.
 
 - **The landing zone is yours to arrange.** Right-click any tile → **Arrange
   tiles…**: drag to reorder, the minus puts a tile away, and under each one is

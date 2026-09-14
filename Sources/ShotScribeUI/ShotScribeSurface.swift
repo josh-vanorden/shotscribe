@@ -231,10 +231,19 @@ public struct ShotScribeView: View {
                 tagStrip
                 noneFiled
             } else if model.query.trimmingCharacters(in: .whitespaces).isEmpty { emptyState } else { noMatches }
-        } else if model.shotView == .deck {
-            // A day at a time, on one line: the cards overlap and the one under
-            // the cursor rises out of the row. The deck is the burst — nothing
-            // folds here, because the stack already is the folding.
+        } else if model.shotView == .list {
+            // The landing zone is the point of the window; the list is a denser
+            // way to see the rest, not a way to lose the newest capture.
+            let hero = heroShot
+            if let hero { heroCard(hero) }
+            gridHead
+            if !model.tagCounts.isEmpty { tagStrip }
+            shotsList(excluding: hero)
+        } else {
+            // The carousel: a day at a time, on one line, the cards overlapping
+            // and the one under the cursor rising out of the row. Nothing folds
+            // here — the overlapping stack already is the folding a burst used
+            // to get from `Sessions.collapse`.
             let hero = heroShot
             if let hero { heroCard(hero) }
             gridHead
@@ -246,39 +255,6 @@ public struct ShotScribeView: View {
                 }
                 .padding(.top, 8)
                 DeckRow(shots: group.sessions.flatMap(\.shots), model: model)
-            }
-        } else if model.shotView == .list {
-            // The landing zone is the point of the window; the list is a denser
-            // way to see the rest, not a way to lose the newest capture.
-            let hero = heroShot
-            if let hero { heroCard(hero) }
-            gridHead
-            if !model.tagCounts.isEmpty { tagStrip }
-            shotsList(excluding: hero)
-        } else {
-            let hero = heroShot
-            if let hero { heroCard(hero) }
-            gridHead
-            if !model.tagCounts.isEmpty { tagStrip }
-            ForEach(dayGroups(excluding: hero)) { group in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(group.title).font(.system(size: 15, weight: .bold)).tracking(-0.3)
-                    Text(group.subtitle).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                }
-                .padding(.top, 8).padding(.bottom, 10)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 196, maximum: 300), spacing: 10)],
-                          alignment: .leading, spacing: 10) {
-                    ForEach(group.sessions) { s in
-                        if s.isBurst && !model.isExpanded(s) {
-                            GallerySessionTile(session: s, model: model)
-                        } else {
-                            ForEach(s.shots) { shot in
-                                GalleryTile(shot: shot, session: s.isBurst ? s : nil, model: model)
-                            }
-                        }
-                    }
-                }
-                .padding(.bottom, 12)
             }
         }
     }
@@ -596,36 +572,7 @@ public struct ShotScribeView: View {
     private func shotsList(excluding hero: IndexedShot?) -> some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(model.visibleShots.filter { $0.path != hero?.path }.prefix(300)) { shot in
-                Button {
-                    model.click(shot)
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        if model.selecting {
-                            Image(systemName: model.selected.contains(shot.path)
-                                  ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(model.selected.contains(shot.path)
-                                                 ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
-                        }
-                        Text(shot.name).font(.callout.weight(.medium))
-                            .lineLimit(1).truncationMode(.middle)
-                            .frame(minWidth: 180, alignment: .leading)
-                        if let snip = model.snippet(for: shot), !snip.isEmpty {
-                            Text(snip).font(.caption).foregroundStyle(.secondary)
-                                .lineLimit(1).truncationMode(.tail)
-                        }
-                        Spacer(minLength: 8)
-                        tagChips(shot)
-                        Text(shot.captured, format: .dateTime.year().month().day())
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                        DeletePill(size: 12, quiet: true, forGood: model.deletesForGood) { model.trash(shot) }
-                    }
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
-                .help("\(shot.path)\nDrag to attach a copy elsewhere.")
-                .contextMenu { shotMenu(shot) }
+                ShotRow(shot: shot, model: model, snippet: model.snippet(for: shot))
                 Divider()
             }
         }
@@ -1634,95 +1581,6 @@ public struct ShotScribeView: View {
     }
 }
 
-// MARK: - Gallery tiles
-
-/// One screenshot as a 4:3 image. The caption lives on the image and shows on
-/// hover, so the grid reads as pictures first and information second. Its own
-/// view because hover is per-tile state.
-private struct GalleryTile: View {
-    let shot: IndexedShot
-    let session: Session?
-    @ObservedObject var model: ShotScribeModel
-    @State private var hovered = false
-    @State private var leaving = false
-
-    var body: some View {
-        let picked = model.selected.contains(shot.path)
-        let leadsSession = session?.shots.first?.path == shot.path
-        Button {
-            model.click(shot)
-        } label: {
-            AspectThumbnail(path: shot.path)
-                .overlay(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(shot.name).font(.caption.weight(.semibold))
-                            .lineLimit(1).truncationMode(.middle)
-                        HStack(spacing: 6) {
-                            Text(shot.captured, format: .dateTime.hour().minute())
-                                .font(.caption2).monospacedDigit()
-                            ForEach(shot.tags ?? [], id: \.self) { tag in
-                                TagChip(tag: tag, onImage: true) { model.filter(tag: tag) }
-                            }
-                        }
-                        .foregroundStyle(.white.opacity(0.78))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.bottom, 9).padding(.top, 26)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(LinearGradient(colors: [.black.opacity(0.88), .clear], startPoint: .bottom, endPoint: .top))
-                    .opacity(hovered || model.selecting ? 1 : 0)
-                }
-                .overlay(alignment: .topLeading) {
-                    if model.selecting {
-                        Image(systemName: picked ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 17))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, picked ? AnyShapeStyle(.tint) : AnyShapeStyle(.black.opacity(0.35)))
-                            .padding(7)
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    HStack(spacing: 6) {
-                        if let session, leadsSession {
-                            Button { model.toggleExpanded(session) } label: {
-                                Label("\(session.count)", systemImage: "chevron.up")
-                                    .font(.caption2.weight(.semibold)).monospacedDigit()
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(.ultraThinMaterial, in: Capsule())
-                            }
-                            .buttonStyle(.plain)
-                            .help("Fold these \(session.count) back into one tile")
-                        }
-                        if hovered, !model.selecting {
-                            DeletePill(onImage: true, forGood: model.deletesForGood) {
-                                withAnimation(.easeIn(duration: 0.18)) { leaving = true }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
-                            }
-                            .transition(.opacity)
-                        }
-                    }
-                    .padding(8)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(picked || hovered ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator),
-                                  lineWidth: picked || hovered ? 2 : 1))
-                .shadow(color: .black.opacity(hovered ? 0.35 : 0), radius: 14, y: 8)
-                .scaleEffect(leaving ? 0.86 : hovered ? 1.015 : 1)
-                .opacity(leaving ? 0 : 1)
-                .animation(.easeOut(duration: 0.18), value: hovered)
-                .contentShape(Rectangle())
-        }
-        .contextMenu { ShotMenu(model: model, shot: shot) }
-        .buttonStyle(.plain)
-        // Drag it out as the file itself: Mail, Jira, Slack get a copy, the
-        // way they would from Finder.
-        .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
-        .onHover { hovered = $0 }
-        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
-    }
-}
-
 /// **The straight deck.** One day on one line: the cards overlap, and the one
 /// under the cursor rises out of the row while the cards after it step aside.
 /// It is the "Cards Fan-Out" reference Josh sent on 2026-09-14 with the arch
@@ -1736,9 +1594,11 @@ private struct GalleryTile: View {
 /// centred, so it could open in both directions; a day row is anchored at its
 /// leading edge, and pushing the earlier cards left would walk them off it.
 private enum Deck {
-    static let width: CGFloat = 200
-    /// 16:10, the ratio the tiles already use.
-    static let height: CGFloat = 125
+    /// The size the adaptive grid gave a tile at the usual window width, and
+    /// the tiles' own 4:3 — the carousel replaced that grid, so a card should
+    /// not be the smaller thing.
+    static let width: CGFloat = 260
+    static let height: CGFloat = 195
     static let overlap: CGFloat = 40
     static let lift: CGFloat = 22
     static let stepAside: CGFloat = 60
@@ -1747,6 +1607,73 @@ private enum Deck {
     static let shadow: CGFloat = 25
     static var shadowRadius: CGFloat { shadow / 2 }
     static let motion = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.6)
+}
+
+/// One line in the list. Hovering shades the row and hangs the capture itself
+/// underneath it — the list is names and matched text, which is fast to scan
+/// and tells you nothing about what the shot *looked* like. The preview is the
+/// carousel's own card size, so "a card" is one size everywhere in the window.
+///
+/// The preview takes no hits: without that, moving onto it would end the hover
+/// that summoned it and the thing would flicker in and out under the cursor.
+private struct ShotRow: View {
+    let shot: IndexedShot
+    @ObservedObject var model: ShotScribeModel
+    let snippet: String?
+    @State private var hovered = false
+
+    var body: some View {
+        let picked = model.selected.contains(shot.path)
+        Button { model.click(shot) } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if model.selecting {
+                    Image(systemName: picked ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(picked ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                }
+                Text(shot.name).font(.callout.weight(.medium))
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(minWidth: 180, alignment: .leading)
+                if let snippet, !snippet.isEmpty {
+                    Text(snippet).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.tail)
+                }
+                Spacer(minLength: 8)
+                ForEach(shot.tags ?? [], id: \.self) { tag in
+                    TagChip(tag: tag) { model.filter(tag: tag) }
+                }
+                Text(shot.captured, format: .dateTime.year().month().day())
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                DeletePill(size: 12, quiet: true, forGood: model.deletesForGood) { model.trash(shot) }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(hovered ? 0.07 : 0)))
+            .padding(.horizontal, -8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottomLeading) {
+            if hovered, !model.selecting {
+                AspectThumbnail(path: shot.path, aspect: Deck.width / Deck.height, pixels: 620)
+                    .frame(width: Deck.width, height: Deck.height)
+                    .clipShape(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous)
+                        .strokeBorder(.separator, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.4), radius: Deck.shadowRadius, y: 8)
+                    .offset(x: 24, y: Deck.height + 8)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        // Over the rows it hangs across, not under them.
+        .zIndex(hovered ? 10 : 0)
+        .onHover { hovered = $0 }
+        .animation(.easeOut(duration: 0.14), value: hovered)
+        .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
+        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
+        .contextMenu { ShotMenu(model: model, shot: shot) }
+    }
 }
 
 private struct DeckRow: View {
@@ -1794,7 +1721,7 @@ private struct DeckCard: View {
     var body: some View {
         let picked = model.selected.contains(shot.path)
         Button { model.click(shot) } label: {
-            AspectThumbnail(path: shot.path, aspect: Deck.width / Deck.height, pixels: 480)
+            AspectThumbnail(path: shot.path, aspect: Deck.width / Deck.height, pixels: 620)
                 .frame(width: Deck.width, height: Deck.height)
                 .overlay(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -1852,60 +1779,6 @@ private struct DeckCard: View {
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
     }
 }
-
-/// A folded burst: the last shot stands for the whole, with the count on its
-/// shoulder and two edges behind so it reads as a stack.
-private struct GallerySessionTile: View {
-    let session: Session
-    @ObservedObject var model: ShotScribeModel
-    @State private var hovered = false
-
-    var body: some View {
-        Button { model.toggleExpanded(session) } label: {
-            AspectThumbnail(path: (session.representative ?? session.shots[0]).path)
-                .overlay(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(session.title).font(.caption.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                        (Text("\(session.count) shots, ")
-                         + Text(session.start, format: .dateTime.hour().minute())
-                         + Text(" to ")
-                         + Text(session.end, format: .dateTime.hour().minute()))
-                            .font(.caption2).monospacedDigit().foregroundStyle(.white.opacity(0.78))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.bottom, 9).padding(.top, 26)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(LinearGradient(colors: [.black.opacity(0.88), .clear], startPoint: .bottom, endPoint: .top))
-                    .opacity(hovered ? 1 : 0)
-                }
-                .overlay(alignment: .topTrailing) {
-                    Label("\(session.count)", systemImage: "square.stack")
-                        .font(.caption2.weight(.semibold)).monospacedDigit()
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .padding(8)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(hovered ? AnyShapeStyle(.tint) : AnyShapeStyle(ShotPalette.accent.opacity(0.5)),
-                                  lineWidth: hovered ? 2 : 1))
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(.quaternary).offset(x: 5, y: -5).scaleEffect(0.985))
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(.quinary).offset(x: 10, y: -10).scaleEffect(0.97))
-                .shadow(color: .black.opacity(hovered ? 0.35 : 0), radius: 14, y: 8)
-                .scaleEffect(hovered ? 1.015 : 1)
-                .animation(.easeOut(duration: 0.18), value: hovered)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onDrag { NSItemProvider(contentsOf: (session.representative ?? session.shots[0]).url) ?? NSItemProvider() }
-        .onHover { hovered = $0 }
-        .help("\(session.count) captures within \(model.keepPolicy.sessionGapMinutes) minutes of each other — click to open them out")
-    }
-}
-
-// MARK: - Tag chips
 
 /// A tag, drawn as a tag: the glyph, the word, and a tooltip that says what it
 /// is and what clicking does. It was a bare pill, and a pill that says "code"
