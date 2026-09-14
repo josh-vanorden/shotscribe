@@ -889,6 +889,13 @@ A morning of Josh's own calls, each checked in the window before the next.
   screen, and `OCR.recognizeLines` reads with `.fast` and no language
   correction, where a 15pt label at 1x comes back "Terniinal". The fixture is
   now drawn at 2x like a real capture. Triage has it.
+- **The welcome shows once, proven rather than assumed.** Josh asked after the
+  release whether it really is show-once. The off-screen harness was run three
+  times against one settings domain: a fresh Mac shows the sheet, pressing
+  Start writes `shotscribe.greeted`, and the two launches after it show
+  nothing. His own Mac already reads `shotscribe.greeted = 1`. The one way it
+  returns is quitting with the sheet still open, which is correct — that run
+  never finished the setup.
 - **Shipped.** `serverInfo` → 1.6.3, CHANGELOG dated, tag `v1.6.3`, notarized
   under `shotscribe-notary`, pushed with the tag, released on GitHub as latest,
   Toolbelt's pin raised. 167 tests green throughout.
