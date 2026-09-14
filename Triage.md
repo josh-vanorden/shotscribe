@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-14 08:33 — The list's hover preview was drawn behind the rows
+- **Bug/Issue:** Josh: "the preview is pushed back and covered by the list of shots." The capture appeared under the row names beneath it, and it sat over those names rather than clear of them.
+- **RCA:** The preview was an `.overlay` on the row itself with `.zIndex(hovered ? 10 : 0)`. A row's overlay is layered with that row's siblings inside the `LazyVStack`, so every row built after it draws over the top; `zIndex` orders siblings, not a row's overlay against later siblings. Mine to own — it was written that way in the first cut the same morning.
+- **Evidence:** Josh's screenshot of the list, names drawn across the preview image.
+- **Fix/Repair:** The row publishes its bounds through an `anchorPreference`; `shotsList` reads it with `overlayPreferenceValue` and draws one preview in the container's own overlay, which is above every row by construction — placed 320pt right of the names, clamped to the pane width and flipped above the row near the end of the list. The row's path tooltip went with it. Same day, 1.6.3 (`c6c9ae0`).
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-14 08:27 — The app-name test went red on every commit, old ones included
 - **Bug/Issue:** `ChromeTests.testARenameReadsTheAppOffTheImage` began failing consistently — `Chrome.app` read "Terniinal" instead of "Terminal" — after a green run at 08:00 on the same tree, and it failed at 2e6d9cc too, so it was not that morning's UI work.
 - **RCA:** The fixture was drawn through `NSImage.lockFocus()`, which takes its scale from the attached display. `OCR.recognizeLines` reads with `.fast` and `usesLanguageCorrection = false`, and a 15pt menu-bar label at 1x is ~15 device pixels — right at that reader's threshold, where "rn" comes back as "ni". A real capture is 2x, so the test was reading a fixture no screenshot looks like, at a fidelity the code never has to handle. The operator moved to two 1x external displays that morning.

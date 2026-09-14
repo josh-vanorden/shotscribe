@@ -4,23 +4,25 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-13
-**Phase:** Ship — 1.6.2 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.2, notarized under `shotscribe-notary`); 1.6.0 and 1.6.1 went out the same day
-**Next action:** `shotscribe eval --limit 25` with `claude` signed in (it is, since tonight) — the first real quality number against names that were not the titler's own. Then pick up the 1.6.3 ideas in `roadmap.md`: the customizable landing zone (per-tile use counts, hide/reorder/pin) first.
+**Last session:** 2026-09-14
+**Phase:** Ship — 1.6.3 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.3, notarized under `shotscribe-notary`). Josh is passing the link out today.
+**Next action:** `shotscribe eval --limit 25` with `claude` signed in — the first real quality number against names that were not the titler's own. It is the oldest open item and the only one blocking a claim about titling quality.
 
 **Open loops**
-- Toolbelt's pin is at `from: "1.6.2"`, committed there and unpushed (with the 1.6.0 pin `4eeb4dd`), beside Josh's own uncommitted `.gitignore`; pushing Toolbelt is his call.
-- `~/.claude.json` still registers the `shotscribe` MCP server under the old project path `~/git/personal/shotscribe` (binary gone); re-register from `active/shotscribe/.build/release/shotscribe-mcp` — Josh's config.
-- The announcement is drafted (`announcement.md`, session scratchpad; two lengths) — Josh: secondary.
-- Codex, Gemini CLI, Cursor Agent presets unverified here; `codex` absent since macOS refused the 0.118.0 cask binary. Backlog sweep (93 raw files) unbuilt; recordings and the capture-flag timing remain hand-untested.
-- Left to the operator by the security pass, on purpose: confining MCP OCR to the watched folder, pinning the README's skill URL to a tag, CI.
+- The README's own roadmap still lists the **backlog sweep** (93 raw `Screenshot …` files, newest 2026-08-21) and a **WidgetKit widget**. Closing or explicitly deferring these is the gate from Ship to Maintain, and it is Josh's call.
+- Toolbelt's pin is at `from: "1.6.3"`, committed there and **unpushed** (with the 1.6.0 and 1.6.2 pin commits), beside Josh's own uncommitted `.gitignore`. Pushing Toolbelt is his call.
+- 1.6.4 ideas in `roadmap.md`: two coding agents for comparison builds (open question — where the second result lands).
+- Codex, Gemini CLI and Cursor Agent presets are unverified on this Mac; `codex` stays absent since macOS refused the 0.118.0 cask binary.
+- `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`; the live one under `active/` resolves.
 
 **Ruled out**
-- A state mark in the accent colour, or inside the tile: invisible on the light band; the default's halo is green and outside the circle (three rounds, 2026-09-13).
-- "Set as the click action" as the wording; reusing `cockpit-notary`; moving a published tag; a menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; `ImageRenderer`; copied fixtures; extension-only `labelling`; Remote Control as a push channel; braces as the code icon.
+- A hover preview drawn in a row's own overlay: in a `LazyVStack` the rows built after it draw over the top, and `zIndex` does not save it — the container reads an anchor preference instead (2026-09-14).
+- A test fixture drawn through `NSImage.lockFocus`: it takes its scale from the attached display, so the suite went red on a monitor change (2026-09-14).
+- A separate **pin** control for the landing zone: with drag-to-reorder, pinning is putting a tile first.
+- The adaptive tile grid, cut for the carousel; a state mark in the accent colour or inside the tile; "Set as the click action" as wording; reusing `cockpit-notary`; a menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; `ImageRenderer`; copied fixtures; Remote Control as a push channel.
 
 **Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** none after this block's `/clean-tree`
+**Unpushed commits:** none after this save's `/clean-tree`
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
@@ -79,6 +81,22 @@ tag until its `from:` is raised.
   purpose — the accent is what everything else wears, and it vanished on the
   light band) and the menu marks it "✓ default". The seven-track security
   pass's twelve fixes ride along (`SECURITY.md`).
+- **1.6.3:** **The landing zone is arrangeable.** Right-click any tile →
+  **Arrange tiles…**: drag to reorder, a minus puts one away, and under each is
+  the count of how often it has been used (`LandingZone` in Core; the order is
+  stored as tile *names*, so a later version's tile appears rather than shifting
+  the row, and the tally sits in the model's leaf actions so a use counts once
+  from the tile, the menu or a default click). **Two views, not three:** the
+  **carousel** replaced the adaptive grid and is what the window opens on — each
+  day on one line as overlapping cards, upright and on one baseline, the card
+  under the cursor rising while the ones after it step aside (260×195 at 4:3,
+  40pt overlap, 22pt lift, 60pt step-aside, 0.6s; Josh's own numbers off a
+  bake-off). **The list shows the picture:** a row shades on hover and the
+  capture hangs beside it at the same card size, drawn by the list itself
+  through an anchor preference so it is above every row. One drag hint
+  everywhere and no file path in any tooltip. **A welcome on first run**, asking
+  the one thing that has to be right — which folder — with the inspector now
+  starting closed and on **Folder**.
 - **The icon is Josh's artwork** (`assets/ShotScribe-artwork.png`, fitted to
   Apple's grid by `scripts/fit-icon.swift`, built by `scripts/make-iconset.sh`).
   **The tagline** heads the README and the first-launch welcome: *Every

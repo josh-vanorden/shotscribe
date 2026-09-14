@@ -192,3 +192,21 @@ turns on Josh's call about the README's two roadmap items.
   server for the old project path `~/git/personal/shotscribe` (the repo
   moved to `active/`); the binary it names does not exist. Josh's to
   re-register from `active/shotscribe/.build/release/shotscribe-mcp`.
+
+## 2026-09-14 — 1.6.3 public; phase Ship, and the gate to maintain finally moves
+Josh's verdict this morning, unprompted: *"The entire app runs flawlessly so far
+and does everything we really could ask it to."* The one thing he named as
+missing — a greeting on first configuration — was built the same hour. The gate
+to *maintain* has always turned on his call about the README's two roadmap items
+(the backlog sweep and the widget); they are still open, so the phase line stays
+**Ship**, but nothing else is holding it.
+- **Sub-issue, fixed:** a hover preview put in a row's own overlay is drawn over
+  by every row built after it in a `LazyVStack`, and `zIndex` does not save it.
+  An anchor preference read by the container is the shape that works
+  (Triage 2026-09-14 08:33).
+- **Sub-issue, fixed:** a test fixture drawn through `NSImage.lockFocus` takes
+  its scale from the attached display, so the suite went red when the operator
+  changed monitors (Triage 2026-09-14 08:27).
+- **Still open, unchanged:** the README's backlog sweep (93 raw files) and the
+  WidgetKit widget; Codex, Gemini CLI and Cursor Agent presets unverified on
+  this Mac; `shotscribe eval --limit 25` for the first real quality number.

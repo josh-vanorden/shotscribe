@@ -16,7 +16,7 @@ Vault linkage for shotscribe.
   with the user before creating one.
 
 <!-- markerblock:obsidian-links -->
-## What points here — read on 2026-09-13
+## What points here — read on 2026-09-14
 
 ### Infrastructure vault — notes naming `shotscribe`
 

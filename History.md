@@ -853,3 +853,42 @@ Built on `settings-pane` and checked by him in three rounds:
   https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.2, latest.
   Toolbelt's pin raised to `from: "1.6.2"` and resolved (committed there,
   unpushed, beside the 1.6.0 pin commit). 154 tests.
+
+## 2026-09-14 — 1.6.3: the landing zone arranges, the grid becomes a carousel
+
+A morning of Josh's own calls, each checked in the window before the next.
+
+- **The arrangeable landing zone** (the 1.6.3 idea, built). `LandingZone` in
+  Core holds the order, what is put away and the tally; the order is stored as
+  names so a tile added later appears instead of shifting the row, hiding the
+  last visible tile is refused (right-click is the way back in), and a reset
+  keeps the counts because the arrangement is the setting and the tally is
+  evidence about it. Arrange mode swaps the live controls for inert faces, so
+  the drag has the gesture to itself; the badge alone hides, so a click meant
+  as a drag cannot empty the row. 13 new tests.
+- **A card fan-out, straightened.** Josh sent a "Cards Fan-Out Animation"
+  reference and asked for it without the arch. Six treatments went up on
+  localhost:9013 over twelve of his real captures; he picked **Straight deck**
+  and the numbers with it. Ported as `DeckRow`/`DeckCard`, then on his word the
+  adaptive grid was cut entirely: **Carousel** (default, first) and **List**,
+  with `GalleryTile` and `GallerySessionTile` deleted and the stored `tiles`
+  mapped onto the carousel.
+- **The list got the picture.** Hover shades the row and shows the capture. The
+  first cut put the preview in the row's own overlay and reached for `zIndex` —
+  wrong, and Josh's screenshot showed why: in a `LazyVStack` the rows built
+  afterwards draw straight over it. The list now reads an anchor preference and
+  draws one preview in its own overlay, 320pt right of the names, clamped to
+  the pane and flipped above the row at the end of the list.
+- **First run.** The inspector started open on Rename, and the only welcome was
+  an empty state nobody with a used Mac ever sees. Now: a greeting sheet once
+  per Mac carrying the folder row and the watch switch, an inspector that
+  starts closed and remembers, and **Folder** as its first tab.
+- **A red suite that was not ours.** `ChromeTests` began failing on every
+  commit, 2e6d9cc included, when the operator moved to 1x displays: the fixture
+  was drawn through `lockFocus`, which takes its scale from the attached
+  screen, and `OCR.recognizeLines` reads with `.fast` and no language
+  correction, where a 15pt label at 1x comes back "Terniinal". The fixture is
+  now drawn at 2x like a real capture. Triage has it.
+- **Shipped.** `serverInfo` → 1.6.3, CHANGELOG dated, tag `v1.6.3`, notarized
+  under `shotscribe-notary`, pushed with the tag, released on GitHub as latest,
+  Toolbelt's pin raised. 167 tests green throughout.
