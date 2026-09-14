@@ -9,6 +9,9 @@ public enum ShotScribeDefaults {
     public static let vocabularyKey = "shotscribe.tagVocabulary"
     public static let taggingKey = "shotscribe.tagging"
     public static let aiProviderKey = "shotscribe.ai"
+    public static let tileOrderKey = "shotscribe.tiles.order"
+    public static let tilesHiddenKey = "shotscribe.tiles.hidden"
+    public static let tileUsesKey = "shotscribe.tiles.uses"
     /// The switch this replaced: "Title with Claude", on by default.
     static let legacyUseClaudeKey = "shotscribe.useClaude"
 
@@ -101,5 +104,26 @@ public enum ShotScribeDefaults {
 
     public static func setAIProvider(_ provider: AIProvider) {
         if let data = try? JSONEncoder().encode(provider) { suite.set(data, forKey: aiProviderKey) }
+    }
+
+    /// The landing zone's arrangement and its tally. Three plain keys rather
+    /// than one blob: a list of names, a list of names, and a dictionary of
+    /// counts are all readable in `defaults read`, and a value that will not
+    /// decode costs one tile's place rather than the whole row.
+    public static func landingZone() -> LandingZone {
+        LandingZone(
+            order: LandingZone.resolve(order: suite.stringArray(forKey: tileOrderKey) ?? []),
+            hidden: Set((suite.stringArray(forKey: tilesHiddenKey) ?? []).compactMap(LandingZone.Tile.init(rawValue:))),
+            uses: (suite.dictionary(forKey: tileUsesKey) as? [String: Int] ?? [:])
+                .reduce(into: [:]) { out, pair in
+                    if let tile = LandingZone.Tile(rawValue: pair.key) { out[tile] = pair.value }
+                })
+    }
+
+    public static func setLandingZone(_ zone: LandingZone) {
+        suite.set(zone.order.map(\.rawValue), forKey: tileOrderKey)
+        suite.set(zone.hidden.map(\.rawValue).sorted(), forKey: tilesHiddenKey)
+        suite.set(Dictionary(uniqueKeysWithValues: zone.uses.map { ($0.key.rawValue, $0.value) }),
+                  forKey: tileUsesKey)
     }
 }

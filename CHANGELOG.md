@@ -2,6 +2,16 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.3 — unreleased
+
+- **The landing zone is yours to arrange.** Right-click any tile → **Arrange
+  tiles…**: drag to reorder, the minus puts a tile away, and under each one is
+  the count of how often you have actually used it — so the row can lead with
+  what earns its place. Put-away tiles wait at the end of the arrange row with
+  a plus to bring them back; **Reset** restores the shipped row and keeps the
+  counts. The tally is a number in this Mac's own preferences: nothing counts
+  it anywhere else and nothing leaves the machine.
+
 ## 1.6.2 — 2026-09-13
 
 - **Right-click any screenshot** — a tile, a list row, the landing zone, the

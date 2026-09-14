@@ -40,6 +40,7 @@ public struct ShotScribeSurface: View {
 public struct ShotScribeView: View {
     @State private var editingTitle = false
     @State private var heroHovered = false
+    @State private var dragging: LandingZone.Tile?
     @State private var endpointKeyDraft = ""
     /// The picker's own state: a menu picker bound to a computed Binding
     /// changed its displayed value without reaching the model (2026-09-13,
@@ -135,7 +136,10 @@ public struct ShotScribeView: View {
                 if let plan = model.cleanupPlan { cleanupPreview(plan).padding(.bottom, 14) }
                 content
                     // Esc backs out of a tag filter, the way it backs out of a title edit.
-                    .onExitCommand { if !model.tagFilter.isEmpty { model.clearTagFilter() } }
+                    .onExitCommand {
+                        if model.arrangingTiles { model.arrangingTiles = false }
+                        else if !model.tagFilter.isEmpty { model.clearTagFilter() }
+                    }
             }
             .padding(.top, 52)
             .padding(.horizontal, 18)
@@ -331,25 +335,10 @@ public struct ShotScribeView: View {
                         HStack(spacing: 6) { tagChips(shot) }.padding(.top, 2)
                     }
                     // The landing zone's actions: one row of tiles, each the icon of
-                    // the service it reaches, named the moment it is hovered.
-                    FlowLayout(spacing: 6) {
-                        ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true, sets: .reveal, model: model) { model.reveal(shot) }
-                        ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true, sets: .markUp, model: model) { model.markUp(shot) }
-                        ShareRow(url: shot.url).id(shot.path)
-                        // The mark of the titler in use — offline included — so the
-                        // landing zone says which AI this is at a glance.
-                        if let symbol = model.aiProvider.kind.symbol {
-                            ActionTile("Send to \(model.assistantName)", icon: Image(systemName: symbol), sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
-                        } else if let mark = AppIcons.icon(for: model.aiProvider.kind) {
-                            ActionTile("Send to \(model.assistantName)", icon: mark, art: true, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
-                        } else {
-                            ActionTile("Send to \(model.assistantName)", monogram: model.assistantName, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
-                        }
-                        ActionTile("Rebuild as code", icon: Image(systemName: "hammer"), sets: .rebuildAsCode, model: model) { model.copyCodeBrief(for: shot) }
-                        ActionTile("Edit title", icon: Image(systemName: "pencil")) { editingTitle = true }
-                        if model.taggingEnabled { fileAsMenu(shot) }
-                    }
-                    .padding(.top, 8)
+                    // the service it reaches, named the moment it is hovered. The
+                    // row is the operator's to arrange — right-click any tile — so
+                    // it can lead with what gets used and put away what does not.
+                    landingZone(for: shot)
                 }
                 .font(.caption)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -637,6 +626,198 @@ public struct ShotScribeView: View {
 
     /// The vocabulary otherwise only applies at rename time, which would leave
     /// every capture from before today reachable only through Finder.
+    // MARK: The landing zone
+
+    /// The tiles the row shows, in the stored order. "File as" needs filing to
+    /// be on at all, so it comes and goes with the File tab's switch rather
+    /// than being something to hide.
+    private var shownTiles: [LandingZone.Tile] {
+        model.landingZone.visible.filter { offered($0) }
+    }
+
+    private var putAwayTiles: [LandingZone.Tile] {
+        model.landingZone.order.filter { model.landingZone.hidden.contains($0) && offered($0) }
+    }
+
+    private func offered(_ tile: LandingZone.Tile) -> Bool {
+        tile != .fileAs || model.taggingEnabled
+    }
+
+    @ViewBuilder
+    private func landingZone(for shot: IndexedShot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if model.arrangingTiles {
+                Text("Drag to reorder · − puts a tile away · the count is your own use")
+                    .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            FlowLayout(spacing: model.arrangingTiles ? 12 : 6) {
+                ForEach(shownTiles, id: \.self) { tile in
+                    if model.arrangingTiles {
+                        arrangeTile(tile, putAway: false)
+                    } else {
+                        liveTile(tile, for: shot)
+                            .contextMenu { tileMenu(tile) }
+                    }
+                }
+                if model.arrangingTiles {
+                    ForEach(putAwayTiles, id: \.self) { tile in
+                        arrangeTile(tile, putAway: true)
+                    }
+                }
+            }
+            if model.arrangingTiles { arrangeBar }
+        }
+        .padding(model.arrangingTiles ? 10 : 0)
+        .background {
+            if model.arrangingTiles {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.primary.opacity(0.055))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(ShotPalette.accent.opacity(0.35), lineWidth: 1))
+            }
+        }
+        .padding(.top, 8)
+        .animation(.easeOut(duration: 0.2), value: model.arrangingTiles)
+        .animation(.easeOut(duration: 0.2), value: model.landingZone)
+    }
+
+    /// The tile as it works: the real control, which is a button for most, the
+    /// unfolding share pill for one and a menu for another.
+    @ViewBuilder
+    private func liveTile(_ tile: LandingZone.Tile, for shot: IndexedShot) -> some View {
+        switch tile {
+        case .reveal:
+            ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true, sets: .reveal, model: model) { model.reveal(shot) }
+        case .markUp:
+            ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true, sets: .markUp, model: model) { model.markUp(shot) }
+        case .share:
+            ShareRow(url: shot.url) { model.note(.share) }.id(shot.path)
+        case .sendTo:
+            // The mark of the titler in use — offline included — so the landing
+            // zone says which AI this is at a glance.
+            if let symbol = model.aiProvider.kind.symbol {
+                ActionTile("Send to \(model.assistantName)", icon: Image(systemName: symbol), sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
+            } else if let mark = AppIcons.icon(for: model.aiProvider.kind) {
+                ActionTile("Send to \(model.assistantName)", icon: mark, art: true, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
+            } else {
+                ActionTile("Send to \(model.assistantName)", monogram: model.assistantName, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
+            }
+        case .rebuild:
+            ActionTile("Rebuild as code", icon: Image(systemName: "hammer"), sets: .rebuildAsCode, model: model) { model.copyCodeBrief(for: shot) }
+        case .editTitle:
+            ActionTile("Edit title", icon: Image(systemName: "pencil")) { model.note(.editTitle); editingTitle = true }
+        case .fileAs:
+            fileAsMenu(shot)
+        }
+    }
+
+    /// The tile while arranging: the same face, but inert — no button, so the
+    /// drag has the gesture to itself — with its tally under it and a badge to
+    /// put it away or bring it back.
+    private func arrangeTile(_ tile: LandingZone.Tile, putAway: Bool) -> some View {
+        VStack(spacing: 3) {
+            tileFace(tile)
+                .overlay(alignment: .topTrailing) {
+                    // The badge is the only thing that puts a tile away, so a
+                    // click that was meant to be a drag cannot empty the row
+                    // by accident.
+                    Button { _ = model.setTileHidden(tile, !putAway) } label: {
+                        Image(systemName: putAway ? "plus.circle.fill" : "minus.circle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, putAway ? ShotPalette.accent : Color.secondary)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 5, y: -5)
+                }
+            Text("\(model.landingZone.uses(of: tile))")
+                .font(.system(size: 9, weight: .semibold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .opacity(putAway ? 0.45 : (dragging == tile ? 0.35 : 1))
+        .contentShape(Rectangle())
+        .onDrag {
+            dragging = tile
+            return NSItemProvider(object: tile.rawValue as NSString)
+        }
+        .onDrop(of: [.text], delegate: TileDrop(target: tile, dragging: $dragging, model: model))
+        .contextMenu { tileMenu(tile) }
+        .help(putAway ? "\(model.name(of: tile)) — put away; the plus brings it back"
+                      : "\(model.name(of: tile)) — used \(model.landingZone.uses(of: tile))×; drag to reorder, the minus puts it away")
+    }
+
+    /// The face alone: the icon in its circle, with nothing to press.
+    private func tileFace(_ tile: LandingZone.Tile) -> some View {
+        tileIcon(tile)
+            .frame(width: 28, height: 28)
+            .background {
+                Circle().fill(Color.primary.opacity(0.08))
+                    .overlay(Circle().strokeBorder(.white.opacity(0.1), lineWidth: 1))
+            }
+    }
+
+    @ViewBuilder
+    private func tileIcon(_ tile: LandingZone.Tile) -> some View {
+        switch tile {
+        case .reveal:
+            AppIcons.finder.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
+        case .markUp:
+            AppIcons.preview.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
+        case .share:
+            Image(systemName: "square.and.arrow.up").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
+        case .sendTo:
+            if let symbol = model.aiProvider.kind.symbol {
+                Image(systemName: symbol).resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
+            } else if let mark = AppIcons.icon(for: model.aiProvider.kind) {
+                mark.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
+            } else {
+                Text(String(model.assistantName.prefix(1)).uppercased())
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 19, height: 19)
+                    .background(Circle().fill(ShotPalette.accent))
+            }
+        case .rebuild:
+            Image(systemName: "hammer").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
+        case .editTitle:
+            Image(systemName: "pencil").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
+        case .fileAs:
+            Image(systemName: "tag").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
+        }
+    }
+
+    /// Every tile's right-click: what a plain click should do, whether this
+    /// tile belongs in the row, and the way into arranging it.
+    @ViewBuilder
+    private func tileMenu(_ tile: LandingZone.Tile) -> some View {
+        if let action = ShotScribeModel.action(for: tile) {
+            if model.defaultAction == action { Text("Default ✓") }
+            else { Button("Set as default") { model.defaultAction = action } }
+            Divider()
+        }
+        if model.landingZone.hidden.contains(tile) {
+            Button("Show \(model.name(of: tile))") { _ = model.setTileHidden(tile, false) }
+        } else {
+            Button("Hide \(model.name(of: tile))") { _ = model.setTileHidden(tile, true) }
+                .disabled(shownTiles.count <= 1)
+        }
+        Button(model.arrangingTiles ? "Done arranging" : "Arrange tiles…") {
+            model.arrangingTiles.toggle()
+        }
+    }
+
+    private var arrangeBar: some View {
+        HStack(spacing: 10) {
+            Button("Done") { model.arrangingTiles = false }
+                .buttonStyle(CapsuleButtonStyle())
+                .lineLimit(1).fixedSize()
+            Button("Reset") { model.resetLandingZone() }
+                .buttonStyle(.link).font(.caption2)
+                .help("Back to the row ShotScribe ships. The counts stay.")
+        }
+    }
+
     private func fileAsMenu(_ shot: IndexedShot) -> some View {
         Menu {
             ForEach(model.vocabulary, id: \.self) { tag in
@@ -1942,12 +2123,26 @@ private struct ActionTile: View {
                 .opacity(isDefault ? 1 : 0)
         )
         .modifier(NamedOnHover(title: isDefault ? "\(name) — default" : name))
-        .contextMenu {
-            if let sets, let model {
-                if model.defaultAction == sets { Text("Default ✓") }
-                else { Button("Set as default") { model.defaultAction = sets } }
-            }
-        }
+    }
+}
+
+/// Dragging one tile onto another puts it there, live, while the drag is still
+/// in the air — the row reorders under the cursor rather than on release.
+private struct TileDrop: DropDelegate {
+    let target: LandingZone.Tile
+    @Binding var dragging: LandingZone.Tile?
+    let model: ShotScribeModel
+
+    func dropEntered(info: DropInfo) {
+        guard let moving = dragging, moving != target else { return }
+        withAnimation(.easeOut(duration: 0.18)) { model.moveTile(moving, onto: target) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }
 
@@ -2020,6 +2215,8 @@ private enum BrandArt {
 /// becomes a row of icons; here the icons are real services, not logos.
 private struct ShareRow: View {
     let url: URL
+    /// The landing zone's tally: opening the pill is the use of this tile.
+    var onOpen: () -> Void = {}
     @State private var open = false
     @State private var services: [NSSharingService] = []
 
@@ -2029,6 +2226,7 @@ private struct ShareRow: View {
                 if open {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { open = false }
                 } else {
+                    onOpen()
                     services = Array(ShareRow.destinations(for: url).prefix(6))
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) { open = true }
                 }

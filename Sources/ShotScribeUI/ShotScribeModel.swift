@@ -317,6 +317,7 @@ public final class ShotScribeModel: ObservableObject {
     /// Stage two, as far as the app can take it: the shot as a brief for Claude
     /// Code, to paste inside the project the code should land in.
     public func copyCodeBrief(for shot: IndexedShot) {
+        note(.rebuild)
         let path = shot.path
         let generation = show(HandoffNote(text: "Reading the layout…", symbol: "hammer"))
         Task { @MainActor [weak self] in
@@ -334,6 +335,7 @@ public final class ShotScribeModel: ObservableObject {
     /// for Claude Code (the skill reads this shot rather than the newest), a
     /// plain ask for any other chat. Dragging the tile in is the wordless version.
     public func sendToAssistant(_ shot: IndexedShot) {
+        note(.sendTo)
         let kind = aiProvider.kind
         let where_: String
         switch kind {
@@ -397,6 +399,7 @@ public final class ShotScribeModel: ObservableObject {
     /// File a shot that is already named — the only way to reach an older
     /// capture, since the vocabulary otherwise only applies at rename time.
     public func tag(_ shot: IndexedShot, with tag: String) {
+        note(.fileAs)
         guard Tagging.add(Tagging.accepted([tag], vocabulary: vocabulary), to: shot.url) else {
             lastError = "Couldn't tag \(shot.name)."
             return
@@ -789,6 +792,12 @@ public final class ShotScribeModel: ObservableObject {
     /// Selection is modal on purpose. Checkboxes on every tile all the time turn
     /// a browser into a file manager; you are usually looking, not tidying.
     @Published var selecting = false { didSet { if !selecting { selected.removeAll() } } }
+
+    /// Arranging the landing zone: the row shows its tally and its tiles are
+    /// draggable, and none of them fires. A mode, like `selecting` — it lives
+    /// here rather than in the view so it survives a redraw and can be driven
+    /// from outside for an off-screen render.
+    @Published public var arrangingTiles = false
     @Published var selected: Set<String> = []
 
     func toggleSelected(_ shot: IndexedShot) {
@@ -822,6 +831,52 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     static let defaultActionKey = "shotscribe.defaultAction"
+
+    /// Which tiles the landing zone shows, in what order, and the tally of how
+    /// often each has been used. Arranged by right-clicking the row itself.
+    @Published public var landingZone: LandingZone = ShotScribeDefaults.landingZone() {
+        didSet { ShotScribeDefaults.setLandingZone(landingZone) }
+    }
+
+    /// The tile's own name, as the row and its menus say it.
+    public func name(of tile: LandingZone.Tile) -> String {
+        switch tile {
+        case .reveal:    return "Reveal in Finder"
+        case .markUp:    return "Mark up in Preview"
+        case .share:     return "Share"
+        case .sendTo:    return "Send to \(assistantName)"
+        case .rebuild:   return "Rebuild as code"
+        case .editTitle: return "Edit title"
+        case .fileAs:    return "File as"
+        }
+    }
+
+    /// The click action a tile can become, for the four that are one. Share
+    /// unfolds, Edit title types, File as opens a menu — none of the three is
+    /// something a plain click could stand for.
+    public static func action(for tile: LandingZone.Tile) -> ShotAction? {
+        switch tile {
+        case .reveal:    return .reveal
+        case .markUp:    return .markUp
+        case .sendTo:    return .sendToAssistant
+        case .rebuild:   return .rebuildAsCode
+        case .share, .editTitle, .fileAs: return nil
+        }
+    }
+
+    /// One more use of a tile, counted wherever it was reached.
+    public func note(_ tile: LandingZone.Tile) { landingZone.note(tile) }
+
+    @discardableResult
+    public func setTileHidden(_ tile: LandingZone.Tile, _ away: Bool) -> Bool {
+        landingZone.setHidden(tile, away)
+    }
+
+    public func moveTile(_ tile: LandingZone.Tile, onto other: LandingZone.Tile) {
+        landingZone.move(tile, onto: other)
+    }
+
+    public func resetLandingZone() { landingZone.reset() }
 
     @Published public var defaultAction: ShotAction = {
         ShotScribeModel.defaults.string(forKey: ShotScribeModel.defaultActionKey).flatMap(ShotAction.init(rawValue:)) ?? .reveal
@@ -1020,6 +1075,7 @@ public final class ShotScribeModel: ObservableObject {
     /// The shot in Preview, for the pencil: macOS's own markup, one click from
     /// the landing zone. Josh's habit (2026-09-13) — annotate before sending.
     func markUp(_ shot: IndexedShot) {
+        note(.markUp)
         let preview = URL(fileURLWithPath: "/System/Applications/Preview.app")
         NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration()) { _, error in
             if let error { Task { @MainActor [weak self] in self?.lastError = "Couldn’t open in Preview: \(error.localizedDescription)" } }
@@ -1027,6 +1083,7 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     func reveal(_ shot: IndexedShot) {
+        note(.reveal)
         NSWorkspace.shared.activateFileViewerSelecting([shot.url])
     }
     func reveal(_ hit: SearchHit) { reveal(hit.shot) }
