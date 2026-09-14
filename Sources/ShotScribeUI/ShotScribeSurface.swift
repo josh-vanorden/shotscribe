@@ -231,6 +231,22 @@ public struct ShotScribeView: View {
                 tagStrip
                 noneFiled
             } else if model.query.trimmingCharacters(in: .whitespaces).isEmpty { emptyState } else { noMatches }
+        } else if model.shotView == .deck {
+            // A day at a time, on one line: the cards overlap and the one under
+            // the cursor rises out of the row. The deck is the burst — nothing
+            // folds here, because the stack already is the folding.
+            let hero = heroShot
+            if let hero { heroCard(hero) }
+            gridHead
+            if !model.tagCounts.isEmpty { tagStrip }
+            ForEach(dayGroups(excluding: hero)) { group in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(group.title).font(.system(size: 15, weight: .bold)).tracking(-0.3)
+                    Text(group.subtitle).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+                .padding(.top, 8)
+                DeckRow(shots: group.sessions.flatMap(\.shots), model: model)
+            }
         } else if model.shotView == .list {
             // The landing zone is the point of the window; the list is a denser
             // way to see the rest, not a way to lose the newest capture.
@@ -1704,7 +1720,136 @@ private struct GalleryTile: View {
         .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
         .onHover { hovered = $0 }
         .help("\(shot.path)\nDrag to attach a copy elsewhere.")
+    }
+}
+
+/// **The straight deck.** One day on one line: the cards overlap, and the one
+/// under the cursor rises out of the row while the cards after it step aside.
+/// It is the "Cards Fan-Out" reference Josh sent on 2026-09-14 with the arch
+/// taken out — every card upright, every card on the same baseline.
+///
+/// The numbers are his, chosen off the bake-off on localhost:9013 rather than
+/// guessed: 200pt cards, 40pt of overlap, a 22pt lift, neighbours stepping 60pt,
+/// a 10pt corner and the reference's own easing over 0.6s.
+///
+/// Only the cards **after** the hovered one move. The bake-off's deck was
+/// centred, so it could open in both directions; a day row is anchored at its
+/// leading edge, and pushing the earlier cards left would walk them off it.
+private enum Deck {
+    static let width: CGFloat = 200
+    /// 16:10, the ratio the tiles already use.
+    static let height: CGFloat = 125
+    static let overlap: CGFloat = 40
+    static let lift: CGFloat = 22
+    static let stepAside: CGFloat = 60
+    static let corner: CGFloat = 10
+    /// The bake-off's CSS blur, which is about twice a SwiftUI shadow radius.
+    static let shadow: CGFloat = 25
+    static var shadowRadius: CGFloat { shadow / 2 }
+    static let motion = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.6)
+}
+
+private struct DeckRow: View {
+    let shots: [IndexedShot]
+    @ObservedObject var model: ShotScribeModel
+    @State private var hovered: String?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: -Deck.overlap) {
+                ForEach(Array(shots.enumerated()), id: \.element.id) { index, shot in
+                    let isUp = hovered == shot.path
+                    let after = hovered.flatMap { h in shots.firstIndex { $0.path == h } }
+                        .map { index > $0 } ?? false
+                    DeckCard(shot: shot, model: model, raised: isUp)
+                        .offset(x: after ? Deck.stepAside : 0, y: isUp ? -Deck.lift : 0)
+                        .scaleEffect(isUp ? 1.05 : 1, anchor: .bottom)
+                        .brightness(hovered != nil && !isUp ? -0.05 : 0)
+                        // The leading card sits on top, so the row reads newest
+                        // first; whichever is raised comes over all of them.
+                        .zIndex(isUp ? 999 : Double(shots.count - index))
+                        .onHover { inside in
+                            if inside { hovered = shot.path }
+                            else if hovered == shot.path { hovered = nil }
+                        }
+                }
+            }
+            // Room for the lift and the shadow, and for the last card's step.
+            .padding(.vertical, 24)
+            .padding(.trailing, Deck.stepAside + 8)
+            .animation(Deck.motion, value: hovered)
+        }
+        .padding(.bottom, 4)
+    }
+}
+
+/// One card in the deck: the same capture, the same click, the same menu and
+/// the same drag-out as a tile — at the deck's fixed size.
+private struct DeckCard: View {
+    let shot: IndexedShot
+    @ObservedObject var model: ShotScribeModel
+    let raised: Bool
+    @State private var leaving = false
+
+    var body: some View {
+        let picked = model.selected.contains(shot.path)
+        Button { model.click(shot) } label: {
+            AspectThumbnail(path: shot.path, aspect: Deck.width / Deck.height, pixels: 480)
+                .frame(width: Deck.width, height: Deck.height)
+                .overlay(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(shot.name).font(.caption.weight(.semibold))
+                            .lineLimit(1).truncationMode(.middle)
+                        HStack(spacing: 6) {
+                            Text(shot.captured, format: .dateTime.hour().minute())
+                                .font(.caption2).monospacedDigit()
+                            ForEach(shot.tags ?? [], id: \.self) { tag in
+                                TagChip(tag: tag, onImage: true) { model.filter(tag: tag) }
+                            }
+                        }
+                        .foregroundStyle(.white.opacity(0.78))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10).padding(.bottom, 8).padding(.top, 24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(LinearGradient(colors: [.black.opacity(0.88), .clear],
+                                               startPoint: .bottom, endPoint: .top))
+                    .opacity(raised || model.selecting ? 1 : 0)
+                }
+                .overlay(alignment: .topLeading) {
+                    if model.selecting {
+                        Image(systemName: picked ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 17))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, picked ? AnyShapeStyle(.tint) : AnyShapeStyle(.black.opacity(0.35)))
+                            .padding(7)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if raised, !model.selecting {
+                        DeletePill(onImage: true, forGood: model.deletesForGood) {
+                            withAnimation(.easeIn(duration: 0.18)) { leaving = true }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
+                        }
+                        .padding(7)
+                        .transition(.opacity)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Deck.corner, style: .continuous)
+                    .strokeBorder(picked ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator),
+                                  lineWidth: picked ? 2 : 1))
+                .shadow(color: .black.opacity(raised ? 0.45 : 0.3),
+                        radius: Deck.shadowRadius, y: Deck.shadowRadius * 0.45)
+                .opacity(leaving ? 0 : 1)
+                .scaleEffect(leaving ? 0.86 : 1)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .contextMenu { ShotMenu(model: model, shot: shot) }
+        // Drag it out as the file itself, the way a tile does.
+        .onDrag { NSItemProvider(contentsOf: shot.url) ?? NSItemProvider() }
+        .help("\(shot.path)\nDrag to attach a copy elsewhere.")
     }
 }
 

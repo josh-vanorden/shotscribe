@@ -755,14 +755,28 @@ public final class ShotScribeModel: ObservableObject {
 
     // MARK: - Search
 
-    /// How the shots are shown. Two views because they answer different
+    /// How the shots are shown. Three views because they answer different
     /// questions: the list answers "what did I just capture", the tiles answer
-    /// "which one was it" — and for a screenshot, recognition beats reading.
+    /// "which one was it" — and for a screenshot, recognition beats reading —
+    /// and the deck answers "what did this day look like", a day at a time on
+    /// one line.
     public enum ShotView: String, CaseIterable, Identifiable, Sendable {
-        case list, tiles
+        case list, tiles, deck
         public var id: String { rawValue }
-        public var label: String { self == .list ? "List" : "Tiles" }
-        public var symbol: String { self == .list ? "list.bullet" : "square.grid.2x2" }
+        public var label: String {
+            switch self {
+            case .list:  return "List"
+            case .tiles: return "Tiles"
+            case .deck:  return "Deck"
+            }
+        }
+        public var symbol: String {
+            switch self {
+            case .list:  return "list.bullet"
+            case .tiles: return "square.grid.2x2"
+            case .deck:  return "rectangle.stack"
+            }
+        }
     }
 
     @Published var shotView: ShotView = .tiles {
