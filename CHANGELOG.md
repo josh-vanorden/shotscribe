@@ -2,6 +2,36 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.4 — unreleased
+
+- **A card when a capture lands.** It slides up from the bottom centre about a
+  second after the shot arrives, saying "Naming…", then fills in the name and
+  widens to fit it. The name is the point, so it is never truncated. On it: the
+  picture, the tags it was filed under (click one to take it off, or **+ Tag**
+  to add), **Open ShotScribe**, **Send to** your assistant, **Finder**,
+  **Preview**, and a bin. It lingers eight seconds from the moment the *name*
+  arrives, pauses while the cursor is on it, and has a hard stop so a resting
+  pointer cannot pin it. Switch it off in the **Rename** tab — and beside it,
+  a switch that mutes macOS's own thumbnail, which appears before the rename
+  and so can only ever show an unnamed file.
+- **Send to carries both AI jobs.** "Rebuild as code" was its own tile doing a
+  different job to the same destination; it now lives under Send to's
+  right-click, along with the assistant to use and which of the two a plain
+  click performs. Six tiles in the landing zone instead of seven.
+- **Tags come off again.** A tag could only ever be added — every menu greyed
+  out the ones already on a shot, so the first guess was permanent. Now a
+  ticked tag comes off when picked, anywhere: the landing zone, a shot's
+  right-click, the card's chips. "File as" is called **Tag**, and **+ New Tag**
+  is the first thing in the menu.
+- **The tag vocabulary can be emptied.** Removing the last word used to put all
+  sixteen shipped ones straight back, so clearing the list never finished.
+  **Remove all** does it in one gesture and **Shipped list** is the way back.
+- **A bin on every day.** The day heading carries one, and the word it eats
+  says how many go with it — "Delete 12", not "Delete".
+- **Fixed: the bin went dead after one delete.** It never reset after firing,
+  and in a lazy list SwiftUI hands that state to whatever takes the slot, so
+  every later click was swallowed until something forced a rebuild.
+
 ## 1.6.3 — 2026-09-14
 
 - **A welcome, once.** The first run says what ShotScribe is and asks the one

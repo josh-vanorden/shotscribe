@@ -210,3 +210,19 @@ to *maintain* has always turned on his call about the README's two roadmap items
 - **Still open, unchanged:** the README's backlog sweep (93 raw files) and the
   WidgetKit widget; Codex, Gemini CLI and Cursor Agent presets unverified on
   this Mac; `shotscribe eval --limit 25` for the first real quality number.
+
+## 2026-09-15 — phase Ship; 1.6.4 is built and unreleased
+The capture card, the Send-to consolidation and the tag fixes are on
+`settings-pane`, unreleased. The gate to *maintain* is unchanged and still
+Josh's call: the README's backlog sweep (94 raw files) and the widget.
+- **Sub-issue, fixed:** a `DeletePill` that never reset went dead for every
+  later shot, because a lazy stack reuses the view and its `@State`
+  (Triage 2026-09-15 15:0x). Shipped in 1.6.3 — worth a release when 1.6.4 goes.
+- **Sub-issue, fixed:** filing was one-way and the vocabulary could not be
+  emptied (Triage, same day). Both shipped behaviours.
+- **Discovered:** the watcher reports ShotScribe's own renamed output, so
+  anything reacting to "a capture landed" must gate on `Naming.isRawCapture`.
+- **Discovered:** a capture interrupted mid-rename (the app quits while the
+  titler is thinking) is never retried — it silently joins the backlog.
+- **Next:** the backlog sweep is the last roadmap item and the one that needs a
+  full library; Josh is holding off clearing his 94 raw captures for it.

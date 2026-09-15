@@ -6,6 +6,27 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-15 15:05 — The bin went dead after the first delete
+- **Bug/Issue:** Josh, twice: "I delete one image and then try to delete a second image and the button no longer works until I click somewhere else."
+- **RCA:** `DeletePill` runs an animation that ends at `stage = .done` and never returns to `.idle`; `fire()` opens with `guard stage == .idle`. The view normally leaves with the shot it deleted, but in a `LazyVStack`/`LazyVGrid` SwiftUI reuses it for whatever moves into that slot and the `@State` goes with it, so the next shot's bin was born already spent. Clicking elsewhere forced a rebuild, which is why it came back to life.
+- **Evidence:** the `guard` and the absent reset in `fire()`; Josh's report reproduced on two different builds. Shipped in 1.6.3 and earlier.
+- **Fix/Repair:** `reset()` after the action fires, and `.id(shot.path)` on every bin so reuse cannot carry state across a shot boundary at all. Josh confirmed: "Delete button is fixed." 1.6.4.
+- **Related PR:** none — on `settings-pane`
+
+### 2026-09-15 15:30 — A tag could be added but never taken off
+- **Bug/Issue:** Josh: "once a tag is selected you cannot change it."
+- **RCA:** `Tagging.add` merges and there was no counterpart; every tag menu marked an applied tag `.disabled`, so the first guess was final. Filing is a guess by design — the model proposes tags from a closed vocabulary — which makes an irreversible one worse than none.
+- **Evidence:** `Tagging.swift` had `add` and no `remove`; the three menus all disabled applied tags.
+- **Fix/Repair:** `Tagging.remove`, `model.untag` / `isTagged` / `toggleTag`; every menu ticks what is on the shot and takes it off when picked, and the card's chips come off on click. Test: a tag comes off without disturbing the others, case-insensitively. 1.6.4.
+- **Related PR:** none — on `settings-pane`
+
+### 2026-09-15 15:30 — The tag vocabulary could not be emptied
+- **Bug/Issue:** Josh: "deleting the 15 or so examples is still a ?" Removing the words one at a time never finished.
+- **RCA:** `setVocabulary([])` removed the stored key, and `vocabulary()` returned the shipped list whenever nothing was stored — so deleting the final word restored all sixteen. The intent was sound (never leave the operator with no list) but it made "nothing stored" and "stored empty" the same answer, and there was a test pinning it.
+- **Evidence:** `Settings.setVocabulary` / `vocabulary()`; `TaggingTests.testAnEmptyVocabularyFallsBackToTheShippedList`.
+- **Fix/Repair:** an empty list is stored as empty; the shipped words stand in only when the key is absent. `restoreDefaultVocabulary` is the way back, wired to the File tab's **Shipped list** button — which had been calling the emptying path and would have done the opposite of its label. **Remove all** clears it in one gesture, and an empty list says so in warning colour. Test rewritten to pin the new contract. 1.6.4.
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-14 08:33 — The list's hover preview was drawn behind the rows
 - **Bug/Issue:** Josh: "the preview is pushed back and covered by the list of shots." The capture appeared under the row names beneath it, and it sat over those names rather than clear of them.
 - **RCA:** The preview was an `.overlay` on the row itself with `.zIndex(hovered ? 10 : 0)`. A row's overlay is layered with that row's siblings inside the `LazyVStack`, so every row built after it draws over the top; `zIndex` orders siblings, not a row's overlay against later siblings. Mine to own — it was written that way in the first cut the same morning.

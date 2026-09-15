@@ -899,3 +899,56 @@ A morning of Josh's own calls, each checked in the window before the next.
 - **Shipped.** `serverInfo` → 1.6.3, CHANGELOG dated, tag `v1.6.3`, notarized
   under `shotscribe-notary`, pushed with the tag, released on GitHub as latest,
   Toolbelt's pin raised. 167 tests green throughout.
+
+## 2026-09-15 — a competitor, then the card it suggested
+
+Josh's shared link drew good feedback, and a friend was pushed
+**ScreenSnap Pro** ($39, one-time). Evaluated: it is a capture-and-beautify
+tool — backgrounds, annotations, cloud links — and its own About page rules
+out naming, organising, searching, tagging and folder watching. Different
+shelf, same file. Two of its ideas were worth taking; Josh picked one.
+
+- **The capture card**, built local-only on his instruction. The rename is the
+  whole product and it happens in silence, so this is the moment ShotScribe
+  has something to say. Six rounds with him at the keyboard:
+  - It waited for the title (ten seconds) before appearing. Now `justLanded`
+    announces the raw capture and the card is up in about a second saying
+    "Naming…", then names in place and widens.
+  - The middle button "did nothing": a non-activating panel spends the first
+    click raising itself, so the button never saw it. A hosting view that
+    answers `acceptsFirstMouse` fixed it, and `acceptsMouseMovedEvents` fixed
+    the hover states with it.
+  - Thin grey glyphs read as disabled on glass. The marks are Preview's and
+    Finder's own icons now — the same answer the landing zone reached in
+    September when Josh said its tiles "should reflect their service".
+  - "Named" in green text washed out over a bright desktop; it is a filled
+    badge now.
+  - Two self-inflicted bugs, found and fixed before he saw them: every renamed
+    file put up a phantom "Naming…" card that never resolved (the watcher sees
+    ShotScribe's own output land, so `justLanded` is gated on
+    `Naming.isRawCapture`), and a title slower than the linger let the card
+    time out before it had said anything (no countdown runs while unnamed).
+  - It also sat open for forty seconds after tagging: a menu takes the mouse
+    off the card without SwiftUI reporting the exit, so the hover pause never
+    lifted. Anything done from a menu now restarts the linger.
+- **Send to swallowed Rebuild as code.** Josh: the two buttons "are really
+  doing the same job". Not quite — one says look at this, the other says
+  rebuild this as code — but they are one destination, so they are one mark
+  with both jobs, the assistant, and the click default under its right-click.
+  `LandingZone.Tile` lost `.rebuild`; a stored order still naming it is
+  shrugged off by `resolve`, the same way a name from a later version is.
+- **Two shipped tag bugs, both traps rather than polish.** A tag could only be
+  added — `Tagging.add` merges and every menu disabled what was already on the
+  shot — so the first guess was permanent. And emptying the vocabulary put the
+  sixteen shipped words straight back, which meant deleting them one at a time
+  never finished; the reasoning behind that (never strand the operator) now
+  lives in a named **Shipped list** action instead of a side effect.
+- **The bin went dead after one delete** (Triage). Reported twice before it was
+  understood: `DeletePill` never reset its stage, and a lazy stack hands that
+  state to whatever takes the slot.
+- **A bin on each day heading**, eating a word that carries the count.
+- Verified throughout by driving the real app: a synthetic capture into the
+  watched folder, the panel captured by window id, and the test files trashed
+  after. `claude auth` had lapsed again and was renewed mid-session; titles
+  were confirmed real by the tags a model returns and the offline titler does
+  not. 168 tests.

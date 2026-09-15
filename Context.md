@@ -4,25 +4,27 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-14
-**Phase:** Ship — 1.6.3 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.3, notarized under `shotscribe-notary`). Josh is passing the link out today.
-**Next action:** `shotscribe eval --limit 25` with `claude` signed in — the first real quality number against names that were not the titler's own. It is the oldest open item and the only one blocking a claim about titling quality.
+**Last session:** 2026-09-15
+**Phase:** Ship — 1.6.3 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.3). 1.6.4 is built and committed, **not tagged and not released**.
+**Next action:** Josh's word on shipping 1.6.4 — bump `serverInfo`, date the CHANGELOG, tag, `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`, verify, release. He asked for `/save` and `/clean-tree` only, so nothing was tagged.
 
 **Open loops**
-- The README's own roadmap still lists the **backlog sweep** (93 raw `Screenshot …` files, newest 2026-08-21) and a **WidgetKit widget**. Closing or explicitly deferring these is the gate from Ship to Maintain, and it is Josh's call.
-- Toolbelt's pin is at `from: "1.6.3"`, committed there and **unpushed** (with the 1.6.0 and 1.6.2 pin commits), beside Josh's own uncommitted `.gitignore`. Pushing Toolbelt is his call.
-- 1.6.4 ideas in `roadmap.md`: two coding agents for comparison builds (open question — where the second result lands).
-- Codex, Gemini CLI and Cursor Agent presets are unverified on this Mac; `codex` stays absent since macOS refused the 0.118.0 cask binary.
-- `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`; the live one under `active/` resolves.
+- The **backlog sweep** is the last README roadmap item and the one that needs a full library: 94 raw `Screenshot …` captures are waiting, and Josh is holding off clearing them for exactly this. Preview-then-apply, never automatic.
+- **Redaction** (`roadmap.md`, 1.6.4 section): Preview cannot pixelate a region, so hiding a key before sharing has no answer. The hours are in writing the edited file back without re-triggering the watcher, losing tags, or orphaning the index entry.
+- A capture interrupted mid-rename is never retried; it silently joins the backlog.
+- Toolbelt's pin is at `from: "1.6.3"`, committed there and **unpushed** with the 1.6.0 and 1.6.2 pin commits, beside Josh's own uncommitted `.gitignore`.
+- `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`.
+- `claude auth` lapsed twice in three days. When it does, titles silently fall back to the offline titler; the card could say which titler named a shot.
 
 **Ruled out**
-- A hover preview drawn in a row's own overlay: in a `LazyVStack` the rows built after it draw over the top, and `zIndex` does not save it — the container reads an anchor preference instead (2026-09-14).
-- A test fixture drawn through `NSImage.lockFocus`: it takes its scale from the attached display, so the suite went red on a monitor change (2026-09-14).
-- A separate **pin** control for the landing zone: with drag-to-reorder, pinning is putting a tile first.
-- The adaptive tile grid, cut for the carousel; a state mark in the accent colour or inside the tile; "Set as the click action" as wording; reusing `cockpit-notary`; a menu `Picker` on a computed `Binding`; CoreSVG and Quick Look for brand SVGs; `ImageRenderer`; copied fixtures; Remote Control as a push channel.
+- ScreenSnap Pro's backgrounds, video editor, GIF export and cloud links — days of work, and the cloud one contradicts the tagline.
+- ShotScribe's own artwork as a 22pt button mark: too detailed, turns to mud at 1x beside system icons.
+- A hover overlay drawn by a row inside a `LazyVStack`; `zIndex` does not lift it above later rows — the container reads an anchor preference instead.
+- A test fixture drawn through `NSImage.lockFocus`: its scale follows the attached display.
+- A separate pin control for the landing zone; the adaptive tile grid; a state mark in the accent colour or inside the tile.
 
-**Working tree:** clean once the docs commit carrying this block lands
-**Unpushed commits:** none after this save's `/clean-tree`
+**Working tree:** clean once this save's commits land
+**Unpushed commits:** none after `/clean-tree`
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
@@ -97,6 +99,21 @@ tag until its `from:` is raised.
   everywhere and no file path in any tooltip. **A welcome on first run**, asking
   the one thing that has to be right — which folder — with the inspector now
   starting closed and on **Folder**.
+- **1.6.4 (unreleased):** **The capture card** — `CaptureCard.swift`, one file,
+  started by the app and never by the library. `ShotScribeModel.justLanded`
+  announces a raw capture as it arrives so the card is up in about a second;
+  `justNamed` fills the name in and re-arms the linger. A borderless
+  non-activating `NSPanel` bottom centre, hosted in a view that answers the
+  first click (without that, macOS spends it raising the window and the button
+  under the cursor never fires). Four marks — ShotScribe, Send to, Finder,
+  Preview — a bin, the tags, and a **+ Tag** chip. Off switch in the Rename
+  tab, beside one that mutes macOS's own thumbnail through `CFPreferences`.
+  **The landing zone lost its Rebuild tile**: `LandingZone.Tile` is six cases,
+  and Rebuild as code, the assistant, and the click's default all live under
+  Send to's right-click. **Tags toggle** (`Tagging.remove`, `model.untag`,
+  `toggleTag`) and **the vocabulary can be emptied** — stored-empty and
+  never-stored are different answers now, with `restoreDefaultVocabulary` as
+  the way back.
 - **The icon is Josh's artwork** (`assets/ShotScribe-artwork.png`, fitted to
   Apple's grid by `scripts/fit-icon.swift`, built by `scripts/make-iconset.sh`).
   **The tagline** heads the README and the first-launch welcome: *Every
