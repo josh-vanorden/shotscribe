@@ -61,6 +61,9 @@ public struct ShotScribeView: View {
     @State private var tab: InspectorTab = .folder
     /// Shown once per Mac, on the window only.
     @State private var showGreeting = false
+    /// Mirrors Apple's own setting, read when the pane first appears — the
+    /// value lives in macOS's domain, not ShotScribe's.
+    @State private var systemThumbnailOff = false
     /// Supplied by a host that has a window to show — the menu bar app. The
     /// popover cannot open one itself: this package has no idea what is hosting
     /// it, and must never grow one.
@@ -163,10 +166,15 @@ public struct ShotScribeView: View {
         }
         .tint(ShotPalette.accent)
         .sheet(isPresented: $showGreeting) { greeting }
+        .onChange(of: model.fileTabRequests) { _ in
+            tab = .file
+            model.inspectorOpen = true
+        }
         .onAppear {
             // The window only. The menu bar popover is 340pt of panel and has
             // no room to introduce anything.
             showGreeting = (chrome == .hosted && !model.greeted)
+            systemThumbnailOff = !SystemThumbnail.isOn
         }
         // Paint the window colour ourselves: the content is the ScrollView and
         // nothing else, so a host that does not draw a background would show
@@ -260,12 +268,26 @@ public struct ShotScribeView: View {
             gridHead
             if !model.tagCounts.isEmpty { tagStrip }
             ForEach(dayGroups(excluding: hero)) { group in
+                let dayShots = group.sessions.flatMap(\.shots)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(group.title).font(.system(size: 15, weight: .bold)).tracking(-0.3)
                     Text(group.subtitle).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    Spacer(minLength: 12)
+                    // The whole day, in one gesture. The pill's own animation is
+                    // the beat that lets a mis-click be seen before it lands,
+                    // and the word it eats carries the count so nobody deletes
+                    // twelve shots thinking they are deleting one.
+                    DeletePill(size: 13, quiet: true, forGood: model.deletesForGood,
+                               word: "Delete \(dayShots.count)") {
+                        model.trash(dayShots)
+                    }
+                    .id(group.id)
+                    .help(model.deletesForGood
+                          ? "Delete all \(dayShots.count) from \(group.title) for good — there is no Put Back."
+                          : "Move all \(dayShots.count) from \(group.title) to the Trash. Finder's Put Back undoes it.")
                 }
                 .padding(.top, 8)
-                DeckRow(shots: group.sessions.flatMap(\.shots), model: model)
+                DeckRow(shots: dayShots, model: model)
             }
         }
     }
@@ -302,6 +324,7 @@ public struct ShotScribeView: View {
                     .overlay(alignment: .topTrailing) {
                         if heroHovered, !model.otherInstanceRunning {
                             DeletePill(size: 15, onImage: true, forGood: model.deletesForGood) { model.trash(shot) }
+                                .id(shot.path)
                                 .padding(10)
                                 .transition(.opacity)
                         }
@@ -761,8 +784,6 @@ public struct ShotScribeView: View {
             } else {
                 ActionTile("Send to \(model.assistantName)", monogram: model.assistantName, sets: .sendToAssistant, model: model) { model.sendToAssistant(shot) }
             }
-        case .rebuild:
-            ActionTile("Rebuild as code", icon: Image(systemName: "hammer"), sets: .rebuildAsCode, model: model) { model.copyCodeBrief(for: shot) }
         case .editTitle:
             ActionTile("Edit title", icon: Image(systemName: "pencil")) { model.note(.editTitle); editingTitle = true }
         case .fileAs:
@@ -837,8 +858,6 @@ public struct ShotScribeView: View {
                     .frame(width: 19, height: 19)
                     .background(Circle().fill(ShotPalette.accent))
             }
-        case .rebuild:
-            Image(systemName: "hammer").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
         case .editTitle:
             Image(systemName: "pencil").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
         case .fileAs:
@@ -850,7 +869,32 @@ public struct ShotScribeView: View {
     /// tile belongs in the row, and the way into arranging it.
     @ViewBuilder
     private func tileMenu(_ tile: LandingZone.Tile) -> some View {
-        if let action = ShotScribeModel.action(for: tile) {
+        // Send to carries two jobs, not one: the plain hand-off and the code
+        // brief. They reach the same assistant, so they share a mark rather
+        // than taking two places in the row (2026-09-15).
+        if tile == .sendTo {
+            Button("Send to \(model.assistantName)") { heroShot.map(model.sendToAssistant) }
+            Button("Rebuild as code") { heroShot.map { model.copyCodeBrief(for: $0) } }
+            Divider()
+            Menu("Assistant") {
+                ForEach(AIProvider.Kind.allCases.filter { $0 != .offline }, id: \.self) { kind in
+                    Button(model.aiProvider.kind == kind ? "\(kind.name)  ✓" : kind.name) {
+                        model.setAIProvider(AIProvider(kind: kind))
+                    }
+                }
+            }
+            Menu("A click does") {
+                Button(model.defaultAction == .sendToAssistant
+                       ? "Send to \(model.assistantName)  ✓" : "Send to \(model.assistantName)") {
+                    model.defaultAction = .sendToAssistant
+                }
+                Button(model.defaultAction == .rebuildAsCode
+                       ? "Rebuild as code  ✓" : "Rebuild as code") {
+                    model.defaultAction = .rebuildAsCode
+                }
+            }
+            Divider()
+        } else if let action = ShotScribeModel.action(for: tile) {
             if model.defaultAction == action { Text("Default ✓") }
             else { Button("Set as default") { model.defaultAction = action } }
             Divider()
@@ -879,9 +923,14 @@ public struct ShotScribeView: View {
 
     private func fileAsMenu(_ shot: IndexedShot) -> some View {
         Menu {
+            Button("+  New Tag…") { model.askForFileTab() }
+            Divider()
+            // A tag already on the shot is ticked and comes off when picked.
+            // Disabling it, which is what this did, made the first guess final.
             ForEach(model.vocabulary, id: \.self) { tag in
-                Button(tag) { model.tag(shot, with: tag) }
-                    .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
+                Button(model.isTagged(shot, tag) ? "\(tag)  ✓" : tag) {
+                    model.toggleTag(shot, tag)
+                }
             }
         } label: {
             Image(systemName: "tag").resizable().aspectRatio(contentMode: .fit)
@@ -893,7 +942,7 @@ public struct ShotScribeView: View {
             Circle().fill(Color.primary.opacity(0.08))
                 .overlay(Circle().strokeBorder(.white.opacity(0.1), lineWidth: 1))
         }
-        .modifier(NamedOnHover(title: "File as"))
+        .modifier(NamedOnHover(title: "Tag"))
     }
 
     @ViewBuilder
@@ -990,6 +1039,8 @@ public struct ShotScribeView: View {
         VStack(alignment: .leading, spacing: 10) {
             paneHead("Rename", "What happens to a capture the moment it lands, and how it is spelled.")
             watchToggle
+            captureCardToggle
+            if model.showsCaptureCard { systemThumbnailToggle }
             // Never a box: a state worth a word gets one quiet line, next to
             // the toggle it concerns.
             if let err = model.lastError {
@@ -1254,9 +1305,22 @@ public struct ShotScribeView: View {
                 Text("A tag outside the list is never used, however it was suggested. \(Tagging.maxVocabulary) at most.")
                     .font(.caption2).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Button("Shipped list") { model.setVocabulary([]) }
+                // Sixteen words is a lot of little × buttons. "Remove all"
+                // empties it in one gesture, and "Shipped list" is the way
+                // back — it restores rather than clearing, which is what
+                // emptying the field used to do by accident.
+                if !model.vocabulary.isEmpty {
+                    Button("Remove all") { model.clearVocabulary() }
+                        .font(.caption2).buttonStyle(.link)
+                }
+                Button("Shipped list") { model.restoreVocabulary() }
                     .font(.caption2).buttonStyle(.link)
                     .disabled(model.vocabulary == Tagging.defaultVocabulary)
+            }
+            if model.vocabulary.isEmpty {
+                Text("Nothing to file under. Add a word above, or put the suggested list back.")
+                    .font(.caption2).foregroundStyle(ShotPalette.warning)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -1622,6 +1686,41 @@ public struct ShotScribeView: View {
         .disabled(model.otherInstanceRunning)
     }
 
+    /// The card's off switch. A panel that appears on its own and cannot be
+    /// turned off is an imposition, so it gets a switch beside the thing that
+    /// triggers it.
+    private var captureCardToggle: some View {
+        Toggle(isOn: $model.showsCaptureCard) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Show a card when a capture is named")
+                Text("Slides up from the bottom for a few seconds, with the new name and a way into Preview.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+    }
+
+    /// macOS's own thumbnail, muted from here. Beside the card's switch because
+    /// the two are one decision: which card you want after a capture, if any.
+    private var systemThumbnailToggle: some View {
+        Toggle(isOn: Binding(get: { !systemThumbnailOff },
+                             set: { off in
+                                 systemThumbnailOff = !off
+                                 SystemThumbnail.set(off)
+                             })) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Let macOS show its own thumbnail too")
+                Text("Apple's appears bottom right before the rename, so it can only ever show an unnamed file. Off is a change to a macOS setting, from your next capture on.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+    }
+
     /// The popover's one AI switch. The full choice lives in the window's AI tab.
     private var aiToggle: some View {
         Toggle(isOn: Binding(get: { model.aiTitling }, set: { model.aiTitling = $0 })) {
@@ -1755,6 +1854,7 @@ private struct ShotRow: View {
                 Text(shot.captured, format: .dateTime.year().month().day())
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 DeletePill(size: 12, quiet: true, forGood: model.deletesForGood) { model.trash(shot) }
+                    .id(shot.path)
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
@@ -1860,6 +1960,7 @@ private struct DeckCard: View {
                             withAnimation(.easeIn(duration: 0.18)) { leaving = true }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { model.trash(shot) }
                         }
+                        .id(shot.path)
                         .padding(7)
                         .transition(.opacity)
                     }
@@ -1905,10 +2006,13 @@ private struct ShotMenu: View {
         Button(title(.sendToAssistant)) { model.sendToAssistant(shot) }
         Button(title(.rebuildAsCode)) { model.copyCodeBrief(for: shot) }
         if model.taggingEnabled {
-            Menu("File as") {
+            Menu("Tag") {
+                Button("+  New Tag…") { model.askForFileTab() }
+                Divider()
                 ForEach(model.vocabulary, id: \.self) { tag in
-                    Button(tag) { model.tag(shot, with: tag) }
-                        .disabled((shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame })
+                    Button(model.isTagged(shot, tag) ? "\(tag)  ✓" : tag) {
+                        model.toggleTag(shot, tag)
+                    }
                 }
             }
         }
@@ -1937,6 +2041,9 @@ private struct DeletePill: View {
     var quiet = false
     /// The Keep tab's choice, so the help tells the truth about Put Back.
     var forGood = false
+    /// What the bin eats. A day's bin says "Delete 12", so the count is read
+    /// before the click rather than after it.
+    var word = "Delete"
     let action: () -> Void
 
     @State private var stage = Stage.idle
@@ -1944,7 +2051,7 @@ private struct DeletePill: View {
     @State private var flying: Set<Int> = []
     @State private var landed = 0
     @State private var spin = 0.0
-    private static let word = Array("Delete")
+    private var letters: [Character] { Array(word) }
 
     private var wordShown: Bool { (stage == .idle && hovering) || stage == .eating }
 
@@ -1953,11 +2060,11 @@ private struct DeletePill: View {
             HStack(spacing: 5) {
                 if wordShown {
                     HStack(spacing: 0) {
-                        ForEach(Self.word.indices, id: \.self) { i in
-                            Text(String(Self.word[i]))
+                        ForEach(letters.indices, id: \.self) { i in
+                            Text(String(letters[i]))
                                 .opacity(flying.contains(i) ? 0 : 1)
                                 .modifier(FlyToBin(progress: flying.contains(i) ? 1 : 0,
-                                                   dx: CGFloat(Self.word.count - i) * 6.5 + 9))
+                                                   dx: CGFloat(letters.count - i) * 6.5 + 9))
                         }
                     }
                     .font(.caption.weight(.semibold)).fixedSize()
@@ -1965,7 +2072,7 @@ private struct DeletePill: View {
                 }
                 ZStack {
                     TrashCan(open: hovering || stage == .eating, flung: stage == .eating,
-                             fill: Double(landed) / Double(Self.word.count))
+                             fill: Double(landed) / Double(max(letters.count, 1)))
                         .frame(width: size, height: size)
                     if stage == .pending || stage == .done {
                         Circle().trim(from: 0, to: stage == .done ? 1 : 0.3)
@@ -2001,11 +2108,26 @@ private struct DeletePill: View {
                       : "Move to the Trash. Finder’s Put Back undoes it.")
     }
 
+    /// Back to a bin that can be clicked again.
+    ///
+    /// The view usually leaves with the shot it deleted — but in a lazy stack
+    /// SwiftUI reuses it for whatever moves into that slot, and `@State` comes
+    /// along for the ride. Left at `.done`, the next shot's bin is dead: the
+    /// guard in `fire` swallows every click (Josh, 2026-09-15: "I delete one
+    /// image and then try to delete a second and the button no longer works
+    /// until I click somewhere else").
+    private func reset() {
+        stage = .idle
+        flying.removeAll()
+        landed = 0
+        spin = 0
+    }
+
     private func fire() {
         guard stage == .idle else { return }
         stage = .eating
         let step = 0.05, flight = 0.34
-        for i in Self.word.indices {
+        for i in letters.indices {
             DispatchQueue.main.asyncAfter(deadline: .now() + step * Double(i)) {
                 withAnimation(.easeIn(duration: flight)) { _ = flying.insert(i) }
                 DispatchQueue.main.asyncAfter(deadline: .now() + flight * 0.8) {
@@ -2013,7 +2135,7 @@ private struct DeletePill: View {
                 }
             }
         }
-        let eaten = step * Double(Self.word.count) + flight
+        let eaten = step * Double(letters.count) + flight
         DispatchQueue.main.asyncAfter(deadline: .now() + eaten) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) { stage = .furled }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
@@ -2021,7 +2143,10 @@ private struct DeletePill: View {
                 withAnimation(.linear(duration: 0.7).repeatForever(autoreverses: false)) { spin = 360 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     withAnimation(.easeOut(duration: 0.28)) { stage = .done }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { action() }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        action()
+                        reset()
+                    }
                 }
             }
         }
@@ -2212,7 +2337,26 @@ private struct ActionTile: View {
         self.art = true; self.sets = sets; self.model = model; self.action = action
     }
 
-    private var isDefault: Bool { sets != nil && model?.defaultAction == sets }
+    /// What the hover bubble says: the name, whether a click does this, and —
+    /// for the tile that hides a second job — that more is a right-click away.
+    /// There is no macOS affordance for "a right-click has more here", so the
+    /// bubble that already names the tile says it. Josh, 2026-09-15: "not sure
+    /// how to convey that to a user so they would know its there".
+    private var bubble: String {
+        var words = name
+        if isDefault { words += " — default" }
+        if sets == .sendToAssistant { words += " · right-click for more" }
+        return words
+    }
+
+    private var isDefault: Bool {
+        guard let sets, let model else { return false }
+        // Send to owns Rebuild as code as well, so it wears the halo for either.
+        if sets == .sendToAssistant {
+            return model.defaultAction == .sendToAssistant || model.defaultAction == .rebuildAsCode
+        }
+        return model.defaultAction == sets
+    }
 
     var body: some View {
         Button(action: action) {
@@ -2242,7 +2386,7 @@ private struct ActionTile: View {
                 .shadow(color: ShotPalette.chosen.opacity(0.7), radius: 6)
                 .opacity(isDefault ? 1 : 0)
         )
-        .modifier(NamedOnHover(title: isDefault ? "\(name) — default" : name))
+        .modifier(NamedOnHover(title: bubble))
     }
 }
 
@@ -2281,9 +2425,12 @@ private struct TileButtonStyle: ButtonStyle {
 
 /// Real app icons, so a tile reflects its service: Finder's face for Reveal
 /// in Finder, Claude's mark for Send to Claude (a glyph when it is not installed).
-private enum AppIcons {
+enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
     static let preview = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Preview.app"))
+    /// ShotScribe's own artwork, for the button that brings its window up.
+    static let shotScribe = Image(nsImage: NSApp?.applicationIconImage
+        ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
 
     /// The titler's mark: the brand mark embedded from `assets/brands/` when
     /// there is one (it is the mark people know), else the installed app's own
