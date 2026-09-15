@@ -31,7 +31,7 @@ where README.md now duplicates them.
 - `dist/` — build output (`.app`, `.dmg`); gitignored, not tracked.
 
 <!-- markerblock:index-map -->
-## Map — `114` tracked files, read from `git ls-files` at `0414800` on 2026-09-15
+## Map — `114` tracked files, read from `git ls-files` at `395179b` on 2026-09-15
 
 ```
 Sources/  37 tracked files

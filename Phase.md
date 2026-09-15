@@ -226,3 +226,13 @@ Josh's call: the README's backlog sweep (94 raw files) and the widget.
   titler is thinking) is never retried — it silently joins the backlog.
 - **Next:** the backlog sweep is the last roadmap item and the one that needs a
   full library; Josh is holding off clearing his 94 raw captures for it.
+
+## 2026-09-15, evening — 1.6.4 public
+Tagged `v1.6.4`, notarized under `shotscribe-notary` (app and DMG accepted,
+stapled, a quarantined copy through Gatekeeper), pushed with the tag, released
+as latest, Toolbelt's pin raised. The gate to *maintain* is now one item: the
+README's backlog sweep — the widget aside, it is the last thing on that list,
+and Josh is holding his 94 raw captures for it.
+- **Release note:** `gh` had drifted to the work account and refused the
+  release for want of a scope; `forge auto` put it back on the personal one.
+  Worth running before `gh release create`, not after it fails.

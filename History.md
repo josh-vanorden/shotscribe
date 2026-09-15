@@ -952,3 +952,17 @@ shelf, same file. Two of its ideas were worth taking; Josh picked one.
   after. `claude auth` had lapsed again and was renewed mid-session; titles
   were confirmed real by the tags a model returns and the offline titler does
   not. 168 tests.
+
+## 2026-09-15, evening — 1.6.4 shipped
+
+`serverInfo` → 1.6.4, CHANGELOG dated, tag `v1.6.4` at `4bf74b0`; notarized
+under `shotscribe-notary` and verified four ways (stapler on app and DMG,
+`spctl` on the DMG, a quarantined copy out of the DMG through Gatekeeper —
+Notarized Developer ID). Pushed with the tag, published as latest:
+https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.4 — Toolbelt's
+pin raised to 1.6.4 and the belt built against it. 168 tests.
+- `gh release create` failed first time: `gh` was active on the **work**
+  account (`jvanorden-it`), whose token lacked the scope. `forge auto` switched
+  it to the personal one and the release went straight through. The machine-wide
+  rule already says to run `forge auto` before acting on a repo's remote; this
+  is the first time it has actually bitten here.

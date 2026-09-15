@@ -5,14 +5,14 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-15
-**Phase:** Ship — 1.6.3 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.3). 1.6.4 is built and committed, **not tagged and not released**.
-**Next action:** Josh's word on shipping 1.6.4 — bump `serverInfo`, date the CHANGELOG, tag, `APPLE_NOTARY_PROFILE=shotscribe-notary ./scripts/package-app.sh`, verify, release. He asked for `/save` and `/clean-tree` only, so nothing was tagged.
+**Phase:** Ship — 1.6.4 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.4, notarized under `shotscribe-notary`, marked latest).
+**Next action:** The **backlog sweep** — 94 raw `Screenshot …` captures are waiting and Josh is holding his library for it. Preview-then-apply on the `Cleanup.plan` → `apply` pattern: propose a name for every unnamed capture, show the whole list, approve or drop rows. Never automatic, never a file he named himself.
 
 **Open loops**
 - The **backlog sweep** is the last README roadmap item and the one that needs a full library: 94 raw `Screenshot …` captures are waiting, and Josh is holding off clearing them for exactly this. Preview-then-apply, never automatic.
 - **Redaction** (`roadmap.md`, 1.6.4 section): Preview cannot pixelate a region, so hiding a key before sharing has no answer. The hours are in writing the edited file back without re-triggering the watcher, losing tags, or orphaning the index entry.
 - A capture interrupted mid-rename is never retried; it silently joins the backlog.
-- Toolbelt's pin is at `from: "1.6.3"`, committed there and **unpushed** with the 1.6.0 and 1.6.2 pin commits, beside Josh's own uncommitted `.gitignore`.
+- Toolbelt's pin is at `from: "1.6.4"`, committed there and **unpushed** with the 1.6.0, 1.6.2 and 1.6.3 pin commits, beside Josh's own uncommitted `.gitignore`.
 - `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`.
 - `claude auth` lapsed twice in three days. When it does, titles silently fall back to the offline titler; the card could say which titler named a shot.
 
