@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.4 — unreleased
+## 1.6.4 — 2026-09-15
 
 - **A card when a capture lands.** It slides up from the bottom centre about a
   second after the shot arrives, saying "Naming…", then fills in the name and

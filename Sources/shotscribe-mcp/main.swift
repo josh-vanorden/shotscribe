@@ -281,7 +281,7 @@ func runRenameScreenshot(_ args: [String: Any]) async -> [String: Any] {
 
 // MARK: - JSON-RPC loop
 
-let serverInfo: [String: Any] = ["name": "shotscribe", "version": "1.6.3"]
+let serverInfo: [String: Any] = ["name": "shotscribe", "version": "1.6.4"]
 
 for try await line in FileHandle.standardInput.bytes.lines {
     let trimmed = line.trimmingCharacters(in: .whitespaces)
