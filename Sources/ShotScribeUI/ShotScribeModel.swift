@@ -5,6 +5,21 @@ import ServiceManagement
 import ShotScribeCore
 
 /// One rename the app performed — shown in the panel's history.
+/// A capture the watcher has just named, announced once so something can show
+/// it. Distinct from `RenameEvent`, which is the persisted history: this is the
+/// live "it happened, now" signal, and it carries the file so a card can put
+/// the picture on screen.
+public struct NamedCapture: Equatable {
+    public let url: URL
+    public let from: String
+    public let to: String
+    public let at: Date
+
+    public init(url: URL, from: String, to: String, at: Date) {
+        self.url = url; self.from = from; self.to = to; self.at = at
+    }
+}
+
 public struct RenameEvent: Codable, Identifiable, Equatable {
     public var id = UUID()
     public var date: Date
@@ -294,6 +309,15 @@ public final class ShotScribeModel: ObservableObject {
         vocabulary = ShotScribeDefaults.vocabulary()
     }
 
+    /// Clear the list in one go, rather than sixteen times.
+    public func clearVocabulary() { setVocabulary([]) }
+
+    /// And put the shipped words back.
+    public func restoreVocabulary() {
+        ShotScribeDefaults.restoreDefaultVocabulary()
+        vocabulary = ShotScribeDefaults.vocabulary()
+    }
+
     /// Whether renames file captures at all. Off leaves the vocabulary intact
     /// and stops new renames being tagged; tags already on files stay.
     @Published public private(set) var taggingEnabled: Bool = ShotScribeDefaults.taggingEnabled()
@@ -317,7 +341,8 @@ public final class ShotScribeModel: ObservableObject {
     /// Stage two, as far as the app can take it: the shot as a brief for Claude
     /// Code, to paste inside the project the code should land in.
     public func copyCodeBrief(for shot: IndexedShot) {
-        note(.rebuild)
+        // Counted against Send to: they are one tile now.
+        note(.sendTo)
         let path = shot.path
         let generation = show(HandoffNote(text: "Reading the layout…", symbol: "hammer"))
         Task { @MainActor [weak self] in
@@ -407,6 +432,28 @@ public final class ShotScribeModel: ObservableObject {
         ShotIndex.record(shot.url, original: shot.original)
         loadIndex()
         runSearch()
+    }
+
+    /// Takes a tag back off. Filing is a guess, and a guess you cannot undo is
+    /// worse than no guess at all.
+    public func untag(_ shot: IndexedShot, _ tag: String) {
+        guard Tagging.remove([tag], from: shot.url) else {
+            lastError = "Couldn't take \(tag) off \(shot.name)."
+            return
+        }
+        ShotIndex.record(shot.url, original: shot.original)
+        loadIndex()
+        runSearch()
+    }
+
+    /// Whether this shot already carries a tag, however it is spelled.
+    public func isTagged(_ shot: IndexedShot, _ tag: String) -> Bool {
+        (shot.tags ?? []).contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
+    }
+
+    /// One gesture for both: filing under a tag, and taking it off again.
+    public func toggleTag(_ shot: IndexedShot, _ tag: String) {
+        isTagged(shot, tag) ? untag(shot, tag) : self.tag(shot, with: tag)
     }
 
     /// The plan the user is looking at. nil = no preview open.
@@ -661,6 +708,17 @@ public final class ShotScribeModel: ObservableObject {
             // thumbnail lingers) — give the file a beat before reading.
             Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
+                // Announced here, not after the rename: the titler is a model
+                // call and takes seconds, and a card that arrives ten seconds
+                // after the screenshot has missed the moment it is about.
+                //
+                // Only for a capture that is actually going to be renamed. The
+                // watcher reports ShotScribe's *own* output too — the renamed
+                // file lands in the same folder — and announcing that put up a
+                // second card saying "Naming…" that never resolved, because
+                // the rename it was waiting for returns `skippedNotRawCapture`
+                // (2026-09-15).
+                if Naming.isRawCapture(at: url) { self?.justLanded = url }
                 await self?.rename(url)
             }
         }
@@ -716,6 +774,11 @@ public final class ShotScribeModel: ObservableObject {
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {
                 record(from: from.lastPathComponent, to: to.lastPathComponent)
+                // Announced whether or not anything is listening. The card is
+                // the only listener today and it is the app's to start — a
+                // library must not put a panel on someone's screen by itself.
+                justNamed = NamedCapture(url: to, from: from.lastPathComponent,
+                                         to: to.lastPathComponent, at: Date())
                 // Index it now, not at the next sweep: a screenshot you just
                 // took is exactly the one you are about to go looking for. The
                 // old path is dropped so a rename does not leave a second,
@@ -838,6 +901,32 @@ public final class ShotScribeModel: ObservableObject {
 
     static let defaultActionKey = "shotscribe.defaultAction"
     static let inspectorOpenKey = "shotscribe.inspectorOpen"
+    static let captureCardKey = "shotscribe.captureCard"
+
+    /// The last capture the watcher named, for whoever wants to show it.
+    @Published public private(set) var justNamed: NamedCapture?
+
+    /// A capture that has just **landed** — announced before the titler runs,
+    /// which takes seconds. Anything showing the operator what happened should
+    /// appear on this and fill in the name when `justNamed` follows.
+    @Published public private(set) var justLanded: URL?
+
+    /// Whether a card slides up when a capture is named. On by default: the
+    /// rename is otherwise invisible unless the window happens to be open,
+    /// which is the one moment the app has anything to say.
+    @Published public var showsCaptureCard: Bool = {
+        ShotScribeModel.defaults.object(forKey: ShotScribeModel.captureCardKey) == nil
+            ? true : ShotScribeModel.defaults.bool(forKey: ShotScribeModel.captureCardKey)
+    }() {
+        didSet { Self.defaults.set(showsCaptureCard, forKey: Self.captureCardKey) }
+    }
+
+    /// The indexed shot for a path, when the sweep has caught up with it. The
+    /// card asks for this so its buttons can be the real landing-zone actions
+    /// rather than a second implementation of them.
+    public func shot(atPath path: String) -> IndexedShot? {
+        indexCache.first { $0.path == path }
+    }
     static let greetedKey = "shotscribe.greeted"
 
     /// The inspector starts **closed**. The window's point is the screenshots,
@@ -869,9 +958,8 @@ public final class ShotScribeModel: ObservableObject {
         case .markUp:    return "Mark up in Preview"
         case .share:     return "Share"
         case .sendTo:    return "Send to \(assistantName)"
-        case .rebuild:   return "Rebuild as code"
         case .editTitle: return "Edit title"
-        case .fileAs:    return "File as"
+        case .fileAs:    return "Tag"
         }
     }
 
@@ -883,10 +971,15 @@ public final class ShotScribeModel: ObservableObject {
         case .reveal:    return .reveal
         case .markUp:    return .markUp
         case .sendTo:    return .sendToAssistant
-        case .rebuild:   return .rebuildAsCode
         case .share, .editTitle, .fileAs: return nil
         }
     }
+
+    /// Bumped when something asks for the **File** tab — adding a word to the
+    /// vocabulary is the one thing a tag menu cannot do for itself, so "+ New
+    /// Tag" sends you where the list is edited.
+    @Published public private(set) var fileTabRequests = 0
+    public func askForFileTab() { fileTabRequests += 1 }
 
     /// One more use of a tile, counted wherever it was reached.
     public func note(_ tile: LandingZone.Tile) { landingZone.note(tile) }
@@ -939,6 +1032,11 @@ public final class ShotScribeModel: ObservableObject {
     public var deletesForGood: Bool { keepPolicy.destination == .delete }
 
     func trash(_ shot: IndexedShot) { trash([shot.url]) }
+
+    /// A whole day at once. One call rather than a loop, so the Keep tab's
+    /// choice is applied once and the index is reloaded once — a loop over
+    /// `trash(_:)` would sweep the folder for every shot in the day.
+    func trash(_ shots: [IndexedShot]) { trash(shots.map(\.url)) }
 
     private func trash(_ urls: [URL]) {
         guard !urls.isEmpty else { return }

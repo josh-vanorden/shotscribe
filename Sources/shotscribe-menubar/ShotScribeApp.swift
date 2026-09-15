@@ -11,6 +11,18 @@ import ShotScribeUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = ShotScribeModel()
 
+    /// The card that slides up when the watcher names a capture. Started here,
+    /// in the app — `ShotScribeUI` must never put a panel on a host's screen by
+    /// itself. Opening the window is handed in because only the app knows how.
+    private lazy var captureCard = CaptureCardPresenter(model: model) {
+        NSApp.windows.first { $0.canBecomeMain }?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        captureCard.start()
+    }
+
     /// Clicking the Dock icon, or launching again from Spotlight, brings the
     /// window back. SwiftUI keeps a closed `Window` scene around, so ordering
     /// the existing one front is enough; returning true lets AppKit restore it
