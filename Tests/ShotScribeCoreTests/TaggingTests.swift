@@ -58,14 +58,50 @@ final class TaggingTests: XCTestCase {
         }
     }
 
-    /// Emptying the field is not "file nothing" — that is a different question,
-    /// and answering it this way would leave the operator with no way back.
-    func testAnEmptyVocabularyFallsBackToTheShippedList() {
+    /// **Nothing stored** and **stored empty** are different answers.
+    ///
+    /// They used to be the same, on the reasoning that emptying the field
+    /// should not strand anyone. But it meant the shipped words came straight
+    /// back every time the last one was removed, so clearing the list was
+    /// impossible (2026-09-15). The way back is now a named action rather than
+    /// a side effect of deleting the final tag.
+    func testAnEmptiedVocabularyStaysEmptyAndCanBeRestored() {
         withThrowawayDefaults {
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), Tagging.defaultVocabulary,
+                           "a first run has the shipped list")
             ShotScribeDefaults.setVocabulary(["deploy"])
             ShotScribeDefaults.setVocabulary([])
-            XCTAssertEqual(ShotScribeDefaults.vocabulary(), Tagging.defaultVocabulary)
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), [],
+                           "emptied on purpose, and it stays emptied")
+            ShotScribeDefaults.restoreDefaultVocabulary()
+            XCTAssertEqual(ShotScribeDefaults.vocabulary(), Tagging.defaultVocabulary,
+                           "and there is a way back")
         }
+    }
+
+    /// Filing a shot has to be reversible: the first wrong guess must not be
+    /// permanent.
+    func testATagCanComeOffAgainWithoutDisturbingTheOthers() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tagging-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("shot.png")
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: file)
+
+        XCTAssertTrue(Tagging.add(["terminal", "code"], to: file))
+        XCTAssertEqual(Set(Tagging.finderTags(of: file)), ["terminal", "code"])
+
+        XCTAssertTrue(Tagging.remove(["code"], from: file))
+        XCTAssertEqual(Tagging.finderTags(of: file), ["terminal"],
+                       "the one named comes off; the other is left alone")
+
+        XCTAssertTrue(Tagging.remove(["CODE"], from: file),
+                      "a tag already gone is not an error")
+        XCTAssertEqual(Tagging.finderTags(of: file), ["terminal"])
+
+        XCTAssertTrue(Tagging.remove(["TERMINAL"], from: file), "case is not the point")
+        XCTAssertEqual(Tagging.finderTags(of: file), [])
     }
 
     /// Off is a switch, not an empty list: the vocabulary survives, so turning

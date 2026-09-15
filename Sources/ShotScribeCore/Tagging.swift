@@ -88,6 +88,25 @@ public enum Tagging {
             return false   // a tag is a nicety; never fail a rename over one
         }
     }
+
+    /// Takes tags off a file, leaving any the operator filed by hand under
+    /// other names. The mirror of `add`: filing a shot has to be reversible,
+    /// or the first wrong guess is permanent (Josh, 2026-09-15: "once a tag is
+    /// selected you cannot change it").
+    @discardableResult
+    public static func remove(_ tags: [String], from url: URL) -> Bool {
+        let existing = finderTags(of: url)
+        let kept = existing.filter { have in
+            !tags.contains { $0.caseInsensitiveCompare(have) == .orderedSame }
+        }
+        guard kept != existing else { return true }
+        do {
+            try (url as NSURL).setResourceValue(kept as NSArray, forKey: .tagNamesKey)
+            return true
+        } catch {
+            return false
+        }
+    }
 }
 
 /// What a titler makes of a screenshot: the name, and the filing.

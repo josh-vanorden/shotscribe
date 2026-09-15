@@ -54,18 +54,30 @@ public enum ShotScribeDefaults {
 
     /// The tags a capture may be filed under. Stored so the pane can edit it and
     /// every door agrees on the same closed list; the shipped list stands in
-    /// when nothing is stored, or when what is stored comes back empty.
+    /// when **nothing has been stored** — a first run.
+    ///
+    /// A list stored *empty* is a different thing from one never stored, and
+    /// they used to be the same: emptying the field put the sixteen shipped
+    /// words straight back, so removing them one at a time never finished
+    /// (Josh, 2026-09-15: "deleting the 15 or so examples is still a ?"). The
+    /// reasoning behind that — never leave the operator with no way back — is
+    /// right, and is now served by `restoreDefaultVocabulary` instead.
     public static func vocabulary() -> [String] {
-        let stored = Tagging.normalised(suite.stringArray(forKey: vocabularyKey) ?? [])
-        return stored.isEmpty ? Tagging.defaultVocabulary : stored
+        guard let stored = suite.stringArray(forKey: vocabularyKey) else {
+            return Tagging.defaultVocabulary
+        }
+        return Tagging.normalised(stored)
     }
 
-    /// An empty list resets to the shipped one rather than turning filing off —
-    /// "no tags at all" is a switch, not an empty vocabulary.
     public static func setVocabulary(_ tags: [String]) {
-        let cleaned = Tagging.normalised(tags)
-        if cleaned.isEmpty { suite.removeObject(forKey: vocabularyKey) }
-        else { suite.set(cleaned, forKey: vocabularyKey) }
+        suite.set(Tagging.normalised(tags), forKey: vocabularyKey)
+    }
+
+    /// The way back: forget what was stored, and the shipped list stands in
+    /// again. What "empty" costs is that nothing can be filed — which is what
+    /// the tagging switch says in words.
+    public static func restoreDefaultVocabulary() {
+        suite.removeObject(forKey: vocabularyKey)
     }
 
     /// Whether a rename files the capture under Finder tags at all. On by
