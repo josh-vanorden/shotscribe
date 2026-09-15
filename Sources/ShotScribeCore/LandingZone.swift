@@ -22,8 +22,14 @@ import Foundation
 public struct LandingZone: Equatable, Sendable {
     /// Every action the landing zone can offer. The declaration order is the
     /// row as it ships, and the order a reset returns to.
+    /// **`rebuild` was a tile of its own until 2026-09-15.** It and `sendTo`
+    /// hand the same shot to the same assistant — one saying "look at this",
+    /// the other "rebuild this layout as code" — so they are two jobs with one
+    /// destination, and they now share one mark: Rebuild sits under Send to's
+    /// right-click. A stored order still naming it is simply ignored, which is
+    /// what `resolve` is for.
     public enum Tile: String, CaseIterable, Codable, Sendable {
-        case reveal, markUp, share, sendTo, rebuild, editTitle, fileAs
+        case reveal, markUp, share, sendTo, editTitle, fileAs
     }
 
     public static let shipped: [Tile] = Tile.allCases

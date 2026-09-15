@@ -30,10 +30,13 @@ final class LandingZoneTests: XCTestCase {
     /// A stored order written by another version must not empty the row or
     /// silently drop a tile this build has.
     func testAStoredOrderIsReconciledWithWhatThisBuildKnows() {
-        let stored = ["rebuild", "somethingFromLater", "reveal", "reveal"]
+        // "rebuild" is a tile an earlier version had; this build folded it
+        // into Send to, so a stored order still naming it must be shrugged off
+        // exactly like a name from a *later* version.
+        let stored = ["fileAs", "rebuild", "somethingFromLater", "reveal", "reveal"]
         let order = LandingZone.resolve(order: stored)
-        XCTAssertEqual(order.prefix(2).map(\.rawValue), ["rebuild", "reveal"],
-                       "what is known keeps the stored order; the unknown name is ignored")
+        XCTAssertEqual(order.prefix(2).map(\.rawValue), ["fileAs", "reveal"],
+                       "what is known keeps the stored order; a retired name and an unknown one are ignored")
         XCTAssertEqual(Set(order), Set(LandingZone.shipped), "every tile this build has is in the row")
         XCTAssertEqual(order.count, LandingZone.shipped.count, "and each exactly once")
     }
@@ -68,13 +71,13 @@ final class LandingZoneTests: XCTestCase {
 
     func testDraggingRightLandsAfterTheNeighbourAndLeftLandsInItsPlace() {
         var zone = LandingZone()
-        zone.move(.reveal, onto: .rebuild)
+        zone.move(.reveal, onto: .editTitle)
         XCTAssertEqual(zone.order.map(\.rawValue),
-                       ["markUp", "share", "sendTo", "rebuild", "reveal", "editTitle", "fileAs"])
+                       ["markUp", "share", "sendTo", "editTitle", "reveal", "fileAs"])
         zone.move(.fileAs, onto: .markUp)
         XCTAssertEqual(zone.order.first, .fileAs, "dragged left, it takes the slot it was dropped on")
         XCTAssertEqual(zone.order.map(\.rawValue),
-                       ["fileAs", "markUp", "share", "sendTo", "rebuild", "reveal", "editTitle"])
+                       ["fileAs", "markUp", "share", "sendTo", "editTitle", "reveal"])
     }
 
     func testMovingATileOntoItselfChangesNothing() {
@@ -86,9 +89,9 @@ final class LandingZoneTests: XCTestCase {
     func testTheTallyCountsEveryUse() {
         var zone = LandingZone()
         XCTAssertEqual(zone.uses(of: .reveal), 0)
-        zone.note(.reveal); zone.note(.reveal); zone.note(.rebuild)
+        zone.note(.reveal); zone.note(.reveal); zone.note(.sendTo)
         XCTAssertEqual(zone.uses(of: .reveal), 2)
-        XCTAssertEqual(zone.uses(of: .rebuild), 1)
+        XCTAssertEqual(zone.uses(of: .sendTo), 1)
         XCTAssertEqual(zone.uses(of: .share), 0, "a tile never used says so")
     }
 
@@ -96,13 +99,13 @@ final class LandingZoneTests: XCTestCase {
     /// evidence is not what a reset is for.
     func testResetRestoresTheRowAndKeepsTheCounts() {
         var zone = LandingZone()
-        zone.move(.rebuild, onto: .reveal)
+        zone.move(.sendTo, onto: .reveal)
         zone.setHidden(.editTitle, true)
-        zone.note(.rebuild)
+        zone.note(.sendTo)
         zone.reset()
         XCTAssertEqual(zone.order, LandingZone.shipped)
         XCTAssertTrue(zone.hidden.isEmpty)
-        XCTAssertEqual(zone.uses(of: .rebuild), 1, "the counts survive a reset")
+        XCTAssertEqual(zone.uses(of: .sendTo), 1, "the counts survive a reset")
     }
 
     func testTheArrangementSurvivesARelaunch() {
