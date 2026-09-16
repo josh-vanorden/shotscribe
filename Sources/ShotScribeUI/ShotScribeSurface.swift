@@ -38,6 +38,7 @@ public struct ShotScribeSurface: View {
 /// `@ObservedObject`: a stored `let` here means the view never redraws when a
 /// rename lands.
 public struct ShotScribeView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var editingTitle = false
     @State private var heroHovered = false
     @State private var dragging: LandingZone.Tile?
@@ -142,6 +143,7 @@ public struct ShotScribeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if model.otherInstanceRunning { standDownBanner.padding(.bottom, 14) }
                 if let plan = model.cleanupPlan { cleanupPreview(plan).padding(.bottom, 14) }
+                if let run = model.backlog { backlogPreview(run).padding(.bottom, 14) }
                 content
                     // Esc backs out of a tag filter, the way it backs out of a title edit.
                     .onExitCommand {
@@ -220,6 +222,8 @@ public struct ShotScribeView: View {
             .padding(.horizontal, 12).frame(width: 250, height: 32)
             .glass(in: Capsule())
 
+            appearanceFlip
+
             Button { model.inspectorOpen.toggle() } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 13, weight: .medium))
@@ -234,6 +238,32 @@ public struct ShotScribeView: View {
             .help(model.inspectorOpen ? "Hide the inspector" : "Show the inspector")
         }
         .padding(.horizontal, Self.inset).padding(.top, 10)
+    }
+
+    /// One click flips light and dark for the whole app; the menu behind it
+    /// hands the choice back to the Mac. Shows what a click will do, not
+    /// what is on: a moon in the light, a sun in the dark.
+    private var appearanceFlip: some View {
+        let dark = colorScheme == .dark
+        return Button {
+            let next: ShotScribeDefaults.Appearance = dark ? .light : .dark
+            ShotScribeDefaults.setAppearance(next)
+            next.apply()
+        } label: {
+            Image(systemName: dark ? "sun.max" : "moon")
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .glass(in: Capsule())
+        .help(dark ? "Switch to light. Right-click to follow the Mac again." : "Switch to dark. Right-click to follow the Mac again.")
+        .contextMenu {
+            Button("Follow the Mac") {
+                ShotScribeDefaults.setAppearance(.system)
+                ShotScribeDefaults.Appearance.system.apply()
+            }
+            .disabled(ShotScribeDefaults.appearance() == .system)
+        }
     }
 
     // MARK: Content
@@ -425,6 +455,13 @@ public struct ShotScribeView: View {
             if !model.tagFilter.isEmpty {
                 Button("Show all") { model.clearTagFilter() }
                     .buttonStyle(.link).font(.caption.weight(.medium))
+            }
+            // The backlog says so where the count already is. The Folder tab
+            // says it too, but the inspector starts closed.
+            if model.tagFilter.isEmpty, model.query.isEmpty, model.backlogCount > 0, model.backlog == nil {
+                Button("· \(model.backlogCount) never named") { model.startBacklog() }
+                    .buttonStyle(.link).font(.caption.weight(.medium))
+                    .help("Captures that landed while ShotScribe was not watching. Read names for them — nothing is renamed until you confirm.")
             }
             if let handoff = model.handoffNote {
                 Label(handoff.text, systemImage: handoff.symbol)
@@ -771,7 +808,7 @@ public struct ShotScribeView: View {
         case .reveal:
             ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true, sets: .reveal, model: model) { model.reveal(shot) }
         case .markUp:
-            ActionTile("Mark up in Preview", icon: AppIcons.preview, art: true, sets: .markUp, model: model) { model.markUp(shot) }
+            ActionTile("Edit the Image", icon: AppIcons.editor, art: true, sets: .markUp, model: model) { model.markUp(shot) }
         case .share:
             ShareRow(url: shot.url) { model.note(.share) }.id(shot.path)
         case .sendTo:
@@ -843,7 +880,7 @@ public struct ShotScribeView: View {
         case .reveal:
             AppIcons.finder.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
         case .markUp:
-            AppIcons.preview.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
+            AppIcons.editor.resizable().aspectRatio(contentMode: .fit).frame(width: 19, height: 19)
         case .share:
             Image(systemName: "square.and.arrow.up").resizable().aspectRatio(contentMode: .fit).frame(width: 13, height: 13)
         case .sendTo:
@@ -893,6 +930,15 @@ public struct ShotScribeView: View {
                     model.defaultAction = .rebuildAsCode
                 }
             }
+            Divider()
+        } else if tile == .markUp {
+            // Preview is nested here rather than standing beside it: it does one
+            // thing, and the editor does that thing and the one Preview won't.
+            Button("Edit the Image") { heroShot.map(model.markUp) }
+            Button("Open in Preview") { heroShot.map(model.openInPreview) }
+            Divider()
+            if model.defaultAction == .markUp { Text("Default ✓") }
+            else { Button("Set as default") { model.defaultAction = .markUp } }
             Divider()
         } else if let action = ShotScribeModel.action(for: tile) {
             if model.defaultAction == action { Text("Default ✓") }
@@ -1032,6 +1078,20 @@ public struct ShotScribeView: View {
             }
             Text("\(model.indexedCount) screenshots indexed. Search reads what each one said.")
                 .font(.caption2).foregroundStyle(.tertiary)
+            if model.backlogCount > 0 {
+                Divider().padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(model.backlogCount) never named").font(.callout.weight(.semibold))
+                    Text("Captures that landed while ShotScribe was not watching still carry their raw macOS names. Read a name for each, then choose which to keep.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button { model.startBacklog() } label: {
+                        Label("Name the backlog…", systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(CapsuleButtonStyle(prominent: true))
+                    .disabled(model.backlog != nil)
+                }
+            }
         }
     }
 
@@ -1477,6 +1537,129 @@ public struct ShotScribeView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// **The backlog, read and waiting for a yes.**
+    ///
+    /// Every raw capture is listed at once, and names arrive as they are read —
+    /// so the operator watches the list fill rather than a spinner. Each row can
+    /// be unticked; only ticked rows are renamed, and only when asked. What has
+    /// been read can be applied before the rest finishes.
+    private func backlogPreview(_ run: ShotScribeModel.BacklogRun) -> some View {
+        let total = run.pending.count
+        let read = run.read.count
+        let chosen = run.chosen.count
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(total == 0 ? "Nothing to name" : "Naming \(total) older screenshot\(total == 1 ? "" : "s")")
+                    .font(.system(size: 15, weight: .bold)).tracking(-0.3)
+                if run.reading {
+                    Text("\(read) of \(total) read").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                } else if run.applying {
+                    Text("\(run.applied) of \(chosen) renamed").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+                Spacer(minLength: 8)
+                if run.reading {
+                    Button("Stop reading") { model.stopBacklogReading() }
+                        .buttonStyle(CapsuleButtonStyle(quiet: true))
+                        .help("Keep the names read so far; don't read the rest.")
+                }
+                Button(total == 0 ? "Done" : "Cancel") { model.cancelBacklog() }
+                    .buttonStyle(CapsuleButtonStyle(quiet: true))
+                    .disabled(run.applying)
+            }
+            if total == 0 {
+                Text("Every capture in \(model.folder.lastPathComponent) already has a name.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                if run.reading || run.applying {
+                    ProgressView(value: Double(run.reading ? read : run.applied),
+                                 total: Double(max(run.reading ? total : chosen, 1)))
+                        .progressViewStyle(.linear)
+                        .tint(ShotPalette.accent)
+                }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(run.pending, id: \.path) { url in
+                            backlogRow(url: url, proposal: run.read[url.path],
+                                       ticked: !run.excluded.contains(url.path),
+                                       locked: run.applying)
+                            Divider()
+                        }
+                    }
+                }
+                .frame(maxHeight: 360)
+                HStack(spacing: 10) {
+                    Button {
+                        model.applyBacklog()
+                    } label: {
+                        Label(run.applying ? "Renaming…" : "Rename \(chosen)", systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(CapsuleButtonStyle(prominent: true))
+                    .disabled(chosen == 0 || run.applying)
+                    Button("All") { model.setBacklogAll(true) }
+                        .buttonStyle(.link).font(.caption).disabled(run.applying)
+                    Button("None") { model.setBacklogAll(false) }
+                        .buttonStyle(.link).font(.caption).disabled(run.applying)
+                    Spacer(minLength: 8)
+                    Text(run.reading
+                         ? "Renaming now takes only the rows already read."
+                         : "Only ticked rows are renamed. Files you named yourself are never touched.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .animation(.easeOut(duration: 0.18), value: read)
+    }
+
+    private func backlogRow(url: URL, proposal: Backlog.Proposal?, ticked: Bool, locked: Bool) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                model.toggleBacklog(url.path)
+            } label: {
+                Image(systemName: ticked && proposal != nil ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(ticked && proposal != nil ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(.tertiary))
+            }
+            .buttonStyle(.plain)
+            .disabled(proposal == nil || locked)
+
+            AspectThumbnail(path: url.path, aspect: 16.0 / 10.0, pixels: 160)
+                .frame(width: 64, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(.separator, lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text((url.lastPathComponent as NSString).deletingPathExtension)
+                    .font(.caption2).foregroundStyle(.tertiary)
+                    .lineLimit(1).truncationMode(.middle)
+                if let proposal {
+                    HStack(spacing: 6) {
+                        Text((proposal.name as NSString).deletingPathExtension)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(ticked ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                            .strikethrough(!ticked)
+                            .lineLimit(1).truncationMode(.middle)
+                        ForEach(proposal.tags, id: \.self) { tag in
+                            Text(tag).font(.system(size: 9, weight: .medium))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .foregroundStyle(ShotPalette.accent)
+                                .background(Capsule().fill(ShotPalette.accent.opacity(0.14)))
+                        }
+                    }
+                } else {
+                    Text("Reading…").font(.callout).foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .opacity(proposal == nil ? 0.6 : 1)
     }
 
     /// The one thing a hosted copy must say out loud: it is deliberately not
@@ -2001,7 +2184,8 @@ private struct ShotMenu: View {
 
     var body: some View {
         Button(title(.reveal)) { model.reveal(shot) }
-        Button(title(.markUp)) { model.markUp(shot) }
+        Button(title(.markUp) + "…") { model.markUp(shot) }
+        Button("Open in Preview") { model.openInPreview(shot) }
         ShareLink(item: shot.url) { Text("Share…") }
         Button(title(.sendToAssistant)) { model.sendToAssistant(shot) }
         Button(title(.rebuildAsCode)) { model.copyCodeBrief(for: shot) }
@@ -2345,7 +2529,7 @@ private struct ActionTile: View {
     private var bubble: String {
         var words = name
         if isDefault { words += " — default" }
-        if sets == .sendToAssistant { words += " · right-click for more" }
+        if sets == .sendToAssistant || sets == .markUp { words += " · right-click for more" }
         return words
     }
 
@@ -2428,6 +2612,9 @@ private struct TileButtonStyle: ButtonStyle {
 enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
     static let preview = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Preview.app"))
+    /// Edit the Image: ShotScribe's own mark, drawn for it (assets/brands/editor.svg).
+    static var editor: Image { BrandArt.image("editor") ?? Image(systemName: "pencil.tip.crop.circle") }
+
     /// ShotScribe's own artwork, for the button that brings its window up.
     static let shotScribe = Image(nsImage: NSApp?.applicationIconImage
         ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
@@ -2569,7 +2756,7 @@ private struct NamedOnHover: ViewModifier {
     }
 }
 
-private struct CapsuleButtonStyle: ButtonStyle {
+struct CapsuleButtonStyle: ButtonStyle {
     var quiet = false
     var prominent = false
 

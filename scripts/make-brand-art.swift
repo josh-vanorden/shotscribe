@@ -11,7 +11,8 @@ import Foundation
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let dir = root.appendingPathComponent("assets/brands")
 let out = root.appendingPathComponent("Sources/ShotScribeUI/BrandArtData.swift")
-let names = ["claude", "codex", "gemini", "cursor", "ollama"]
+// "editor" is ShotScribe's own: the mark for Edit the Image (2026-09-16).
+let names = ["claude", "codex", "gemini", "cursor", "ollama", "editor"]
 // Marks drawn in a single colour; the app renders them as templates so they
 // take the tile's foreground. A `<name>.mono` file beside the PNG says so.
 var entries: [String] = []

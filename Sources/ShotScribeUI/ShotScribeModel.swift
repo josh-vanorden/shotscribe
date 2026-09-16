@@ -145,6 +145,9 @@ public final class ShotScribeModel: ObservableObject {
 
     @Published public private(set) var events: [RenameEvent] = []
     @Published public private(set) var lastError: String?
+
+    /// Something a window other than the main one wants said in it.
+    public func report(_ message: String) { lastError = message }
     /// True while a rename (OCR + titling) is in flight — the panel shows a spinner.
     @Published public private(set) var busy = false
 
@@ -251,6 +254,7 @@ public final class ShotScribeModel: ObservableObject {
         // it, or search silently answers from the old one.
         loadIndex()
         hits = []
+        refreshBacklogCount()
         // ...and the new folder's screenshots are almost certainly not in the
         // store at all. `loadIndex()` only READS what has been indexed; without
         // this, pointing at a folder full of existing captures produced an empty
@@ -492,6 +496,228 @@ public final class ShotScribeModel: ObservableObject {
         }
     }
 
+    // MARK: - Editing
+
+    /// A request to open the editor. A fresh id each time, so asking twice for
+    /// the same shot brings its window forward rather than being deduplicated
+    /// away.
+    public struct EditRequest: Equatable {
+        public let url: URL
+        public let id = UUID()
+    }
+
+    @Published public private(set) var editRequest: EditRequest?
+
+    /// Open the editor on a file. By path rather than by indexed shot, so the
+    /// capture card can open one the index sweep has not caught up with yet.
+    /// Images only — a screen recording is not something to draw on.
+    public func editFile(_ url: URL) {
+        guard ["png", "jpg", "jpeg", "heic", "tiff"].contains(url.pathExtension.lowercased()) else {
+            lastError = "\(url.deletingPathExtension().lastPathComponent) is a recording — only images can be edited."
+            return
+        }
+        editRequest = EditRequest(url: url)
+    }
+
+    /// Save an edit, keep it editable, and make everything that remembers the
+    /// old picture forget it.
+    ///
+    /// - **Editable later.** `EditStore` keeps the picture under the marks and
+    ///   the marks themselves, so reopening brings every annotation back live.
+    ///   This replaced parking a copy of the original in the Trash.
+    /// - **A redaction is never kept.** It is burned into the kept picture, and
+    ///   only annotations stay as objects.
+    /// - **The index is re-read**, because it holds the text that was on the
+    ///   screen. Pixelating an address while search still finds it would be
+    ///   redaction in appearance only.
+    public func saveEdit(source: CGImage, marks: [Mark], frame: FrameStyle, crop: CGRect?, scale: CGFloat,
+                         watermark: Watermark? = nil, sourceIsOriginal: Bool, to url: URL,
+                         done: @escaping (Bool) -> Void) {
+        let original = indexCache.first { $0.url.standardizedFileURL == url.standardizedFileURL }?.original
+        let redacts = marks.contains { $0.kind.redacts }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                try EditStore.commit(source: source, marks: marks, frame: frame, crop: crop, scale: scale,
+                                     watermark: watermark, sourceIsOriginal: sourceIsOriginal, to: url)
+                ShotIndex.record(url, original: original)
+                Log.write("edited \(url.lastPathComponent): \(marks.count) mark(s)\(redacts ? ", redacted" : "")\(frame.isPlain ? "" : ", framed")\(watermark.map { $0.isEmpty ? "" : ", watermarked" } ?? "")")
+                await MainActor.run { self?.afterEdit(url); done(true) }
+            } catch {
+                await MainActor.run {
+                    self?.lastError = "Couldn’t save the edit: \(error.localizedDescription)"
+                    done(false)
+                }
+            }
+        }
+    }
+
+    /// Put the untouched capture back. Only offered while nothing was ever
+    /// redacted — after that there is no untouched capture, on purpose.
+    public func revertEdit(_ url: URL, done: @escaping (Bool) -> Void) {
+        let original = indexCache.first { $0.url.standardizedFileURL == url.standardizedFileURL }?.original
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let ok = (try? EditStore.revert(url)) ?? false
+            if ok {
+                ShotIndex.record(url, original: original)
+                Log.write("reverted \(url.lastPathComponent) to the original")
+            }
+            await MainActor.run {
+                if ok { self?.afterEdit(url) }
+                else { self?.lastError = "This capture can’t be reverted — part of it was hidden and the original wasn’t kept." }
+                done(ok)
+            }
+        }
+    }
+
+    private func afterEdit(_ url: URL) {
+        ThumbnailCache.shared.refresh(url.path)
+        loadIndex()
+        runSearch()
+    }
+
+    // MARK: - The backlog
+
+    /// A sweep in progress: every raw capture found, the names read so far, and
+    /// the rows the operator has unticked. Nothing on disk changes until
+    /// `applyBacklog` — the same promise the clean-up preview makes.
+    public struct BacklogRun: Equatable {
+        public let pending: [URL]
+        /// Keyed by path: three are read at once and they finish in any order,
+        /// so the list is rebuilt from `pending` rather than kept in arrival order.
+        public var read: [String: Backlog.Proposal] = [:]
+        public var excluded: Set<String> = []
+        public var reading = true
+        public var applying = false
+        public var applied = 0
+
+        /// In the order the captures were taken.
+        public var proposals: [Backlog.Proposal] { pending.compactMap { read[$0.path] } }
+        public var chosen: [Backlog.Proposal] { proposals.filter { !excluded.contains($0.id) } }
+    }
+
+    @Published public private(set) var backlog: BacklogRun?
+    /// How many raw captures are waiting — what the Folder tab says out loud.
+    @Published public private(set) var backlogCount = 0
+    private var backlogTask: Task<Void, Never>?
+
+    public func refreshBacklogCount() {
+        let folder = self.folder
+        Task.detached(priority: .utility) { [weak self] in
+            let n = Backlog.pending(in: folder).count
+            await MainActor.run { self?.backlogCount = n }
+        }
+    }
+
+    /// Find every raw capture and start reading names for them.
+    ///
+    /// **Three at a time.** Titling is a model call of several seconds, and
+    /// ninety of them one after another is a quarter of an hour; three
+    /// together is a few minutes without flooding the assistant. The list fills
+    /// as they finish, and what has been read can be applied before the rest.
+    public func startBacklog() {
+        guard backlog == nil else { return }
+        let pending = Backlog.pending(in: folder)
+        backlog = BacklogRun(pending: pending)
+        backlogCount = pending.count
+        guard !pending.isEmpty else { backlog?.reading = false; return }
+
+        let titler = self.titler
+        let vocab = taggingEnabled ? vocabulary : []
+        let renamer = Renamer(titler: KeywordTitler(), template: nameTemplate, vocabulary: vocab)
+        backlogTask = Task { [weak self] in
+            await withTaskGroup(of: Backlog.Proposal?.self) { group in
+                var next = 0
+                func enqueue() {
+                    guard next < pending.count else { return }
+                    let url = pending[next]
+                    next += 1
+                    group.addTask {
+                        await Backlog.propose(url, renamer: renamer, titler: titler, vocabulary: vocab)
+                    }
+                }
+                for _ in 0..<min(3, pending.count) { enqueue() }
+                while let proposal = await group.next() {
+                    if Task.isCancelled { group.cancelAll(); break }
+                    if let proposal { self?.backlog?.read[proposal.id] = proposal }
+                    enqueue()
+                }
+            }
+            self?.backlog?.reading = false
+        }
+    }
+
+    /// Stop reading, keep what has been read.
+    public func stopBacklogReading() {
+        backlogTask?.cancel()
+        backlogTask = nil
+        backlog?.reading = false
+    }
+
+    public func toggleBacklog(_ id: String) {
+        guard var run = backlog else { return }
+        if run.excluded.contains(id) { run.excluded.remove(id) } else { run.excluded.insert(id) }
+        backlog = run
+    }
+
+    public func setBacklogAll(_ included: Bool) {
+        guard var run = backlog else { return }
+        run.excluded = included ? [] : Set(run.read.keys)
+        backlog = run
+    }
+
+    public func cancelBacklog() {
+        backlogTask?.cancel()
+        backlogTask = nil
+        backlog = nil
+    }
+
+    /// Rename every ticked row, using the title that was already read for it.
+    ///
+    /// The watcher is told about each new name before the file lands, so a
+    /// sweep of ninety does not look to it like ninety fresh captures. And the
+    /// rename history is left alone — twenty rows of it would be nothing but
+    /// this — with one log line instead.
+    public func applyBacklog() {
+        guard let run = backlog, !run.applying else { return }
+        backlogTask?.cancel()
+        backlogTask = nil
+        let chosen = run.chosen
+        guard !chosen.isEmpty else { return }
+        backlog?.reading = false
+        backlog?.applying = true
+
+        let vocab = taggingEnabled ? vocabulary : []
+        let renamer = Renamer(titler: KeywordTitler(), template: nameTemplate, vocabulary: vocab)
+        Task { [weak self] in
+            var done = 0
+            var failed = 0
+            for p in chosen {
+                if case .wouldRename(_, let target)? = try? await renamer.rename(
+                    fileAt: p.url, label: p.label, tags: p.tags, dryRun: true) {
+                    self?.watcher?.ignore(target)
+                }
+                do {
+                    if case .renamed(let from, let to) = try await renamer.rename(
+                        fileAt: p.url, label: p.label, tags: p.tags) {
+                        ShotIndex.forget(from.path)
+                        ShotIndex.record(to, original: from.lastPathComponent)
+                        done += 1
+                        self?.backlog?.applied = done
+                    }
+                } catch {
+                    failed += 1
+                }
+            }
+            Log.write("backlog: named \(done) of \(chosen.count)\(failed > 0 ? ", \(failed) failed" : "")")
+            guard let self else { return }
+            self.lastError = failed > 0 ? "Couldn’t name \(failed) of \(chosen.count)." : nil
+            self.backlog = nil
+            self.loadIndex()
+            self.runSearch()
+            self.refreshBacklogCount()
+        }
+    }
+
     /// NSOpenPanel → the archive folder. Picking one also selects archiving.
     public func chooseArchiveFolder() {
         let panel = NSOpenPanel()
@@ -599,7 +825,7 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     public init() {
-        defer { refreshAIAvailability() }
+        defer { refreshAIAvailability(); refreshBacklogCount() }
         let ud = Self.defaults
         watching = ud.object(forKey: Self.watchingKey) == nil
             ? true : ud.bool(forKey: Self.watchingKey)
@@ -744,6 +970,15 @@ public final class ShotScribeModel: ObservableObject {
     }
 
     public func rename(_ url: URL) async {
+        // Before the read, not after it. The watcher reports every file that
+        // lands, and that includes the one ShotScribe just renamed — which was
+        // being OCR'd and sent to the titler (a model call, seconds each) only
+        // for `Renamer` to refuse it as not a raw capture. That was a second
+        // model call for every screenshot ever taken: 257 of them in the log
+        // by 2026-09-16. Both callers only mean to rename raw captures, and
+        // `Renamer` still enforces the rule, so this is a shortcut, not a
+        // second source of truth.
+        guard Naming.isRawCapture(at: url) else { return }
         busy = true
         defer { busy = false }
         do {
@@ -955,7 +1190,7 @@ public final class ShotScribeModel: ObservableObject {
     public func name(of tile: LandingZone.Tile) -> String {
         switch tile {
         case .reveal:    return "Reveal in Finder"
-        case .markUp:    return "Mark up in Preview"
+        case .markUp:    return "Edit the Image"
         case .share:     return "Share"
         case .sendTo:    return "Send to \(assistantName)"
         case .editTitle: return "Edit title"
@@ -1005,7 +1240,11 @@ public final class ShotScribeModel: ObservableObject {
     public func title(of action: ShotAction) -> String {
         switch action {
         case .reveal:          return "Reveal in Finder"
-        case .markUp:          return "Mark up in Preview"
+        // Was "Mark up in Preview". Josh, 2026-09-16: "Preview is MacOS native,
+        // serves one purpose, we can do that purpose better" — the stored
+        // value stays `markUp`, so a click default set before keeps working
+        // and now lands in ShotScribe's own editor.
+        case .markUp:          return "Edit the Image"
         case .sendToAssistant: return "Send to \(assistantName)"
         case .rebuildAsCode:   return "Rebuild as code"
         }
@@ -1042,6 +1281,9 @@ public final class ShotScribeModel: ObservableObject {
         guard !urls.isEmpty else { return }
         if deletesForGood {
             var failure: String?
+            // "For good" includes the editable copy ShotScribe kept. A capture
+            // moved to the Trash keeps it, so Put Back still leaves it editable.
+            for u in urls { EditStore.remove(for: u) }
             for u in urls {
                 do { try FileManager.default.removeItem(at: u) } catch { failure = error.localizedDescription }
             }
@@ -1196,10 +1438,19 @@ public final class ShotScribeModel: ObservableObject {
 
     /// The shot in Preview, for the pencil: macOS's own markup, one click from
     /// the landing zone. Josh's habit (2026-09-13) — annotate before sending.
+    /// **Edit the Image** — ShotScribe's own editor.
     func markUp(_ shot: IndexedShot) {
         note(.markUp)
+        editFile(shot.url)
+    }
+
+    /// Preview, for anything the editor does not do. Nested under Edit the
+    /// Image rather than standing beside it.
+    func openInPreview(_ shot: IndexedShot) { openInPreview(shot.url) }
+
+    public func openInPreview(_ url: URL) {
         let preview = URL(fileURLWithPath: "/System/Applications/Preview.app")
-        NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+        NSWorkspace.shared.open([url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration()) { _, error in
             if let error { Task { @MainActor [weak self] in self?.lastError = "Couldn’t open in Preview: \(error.localizedDescription)" } }
         }
     }

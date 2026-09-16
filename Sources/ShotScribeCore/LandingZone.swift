@@ -28,6 +28,9 @@ public struct LandingZone: Equatable, Sendable {
     /// destination, and they now share one mark: Rebuild sits under Send to's
     /// right-click. A stored order still naming it is simply ignored, which is
     /// what `resolve` is for.
+    ///
+    /// **`markUp` is Edit the Image** since 2026-09-16: it opens ShotScribe's
+    /// own editor, and Preview sits under its right-click.
     public enum Tile: String, CaseIterable, Codable, Sendable {
         case reveal, markUp, share, sendTo, editTitle, fileAs
     }

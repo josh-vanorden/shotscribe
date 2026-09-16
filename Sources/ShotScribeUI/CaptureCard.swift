@@ -200,9 +200,18 @@ public struct CaptureCard: View {
                         if let shot { model.reveal(shot) } else { revealDirectly() }
                         dismiss()
                     }
-                    CardButton("Mark up", art: AppIcons.preview, hint: $hint) {
-                        if let shot { model.markUp(shot) } else { markUpDirectly() }
+                    // Edit the Image, in ShotScribe's own editor, with Preview one
+                    // right-click away for what the editor does not do.
+                    CardButton("Edit the Image", art: AppIcons.editor, hint: $hint) {
+                        if let shot { model.markUp(shot) } else { model.editFile(state.url) }
                         dismiss()
+                    }
+                    .contextMenu {
+                        Button("Edit the Image") {
+                            if let shot { model.markUp(shot) } else { model.editFile(state.url) }
+                            dismiss()
+                        }
+                        Button("Open in Preview") { model.openInPreview(state.url); dismiss() }
                     }
 
                     Spacer(minLength: 10)
@@ -291,11 +300,6 @@ public struct CaptureCard: View {
         NSWorkspace.shared.activateFileViewerSelecting([state.url])
     }
 
-    private func markUpDirectly() {
-        NSWorkspace.shared.open([state.url],
-                                withApplicationAt: URL(fileURLWithPath: "/System/Applications/Preview.app"),
-                                configuration: NSWorkspace.OpenConfiguration())
-    }
 }
 
 private struct CardButton: View {

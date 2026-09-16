@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ShotScribeCore
 import ShotScribeUI
 
 /// Owns the model. An `NSApplicationDelegateAdaptor` (not `@StateObject` on
@@ -19,8 +20,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    /// The editor's windows. Started here for the same reason the card is.
+    private lazy var editor = EditorPresenter(model: model)
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ShotScribeDefaults.appearance().apply()
         captureCard.start()
+        editor.start()
     }
 
     /// Clicking the Dock icon, or launching again from Spotlight, brings the

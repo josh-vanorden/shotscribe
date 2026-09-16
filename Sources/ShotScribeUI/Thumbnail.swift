@@ -14,6 +14,18 @@ final class ThumbnailCache: ObservableObject {
     static let shared = ThumbnailCache()
     private let cache = NSCache<NSString, NSImage>()
     private var inFlight: Set<String> = []
+    /// Bumped when a file's pixels change under the same path — an edit. The
+    /// views key their load on it, because the path alone did not change and
+    /// they would otherwise keep drawing the picture from before the edit.
+    @Published private(set) var revisions: [String: Int] = [:]
+
+    func revision(_ path: String) -> Int { revisions[path] ?? 0 }
+
+    /// Forget a thumbnail and ask every view showing it to load it again.
+    func refresh(_ path: String) {
+        cache.removeObject(forKey: path as NSString)
+        revisions[path, default: 0] += 1
+    }
 
     private init() { cache.countLimit = 400 }
 
@@ -46,6 +58,7 @@ struct AspectThumbnail: View {
     var aspect: CGFloat = 4.0 / 3.0
     var pixels: CGFloat = 480
     @State private var image: NSImage?
+    @ObservedObject private var cache = ThumbnailCache.shared
 
     var body: some View {
         Color.clear
@@ -60,7 +73,7 @@ struct AspectThumbnail: View {
                 }
             }
             .clipped()
-            .task(id: path) {
+            .task(id: "\(path)#\(cache.revision(path))") {
                 image = ThumbnailCache.shared.cached(path)
                 if image == nil {
                     image = await ThumbnailCache.shared.load(

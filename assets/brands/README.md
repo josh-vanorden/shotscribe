@@ -38,3 +38,12 @@ are never more prominent than ShotScribe's own icon. Remove on an owner's reques
 The initial is drawn on the accent, never in a brand's colours, because Google's
 rules forbid imitating its colour treatment and OpenAI's forbid colouring the
 Blossom. Nothing here is fetched without the owner's terms allowing it.
+
+## editor
+
+ShotScribe's own mark for **Edit the Image**, drawn for this app on 2026-09-16 —
+not a borrowed logo. A picture with a pen across it, and a mosaic over the
+mountain's flank: the editor's reason to exist is hiding part of a screenshot,
+which Preview will not do. `editor.svg` is the source; `editor.png` is rendered
+through `scripts/svg-to-png.swift` at 256 pt (512 px) and embedded by
+`scripts/make-brand-art.swift` like the brand marks.
