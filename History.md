@@ -1031,7 +1031,16 @@ commit; this entry is the one save.
 
 ## 2026-09-16, afternoon — 1.6.5 shipped
 
-`serverInfo` → 1.6.5, CHANGELOG dated; the day's work committed in groups on
-`settings-pane`, promoted to `main`, tagged `v1.6.5`, notarized under
-`shotscribe-notary`, pushed with the tag and published as latest. Verification
-and the release link are in the commit that follows this entry.
+`serverInfo` → 1.6.5, CHANGELOG dated; the day's work committed in five groups
+on `settings-pane` (engine, backlog, the face, appearance, release), promoted
+to `main`, tagged `v1.6.5` at `e1b1bea`. Notarized under `shotscribe-notary`
+(Apple: Accepted, app and DMG) and verified four ways — `stapler validate` on
+the app and the DMG, `spctl` on the DMG, a quarantined copy out of the DMG
+through Gatekeeper (Notarized Developer ID) — with the bundle reading 1.6.5.
+Pushed with the tag and published as latest:
+https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.5 (4.4 MB DMG).
+Toolbelt's pin raised to 1.6.5, built once against the tag, committed there
+(`1fc1bf4`) with only the shotscribe hunk of its `Package.resolved`; that repo's
+five pin commits stay unpushed, Josh's call. `gh` was on `Chief-Tsunami`, which
+holds push and admin on the repo, so the release went through first time.
+229 tests.
