@@ -139,3 +139,24 @@ public enum ShotScribeDefaults {
                   forKey: tileUsesKey)
     }
 }
+
+// MARK: - Appearance
+
+extension ShotScribeDefaults {
+    public static let appearanceKey = "shotscribe.appearance"
+
+    /// Light, dark, or whatever the Mac is set to. Until 2026-09-16 the app
+    /// could only follow the system; one click now flips it.
+    public enum Appearance: String, CaseIterable, Sendable {
+        case system, light, dark
+    }
+
+    public static func appearance() -> Appearance {
+        suite.string(forKey: appearanceKey).flatMap(Appearance.init(rawValue:)) ?? .system
+    }
+
+    public static func setAppearance(_ appearance: Appearance) {
+        if appearance == .system { suite.removeObject(forKey: appearanceKey) }
+        else { suite.set(appearance.rawValue, forKey: appearanceKey) }
+    }
+}
