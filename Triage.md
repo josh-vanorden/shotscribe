@@ -6,6 +6,34 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-16 13:44 — The watermark logo never appeared in the preview
+- **Bug/Issue:** Josh: "Logo showed up, but we have no watermark preview so any adjustments are made blindly." The saved file carried the logo; the canvas showed nothing while he adjusted it.
+- **RCA:** The `onChange` that decodes the chosen logo for the canvas was attached to the Frame panel's background row — a view that only exists while the Frame panel is open. Picked from the Watermark panel, the change fired on nothing; the canvas drew a watermark whose picture it did not have, and Save loaded the file itself.
+- **Evidence:** `Editor.swift`, the modifier's position next to `loadBackgroundImage`; text watermarks previewed, logos did not.
+- **Fix/Repair:** The modifier moved to the editor's root, where it fires whichever panel picked the logo and on open for a kept edit. 1.6.5.
+- **Related PR:** none — on `settings-pane`
+
+### 2026-09-16 13:51 — Save sat grey for a watermark-only edit
+- **Bug/Issue:** Josh: "clicked Use on Every edit and now the save button does not work." Then, on a fresh shot with the every-edit watermark taken off: "failing to save now again."
+- **RCA:** Save's "anything to save?" rule counted marks, frame, crop, resize and a reopened edit — not the watermark, which was new. The second report was the rule being right — nothing had changed — and reading as a failure because a grey button explains nothing.
+- **Evidence:** `.disabled(...)` on the footer button; the main thread sampled idle, no crash log, nothing in `ShotScribe.log`.
+- **Fix/Repair:** `hasSomethingToSave` counts the watermark; with nothing to write the button reads **Done** and closes, never grey. 1.6.5.
+- **Related PR:** none — on `settings-pane`
+
+### 2026-09-16 13:41 — A logo made a shaded box
+- **Bug/Issue:** Josh: "Water mark made a shaded box when I added an image."
+- **RCA:** The logo file had no transparency worth the name — a flattened PNG on a white square — so its alpha (or the whole rectangle, when there was none) was the "shape": a solid block in Auto ink, a white box with a halo As is.
+- **Evidence:** reproduced with an opaque 128×128 logo in the harness (`wm-logo-flat`).
+- **Fix/Repair:** `logoMask` uses the alpha when at least a hundredth of the picture is see-through; otherwise `keyedMask` takes the median colour along the edges as the background and keeps everything that is not it. Test: a red disc on an opaque white square shows no square in either ink. 1.6.5.
+- **Related PR:** none — on `settings-pane`
+
+### 2026-09-16 09:40 — The watcher re-titled ShotScribe's own output
+- **Bug/Issue:** `ShotScribe.log` showed a titler call for every file ShotScribe had just renamed — 257 in one stretch — each refused by the name check a moment later.
+- **RCA:** `rename` ran OCR and the titler before `Naming.isRawCapture`, and the watcher reports ShotScribe's own renamed file landing, so every rename cost a second model call that produced nothing.
+- **Evidence:** the log; the order of the guards in `ShotScribeModel.rename`.
+- **Fix/Repair:** the name check runs before OCR. 1.6.5.
+- **Related PR:** none — on `settings-pane`
+
 ### 2026-09-15 15:05 — The bin went dead after the first delete
 - **Bug/Issue:** Josh, twice: "I delete one image and then try to delete a second image and the button no longer works until I click somewhere else."
 - **RCA:** `DeletePill` runs an animation that ends at `stage = .done` and never returns to `.idle`; `fire()` opens with `guard stage == .idle`. The view normally leaves with the shot it deleted, but in a `LazyVStack`/`LazyVGrid` SwiftUI reuses it for whatever moves into that slot and the `@State` goes with it, so the next shot's bin was born already spent. Clicking elsewhere forced a rebuild, which is why it came back to life.

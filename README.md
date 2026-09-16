@@ -254,9 +254,13 @@ template with a live sample), **AI** (who titles — see *Whose AI is it?*),
 after the fact. The newest capture sits at the top as the landing zone: its title edits in
 place (click it, type, Return — the date stays, the words change) when a name is
 not what you would have said, and a row of tiles below it carries the icon of
-each service it reaches, named on hover — Finder, **Preview** (mark it up), **Share** (which unfolds
+each service it reaches, named on hover — Finder, **Edit the Image** (ShotScribe's own
+editor: pixelate or black out a region, boxes, arrows that bend, highlights, labels, step
+numbers, a frame with a margin and a gradient or a picture behind it, crop, resize, and a
+watermark — your name or logo — that can be set once and put on every edit; edits stay
+editable, and Preview is one right-click away), **Share** (which unfolds
 into AirDrop, Messages, Mail, Notes…), your assistant, code, tags. Any shot also drags out as
-a copy. First launch opens the window on the folder it is watching with the
+a copy. A moon or sun beside the search field flips the app between light and dark. First launch opens the window on the folder it is watching with the
 inspector open, so the settings are found; a folder with nothing named yet
 shows the welcome instead of an empty grid.
 Activity logs to `~/Library/Logs/ShotScribe.log`.
@@ -367,7 +371,7 @@ Items goes with the app.
 - [x] Notarized distribution — Developer ID signed, notarized, stapled (app + DMG)
 - [x] `/screenshot` skill — the gesture, for any Claude Code user
 - [x] `ShotScribeUI` — the face as a mountable library, so any shell can host it
-- [ ] Backlog sweep — rename captures that landed while the app wasn't running
+- [x] Backlog sweep — rename captures that landed while the app wasn't running (1.6.5: preview, three at a time, approve or drop)
 - [ ] WidgetKit widget — a one-tap App Intent front door
 
 ## Why this exists

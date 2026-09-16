@@ -966,3 +966,72 @@ pin raised to 1.6.4 and the belt built against it. 168 tests.
   it to the personal one and the release went straight through. The machine-wide
   rule already says to run `forge auto` before acting on a repo's remote; this
   is the first time it has actually bitten here.
+
+## 2026-09-16 — the editor, from a competitor's shelf to Josh's
+
+The morning's requirement, in his words: "No Git push until the end of the
+run." Everything below was built, tested and shown to him before a single
+commit; this entry is the one save.
+
+- **The backlog sweep**, first. `Backlog.pending` finds what is still called
+  `Screenshot …`; `propose` names it; the model runs three at a time, each row
+  approved or dropped; `applyBacklog` renames under `watcher?.ignore` so the
+  rename does not come back as a new capture. Josh: "I am good with the current
+  state and old shots remaining untouched" — built, his to run.
+- **The watcher was re-titling ShotScribe's own output.** The log showed 257
+  titler calls for files the name check would refuse a moment later: `rename`
+  ran OCR before `isRawCapture`. Reordered; the wasted work is gone.
+- **Edit the Image** (`ImageEditor.swift`, `EditStore.swift`, `Editor.swift`),
+  in eight rounds with him at the keyboard, each a report from the app:
+  - "The pixel mute is larger than it really needs to be" — per-tile averages
+    over a three-tile span, block size a fifth of the short side.
+  - "Unable to edit any of the added items" — marks were baked in on mouse-up.
+    A mark is now a value with an identity; the picture is flattened on Save.
+  - "Layering is an issue… you cannot put a label over any part of it" — the
+    one press rule (`EditorPress`): a visible handle resizes in any tool, a
+    drawing tool always draws, only Select picks up.
+  - "Once an image is saved no edits" — `EditStore`: the untouched base and
+    `edit.json` under Application Support, linked by an xattr on the file;
+    redactions burned into the kept base so Revert is honest.
+  - Frames with sliders and his palette (scarlet, vivid yellow, sage, sand,
+    frost, sapphire, cream, forest, tiffany, dark grey); combos; **+** for his
+    own by hex or wheel; a picture of his own behind the shot.
+  - Steps that count up, five badges (the `>>` chevron was "one of my
+    favorites"), the flag reshaped twice; five sizes, then "make it a size
+    slider. Makes it much easier."
+  - Crop and resize, both reversible in the kept edit.
+  - "Our default color for all adjustments should be Black then white, then
+    color." Done; the highlighter keeps its own yellow, since a black wash dims.
+  - "Why does the blackout not allow for another color selection?" No reason
+    beyond my call. It takes one, opaque whatever the colour.
+  - The arrow's middle handle: "macOS added… a middle pin to allow you adjust
+    the bend." One pin, a quadratic through it, snaps straight when dragged
+    back to the middle; edits saved before it decode straight.
+- **Watermark, fonts, set-once** (`Watermark.swift`, `TextFont.swift`). Words
+  or a logo; corners, centre, tiled; ink on Auto samples what is under it and
+  sets white or near-black with a halo of the other; logos become silhouettes
+  through their alpha — or, after "made a shaded box", through their shape
+  keyed off the edge colour, since his logo was on an opaque white square.
+  Fonts: the system designs plus every installed family; a missing one stands
+  down. **Use on every edit** stores the watermark in defaults and starts each
+  fresh edit with it.
+  - Two of his reports were mine to own (Triage): the logo never loaded into
+    the preview because its loader hung off the *Frame* panel's view, and Save
+    sat grey for a watermark-only edit because the watermark was not counted
+    as a change. The footer says **Done** now when nothing would be written.
+  - Caught by the tests before he saw it: CoreText draws black unless the
+    attributed string carries `kCTForegroundColorFromContextAttributeName`,
+    so the ink chosen after sampling was never used.
+- **Light or dark.** "We have no way of shifting the app… we should add a small
+  single clickable flip icon." A moon in the light, a sun in the dark, on
+  `NSApp.appearance`; right-click follows the Mac again. Kept in defaults.
+- Everything looked at off-screen first (`steps`, `bend`, `wm-*`, `flip-*`
+  renders in the session scratchpad) and then in the running app, which was
+  repackaged and relaunched after every round. 229 tests.
+
+## 2026-09-16, afternoon — 1.6.5 shipped
+
+`serverInfo` → 1.6.5, CHANGELOG dated; the day's work committed in groups on
+`settings-pane`, promoted to `main`, tagged `v1.6.5`, notarized under
+`shotscribe-notary`, pushed with the tag and published as latest. Verification
+and the release link are in the commit that follows this entry.

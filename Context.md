@@ -4,24 +4,24 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-15
-**Phase:** Ship — 1.6.4 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.4, notarized under `shotscribe-notary`, marked latest).
-**Next action:** The **backlog sweep** — 94 raw `Screenshot …` captures are waiting and Josh is holding his library for it. Preview-then-apply on the `Cleanup.plan` → `apply` pattern: propose a name for every unnamed capture, show the whole list, approve or drop rows. Never automatic, never a file he named himself.
+**Last session:** 2026-09-16
+**Phase:** Ship — 1.6.5 is being released this save (the editor, the watermark, fonts, the backlog sweep, the light/dark flip); the release link lands in the next commit.
+**Next action:** Josh's two calls, in his words when he makes them: (1) the WidgetKit widget — the last README roadmap item, the gate to *maintain*; (2) whether the kept watermark should stamp every *capture* as it lands, without the editor (asked 2026-09-16, not built). Until then: nothing pending in the code.
 
 **Open loops**
-- The **backlog sweep** is the last README roadmap item and the one that needs a full library: 94 raw `Screenshot …` captures are waiting, and Josh is holding off clearing them for exactly this. Preview-then-apply, never automatic.
-- **Redaction** (`roadmap.md`, 1.6.4 section): Preview cannot pixelate a region, so hiding a key before sharing has no answer. The hours are in writing the edited file back without re-triggering the watcher, losing tags, or orphaning the index entry.
-- A capture interrupted mid-rename is never retried; it silently joins the backlog.
-- Toolbelt's pin is at `from: "1.6.4"`, committed there and **unpushed** with the 1.6.0, 1.6.2 and 1.6.3 pin commits, beside Josh's own uncommitted `.gitignore`.
+- Toolbelt's pin at `from: "1.6.5"` after this release, committed there and **unpushed** with the 1.6.0–1.6.4 pin commits, beside Josh's own uncommitted `.gitignore`. Pushing Toolbelt is his call.
+- `/security-team` over the editor's file handling (xattr link, App Support stores, NSOpenPanel imports) once `claude` is signed in.
 - `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`.
-- `claude auth` lapsed twice in three days. When it does, titles silently fall back to the offline titler; the card could say which titler named a shot.
+- The announcement stays drafted, secondary.
+- A second bend pin on arrows only if one proves short; Codex, Gemini CLI and Cursor Agent presets still unverified on this Mac.
 
 **Ruled out**
-- ScreenSnap Pro's backgrounds, video editor, GIF export and cloud links — days of work, and the cloud one contradicts the tagline.
-- ShotScribe's own artwork as a 22pt button mark: too detailed, turns to mud at 1x beside system icons.
-- A hover overlay drawn by a row inside a `LazyVStack`; `zIndex` does not lift it above later rows — the container reads an anchor preference instead.
-- A test fixture drawn through `NSImage.lockFocus`: its scale follows the attached display.
-- A separate pin control for the landing zone; the adaptive tile grid; a state mark in the accent colour or inside the tile.
+- Five fixed size stops for text and steps — a slider ("makes it much easier").
+- A colour-less black-out — every mark takes a colour, opaque whatever it is.
+- A grey Save for "nothing to save" — read as failure twice; it is **Done** now.
+- Two bend pins on an arrow — one quadratic pin covers what a screenshot needs.
+- Auto-stamping every capture — offered as a question, not shipped.
+- ShotScribe's own artwork as a 22pt button mark; a hover overlay drawn by a row inside a `LazyVStack`; a fixture drawn through `NSImage.lockFocus`.
 
 **Working tree:** clean once this save's commits land
 **Unpushed commits:** none after `/clean-tree`
@@ -31,7 +31,59 @@ ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
 3.41.07 PM.png") into dated, findable titles ("2026-08-11 1541 AWS Billing
 Console.png") — on-device OCR (Apple Vision) plus a swappable Titler seam.
 
-## Current state (2026-09-13 — 1.5.1 public, 1.6.0 built and unshipped)
+## Current state (2026-09-16 — 1.6.5 public)
+
+Everything in the 2026-09-13 section below still holds; this is what 1.6.5 added.
+
+**Edit the Image** — ShotScribe's own editor (`Sources/ShotScribeUI/Editor.swift`
+over `ShotScribeCore/ImageEditor.swift`), opened from the landing zone's mark-up
+tile; Preview is under its right-click.
+- A **mark** is a value with an identity until Save: pixelate, black out,
+  rectangle, ellipse, line, arrow (one `bend` point — a quadratic through it,
+  straight when nil), highlight, text, step (number + badge: bubble, square,
+  chevron, flag, pin). Colour (black first, then white, then the palette;
+  highlighter keeps its own), line weight, a size slider, a font. `EditorPress`
+  is the one press rule: a visible handle resizes in any tool, a drawing tool
+  always draws, only Select picks up.
+- **Kept edits** (`EditStore`): the flat picture goes to the file; the untouched
+  base and `edit.json` (marks, frame, crop, scale, watermark) live under
+  `~/Library/Application Support/ShotScribe/Edits/<uuid>/`, linked from the
+  file by the xattr `com.joshvanorden.shotscribe.edit`. Redactions are burned
+  into the kept base, which is what makes **Revert to original** honest — it is
+  offered only while `baseIsOriginal`.
+- **Frame** (`FrameStyle`): corner radius, padding, shadow as fractions of the
+  short side; background none / solid / gradient / image (pictures kept in
+  `…/ShotScribe/Backgrounds`); six shipped combos plus custom ones in
+  `shotscribe.frameCombos`.
+- **Crop and resize** are stored, not applied: `render(base, marks, crop:,
+  scale:, watermark:, frame:)` cuts, flattens, scales, stamps, then frames.
+- **Watermark** (`Watermark`, `WatermarkImages` under `…/ShotScribe/Watermarks`):
+  text or logo; six placements incl. tiled; `size`/`opacity` as fractions; ink
+  `auto` samples luminance under the box (`ImageEditor.luminance`, cached by
+  image identity) and picks white or near-black with a halo of the other; a
+  logo's shape is its alpha, or — when it has none worth the name — everything
+  that is not its edge colour (`logoMask` / `keyedMask`). Set once: the
+  watermark in `shotscribe.watermark` and the flag `shotscribe.watermarkEveryEdit`;
+  `Watermark.forNewEdit()` is what a fresh edit starts with.
+- **Fonts** (`TextFont`): system, rounded, serif, mono, or `family(name)`; bold
+  always; stored as one string; a missing family falls back to the system face
+  and `isInstalled` says so.
+- The footer button reads **Done** (and only closes) when nothing would be
+  written — a grey Save read as failure.
+
+**Backlog sweep** (`Backlog.swift`, model `BacklogRun`): `pending(in:)` lists
+what is still called `Screenshot …`; `propose` names it; three at a time in the
+window, each row approved or dropped; `applyBacklog` renames under
+`watcher?.ignore`. Built; Josh's to run.
+
+**Appearance**: `shotscribe.appearance` (system / light / dark) applied to
+`NSApp.appearance` at launch and from the moon/sun capsule beside search;
+right-click follows the Mac again.
+
+**The watcher** reports ShotScribe's own renamed output landing; `rename` checks
+`Naming.isRawCapture` before OCR (it did not, and paid a titler call per rename).
+
+## Earlier state (2026-09-13 — 1.5.1 public, 1.6.0 built and unshipped)
 
 1.5.1 is the public release (GitHub, notarized DMG). Everything below that
 says "1.6" is on `settings-pane`, built, tested (140) and pushed, with the tag,

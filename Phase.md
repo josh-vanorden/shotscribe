@@ -236,3 +236,22 @@ and Josh is holding his 94 raw captures for it.
 - **Release note:** `gh` had drifted to the work account and refused the
   release for want of a scope; `forge auto` put it back on the personal one.
   Worth running before `gh release create`, not after it fails.
+
+## 2026-09-16 — 1.6.5 shipped; the gate to *maintain* is down to the widget
+The editor (marks, kept edits, frames, crop, resize, steps, bent arrows,
+watermark, fonts), the backlog sweep and the appearance flip went out as 1.6.5.
+The README's backlog sweep is ticked — built, Josh's to run — so the gate to
+*maintain* is one item, the WidgetKit widget, and that is his call to build or
+defer. The phase line stays **Ship** until he makes it.
+- **Sub-issue, fixed:** a view modifier hung off a panel dies with the panel;
+  loaders the canvas depends on belong at the root (Triage 2026-09-16 13:44).
+- **Sub-issue, fixed:** a grey Save reads as broken; the footer now says
+  **Done** when nothing would be written (Triage 2026-09-16 13:51).
+- **Sub-issue, fixed:** the watcher re-titled ShotScribe's own output — the
+  name check now runs before OCR (Triage 2026-09-16 09:40).
+- **Open, Josh's call:** stamping every *capture* with the kept watermark at
+  capture time, without the editor. Small to build; it would alter every
+  screenshot, personal ones included, so it was asked, not built.
+- **Open:** a second bend pin on arrows if one ever proves short; Toolbelt's
+  pin commits (1.6.0–1.6.5) still unpushed there; the dead MCP entry in
+  `~/.claude.json`; the announcement.

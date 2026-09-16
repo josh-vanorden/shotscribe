@@ -2,6 +2,44 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.5 — 2026-09-16
+
+- **Edit the Image.** ShotScribe has its own editor now — the landing zone's
+  mark-up tile opens it (Preview is still one right-click away). Pixelate or
+  black out a region, boxes, ellipses, lines, arrows (drag the middle handle to
+  bend one), highlights, labels, and **step numbers** that count up as you click
+  — bubble, square, chevron, flag or pin. Every mark stays an object until Save:
+  select it, move it, resize it, recolour it, delete it. Colour is black by
+  default, then white, then the palette; size is a slider. Undo and redo.
+- **Edits stay editable.** Saving writes a flat picture for everyone else and
+  keeps the untouched capture and the marks beside it, so opening the same
+  shot again puts everything back where it was. **Revert to original** is
+  honest: it is offered only while nothing has been redacted, because a
+  redaction is burned in on purpose and there is no lifting it.
+- **Frame, crop, resize.** Corners, margin and shadow as sliders; the margin
+  filled with a colour, a two-colour gradient (six shipped combos and **+** for
+  your own, by hex or the colour wheel) or a picture of your own. Crop to what
+  matters — the rest stays in the edit and can come back — and save at a
+  smaller size.
+- **Watermark.** Your name or logo over the picture: a corner, the centre, or
+  tiled across everything. With ink on **Auto** it is set in white or near-black
+  against whatever is under it, with a soft halo; a logo becomes a silhouette,
+  and a logo exported on a white square is keyed off that square rather than
+  drawn as a box. **Use on every edit** keeps one watermark and starts every
+  new edit with it on.
+- **Fonts.** Labels, step numbers and watermark text can be set in the system
+  face, Rounded, Serif, Mono, or any family installed on the Mac; a face that
+  is not installed stands down to the system one and says so.
+- **Backlog sweep.** Captures that landed while ShotScribe was not running —
+  still called `Screenshot …` — can be named after the fact: the Folder tab
+  and the window's "never named" link propose names three at a time, and you
+  approve, drop or apply. Never automatic, never a file you named yourself.
+- **Light or dark, your call.** A moon or sun beside the search field flips
+  the whole app; right-click it to follow the Mac again.
+- **Fixed: the watcher was re-titling ShotScribe's own output.** Every renamed
+  file came back through the watcher and was read again before the name check
+  said no — 257 wasted titler calls in one log. The name check runs first now.
+
 ## 1.6.4 — 2026-09-15
 
 - **A card when a capture lands.** It slides up from the bottom centre about a
