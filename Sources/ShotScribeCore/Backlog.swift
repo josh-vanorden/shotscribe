@@ -24,7 +24,7 @@ public enum Backlog {
             .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true }
             .filter(Capture.isCapture)
             .filter { Naming.isRawCapture(at: $0) }
-            .sorted { taken($0) < taken($1) }
+            .sorted { (Capture.takenAt($0) ?? .distantPast) < (Capture.takenAt($1) ?? .distantPast) }
     }
 
     /// One capture, read and titled, with the name it would get.
@@ -61,8 +61,4 @@ public enum Backlog {
         return Proposal(url: url, label: label, tags: tags, name: target.lastPathComponent)
     }
 
-    private static func taken(_ url: URL) -> Date {
-        let v = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
-        return v?.creationDate ?? v?.contentModificationDate ?? .distantPast
-    }
 }

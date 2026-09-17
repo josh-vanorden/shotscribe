@@ -177,8 +177,10 @@ public struct EditorView: View {
     @State private var widthDraft = ""
     /// Pictures brought in as frame backgrounds, newest first.
     @State private var backgroundNames: [String] = BackgroundImages.names()
-    /// The one drawn now, so the canvas does not decode it per frame.
-    @State private var backgroundImage: (name: String, image: CGImage)?
+    /// The picture at the canvas's scale, resampled once rather than per paint.
+    @State private var scaled = ScaledPicture()
+    @State private var baking = false
+    @State private var bakeAgain = false
     @State private var customCombos: [FrameStyle.Combo] = FrameStyle.customCombos()
     @State private var addingCombo = false
     @State private var comboName = ""
@@ -193,7 +195,6 @@ public struct EditorView: View {
     /// When the picture was taken — the file's creation date — for the stamp.
     @State private var capturedAt: Date?
     @State private var logoNames: [String] = WatermarkImages.names()
-    @State private var logo: (name: String, image: CGImage)?
     @State private var everyEdit = Watermark.onEveryEdit
     @State private var pickingWatermarkColour = false
     /// Every family installed, read once the first font menu opens.
@@ -249,10 +250,6 @@ public struct EditorView: View {
         .background(shortcuts)
         .task { load() }
         .onChange(of: pixelSignature) { _ in rebake() }
-        // On the root, not the panel: a panel's modifier is gone with the
-        // panel, and the logo has to load whichever panel picked it (2026-09-16:
-        // "no watermark preview so any adjustments are made blindly").
-        .onChange(of: watermark?.imageName) { _ in loadLogo() }
         .onChange(of: textFocused) { focused in if !focused { commitText() } }
         .onExitCommand {
             if editingText != nil { commitText() }
@@ -345,29 +342,17 @@ public struct EditorView: View {
         .help(help)
     }
 
+    /// A tool, drawn as a mode is: the name under the icon, always. Nine
+    /// glyphs with nothing under them left people guessing what each was for.
     private func toolButton(_ t: EditorTool) -> some View {
-        Button {
+        modeButton(t.name, symbol: t.symbol, on: tool == t, tinted: false,
+                   help: "\(t.name) — \(t.hint)  (\(String(t.key).uppercased()))") {
             if editingText != nil { commitText() }
             framing = false; resizing = false; branding = false
             if t == .crop { cropDraft = crop ?? fullRect } else if tool == .crop { cropDraft = nil }
             tool = t
             if t != .select { selected = nil }
-        } label: {
-            // The name under the icon, always. Nine glyphs with nothing under
-            // them left people guessing what each one was for.
-            VStack(spacing: 3) {
-                Image(systemName: t.symbol).font(.system(size: 14, weight: .medium))
-                Text(t.name).font(.system(size: 9.5, weight: tool == t ? .semibold : .regular))
-                    .lineLimit(1).fixedSize()
-            }
-            .frame(width: 52, height: 42)
-            .foregroundStyle(tool == t ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(tool == t ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.clear)))
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .help("\(t.name) — \(t.hint)  (\(String(t.key).uppercased()))")
     }
 
     // MARK: Inspector
@@ -615,17 +600,11 @@ public struct EditorView: View {
     private var placementPicker: some View {
         HStack(spacing: 2) {
             ForEach(Watermark.Placement.allCases, id: \.self) { place in
-                let on = wm.placement == place
-                Button { setWatermark { $0.placement = place } } label: {
-                    Image(systemName: placementSymbol(place))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 28, height: 24)
-                        .foregroundStyle(on ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(on ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.primary.opacity(0.06))))
+                segment(on: wm.placement == place, width: 28, help: place.name) {
+                    setWatermark { $0.placement = place }
+                } glyph: {
+                    Image(systemName: placementSymbol(place)).font(.system(size: 12, weight: .medium))
                 }
-                .buttonStyle(.plain)
-                .help(place.name)
             }
         }
     }
@@ -643,57 +622,66 @@ public struct EditorView: View {
 
     /// The logos kept for watermarking, and a way to bring another in.
     private var logoChoices: some View {
+        pictureStrip(WatermarkImages, names: $logoNames, selected: wm.imageName,
+                     choose: { name in setWatermark { $0.imageName = name } },
+                     prompt: "Use as Watermark", emptyLabel: "Choose a logo…",
+                     help: "A logo of your own, ideally a PNG with a transparent background. It is kept by ShotScribe, so the watermark outlives the file.")
+    }
+
+    /// The pictures kept in `store`, the chosen one ringed, a way to bring
+    /// another in, and Remove on right-click. The frame's backgrounds and the
+    /// watermark's logos are the same strip over different stores.
+    private func pictureStrip(_ store: KeptPictures, names: Binding<[String]>, selected: String?,
+                              choose: @escaping (String?) -> Void, prompt: String, emptyLabel: String,
+                              help: String) -> some View {
         HStack(spacing: 6) {
-            ForEach(logoNames, id: \.self) { name in
-                let on = wm.imageName == name
-                Button { setWatermark { $0.imageName = name } } label: {
-                    AspectThumbnail(path: WatermarkImages.url(for: name).path, aspect: 1.4, pixels: 120)
+            ForEach(names.wrappedValue, id: \.self) { name in
+                Button { choose(name) } label: {
+                    AspectThumbnail(path: store.url(for: name).path, aspect: 1.4, pixels: 120)
                         .frame(width: 34, height: 24)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                         .padding(2)
                         .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(ShotPalette.accent, lineWidth: on ? 2 : 0))
+                            .strokeBorder(ShotPalette.accent, lineWidth: selected == name ? 2 : 0))
                 }
                 .buttonStyle(.plain)
                 .help(name)
                 .contextMenu {
                     Button("Remove “\(name)”") {
-                        WatermarkImages.remove(name)
-                        logoNames = WatermarkImages.names()
-                        if wm.imageName == name { setWatermark { $0.imageName = logoNames.first } }
+                        store.remove(name)
+                        names.wrappedValue = store.names()
+                        if selected == name { choose(names.wrappedValue.first) }
                     }
                 }
             }
-            Button { chooseLogo() } label: {
-                Label(logoNames.isEmpty ? "Choose a logo…" : "Add…", systemImage: "photo.badge.plus")
+            Button { importPicture(into: store, prompt: prompt, names: names, then: choose) } label: {
+                Label(names.wrappedValue.isEmpty ? emptyLabel : "Add…", systemImage: "photo.badge.plus")
             }
             .buttonStyle(CapsuleButtonStyle(quiet: true))
-            .help("A logo of your own, ideally a PNG with a transparent background. It is kept by ShotScribe, so the watermark outlives the file.")
+            .help(help)
+            if selected == nil, !names.wrappedValue.isEmpty {
+                Text("Pick one").font(.caption2).foregroundStyle(.tertiary)
+            }
         }
     }
 
-    private func chooseLogo() {
+    private func importPicture(into store: KeptPictures, prompt: String, names: Binding<[String]>,
+                               then choose: @escaping (String?) -> Void) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.prompt = "Use as Watermark"
+        panel.prompt = prompt
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             do {
-                let name = try WatermarkImages.add(url)
-                logoNames = WatermarkImages.names()
-                setWatermark { $0.imageName = name }
+                let name = try store.add(url)
+                names.wrappedValue = store.names()
+                choose(name)
             } catch {
-                model.report("Couldn’t bring that logo in: \(error.localizedDescription)")
+                model.report("Couldn’t bring that picture in: \(error.localizedDescription)")
             }
         }
-    }
-
-    private func loadLogo() {
-        guard let name = watermark?.imageName else { logo = nil; return }
-        if logo?.name == name { return }
-        logo = WatermarkImages.load(name).map { (name, $0) }
     }
 
     // MARK: Fonts
@@ -705,7 +693,8 @@ public struct EditorView: View {
 
     /// The four system designs, then every family installed.
     private func fontMenu(_ selection: Binding<TextFont>) -> some View {
-        Menu {
+        let installed = selection.wrappedValue.isInstalled
+        return Menu {
             ForEach(TextFont.designs, id: \.self) { f in
                 Toggle(f.name, isOn: Binding(get: { selection.wrappedValue == f }, set: { _ in selection.wrappedValue = f }))
             }
@@ -721,12 +710,19 @@ public struct EditorView: View {
                 Image(systemName: "textformat").font(.system(size: 10, weight: .semibold))
                 Text(selection.wrappedValue.name).font(.caption.weight(.medium)).lineLimit(1)
             }
-            .foregroundStyle(selection.wrappedValue.isInstalled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .foregroundStyle(installed ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
         }
         .menuStyle(.borderlessButton).fixedSize()
-        .help(selection.wrappedValue.isInstalled ? "The face labels and step numbers are set in"
-                                                 : "“\(selection.wrappedValue.name)” is not installed here; the system face stands in")
-        .onAppear { if families.isEmpty { families = TextFont.installedFamilies() } }
+        .help(installed ? "The face labels and step numbers are set in"
+                        : "“\(selection.wrappedValue.name)” is not installed here; the system face stands in")
+        .onAppear {
+            // Hundreds of families, read off the main thread and once.
+            guard families.isEmpty else { return }
+            Task.detached(priority: .utility) {
+                let all = TextFont.installedFamilies()
+                await MainActor.run { families = all }
+            }
+        }
     }
 
     // MARK: Crop and resize
@@ -819,20 +815,10 @@ public struct EditorView: View {
         frame.shadow <= 0.01 ? "None" : "\(Int((frame.shadow * 100).rounded()))%"
     }
 
-    private var backgroundKind: Binding<FrameStyle.Background.Kind> {
-        Binding(get: { frame.background.kind }, set: { frame.background.kind = $0 })
-    }
-    private var firstColor: Binding<MarkColor> {
-        Binding(get: { frame.background.first }, set: { frame.background.first = $0 })
-    }
-    private var secondColor: Binding<MarkColor> {
-        Binding(get: { frame.background.second }, set: { frame.background.second = $0 })
-    }
-
     private var backgroundRow: some View {
         HStack(spacing: 12) {
             caption("Fill")
-            Picker("", selection: backgroundKind) {
+            Picker("", selection: $frame.background.kind) {
                 Text("None").tag(FrameStyle.Background.Kind.none)
                 Text("Colour").tag(FrameStyle.Background.Kind.solid)
                 Text("Gradient").tag(FrameStyle.Background.Kind.gradient)
@@ -845,9 +831,9 @@ public struct EditorView: View {
                 imageChoices
             } else if frame.background.kind != .none {
                 separator
-                colourWell(frame.background.kind == .gradient ? "From" : "Colour", color: firstColor, open: $pickingFirst)
+                colourWell(frame.background.kind == .gradient ? "From" : "Colour", color: $frame.background.first, open: $pickingFirst)
                 if frame.background.kind == .gradient {
-                    colourWell("To", color: secondColor, open: $pickingSecond)
+                    colourWell("To", color: $frame.background.second, open: $pickingSecond)
                     slider("Angle", value: $frame.background.angle, in: 0...360,
                            readout: "\(Int(frame.background.angle.rounded()))°", width: 90)
                 }
@@ -857,8 +843,6 @@ public struct EditorView: View {
             }
             Spacer(minLength: 0)
         }
-        .onChange(of: frame.background.imageName) { _ in loadBackgroundImage() }
-        .onAppear { loadBackgroundImage() }
     }
 
     /// The shipped combos, the operator's own after them, and a + to make one
@@ -898,7 +882,7 @@ public struct EditorView: View {
                 comboColourField("To", color: $comboB, hex: $hexB)
             }
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(LinearGradient(colors: [Color(cgColor: comboA.cgColor), Color(cgColor: comboB.cgColor)],
+                .fill(LinearGradient(colors: [comboA.swiftUI, comboB.swiftUI],
                                      startPoint: .leading, endPoint: .trailing))
                 .frame(height: 22)
             TextField("Name", text: $comboName).textFieldStyle(.roundedBorder).controlSize(.small)
@@ -927,26 +911,14 @@ public struct EditorView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name).font(.caption2).foregroundStyle(.secondary)
             HStack(spacing: 6) {
-                ColorPicker("", selection: Binding(
-                    get: { Color(cgColor: color.wrappedValue.cgColor) },
-                    set: { new in
-                        guard let ns = NSColor(new).usingColorSpace(.sRGB) else { return }
-                        color.wrappedValue = MarkColor(red: ns.redComponent, green: ns.greenComponent, blue: ns.blueComponent)
-                        hex.wrappedValue = color.wrappedValue.hex
-                    }), supportsOpacity: false)
-                    .labelsHidden()
+                markColorPicker(Binding(get: { color.wrappedValue },
+                                        set: { color.wrappedValue = $0; hex.wrappedValue = $0.hex }))
                 TextField("#RRGGBB", text: hex)
                     .textFieldStyle(.roundedBorder).controlSize(.small).font(.caption.monospaced())
                     .frame(width: 84)
                     .onSubmit {
-                        let s = hex.wrappedValue.trimmingCharacters(in: .whitespaces)
-                        let digits = s.hasPrefix("#") ? String(s.dropFirst()) : s
-                        if digits.count == 6 || digits.count == 3, Int(digits, radix: 16) != nil {
-                            color.wrappedValue = MarkColor(hex: s)
-                            hex.wrappedValue = color.wrappedValue.hex
-                        } else {
-                            hex.wrappedValue = color.wrappedValue.hex
-                        }
+                        if let typed = MarkColor(validatingHex: hex.wrappedValue) { color.wrappedValue = typed }
+                        hex.wrappedValue = color.wrappedValue.hex
                     }
             }
         }
@@ -954,68 +926,15 @@ public struct EditorView: View {
 
     /// The pictures kept for framing, and a way to bring another in.
     private var imageChoices: some View {
-        HStack(spacing: 6) {
-            ForEach(backgroundNames, id: \.self) { name in
-                let on = frame.background.imageName == name
-                Button { frame.background.imageName = name } label: {
-                    AspectThumbnail(path: BackgroundImages.url(for: name).path, aspect: 1.4, pixels: 120)
-                        .frame(width: 34, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                        .padding(2)
-                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(ShotPalette.accent, lineWidth: on ? 2 : 0))
-                }
-                .buttonStyle(.plain)
-                .help(name)
-                .contextMenu {
-                    Button("Remove “\(name)”") {
-                        BackgroundImages.remove(name)
-                        backgroundNames = BackgroundImages.names()
-                        if frame.background.imageName == name { frame.background.imageName = backgroundNames.first }
-                    }
-                }
-            }
-            Button { chooseBackgroundImage() } label: {
-                Label(backgroundNames.isEmpty ? "Choose a picture…" : "Add…", systemImage: "photo.badge.plus")
-            }
-            .buttonStyle(CapsuleButtonStyle(quiet: true))
-            .help("A picture of your own — a brand background, a texture. It is kept by ShotScribe, so the frame outlives the file.")
-            if frame.background.imageName == nil, !backgroundNames.isEmpty {
-                Text("Pick one").font(.caption2).foregroundStyle(.tertiary)
-            }
-        }
-    }
-
-    private func chooseBackgroundImage() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.image]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.prompt = "Use as Background"
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                let name = try BackgroundImages.add(url)
-                backgroundNames = BackgroundImages.names()
-                frame.background.imageName = name
-            } catch {
-                model.report("Couldn’t bring that picture in: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func loadBackgroundImage() {
-        guard let name = frame.background.imageName else { backgroundImage = nil; return }
-        if backgroundImage?.name == name { return }
-        Task.detached(priority: .userInitiated) {
-            let image = BackgroundImages.load(name)
-            await MainActor.run { backgroundImage = image.map { (name, $0) } }
-        }
+        pictureStrip(BackgroundImages, names: $backgroundNames, selected: frame.background.imageName,
+                     choose: { frame.background.imageName = $0 },
+                     prompt: "Use as Background", emptyLabel: "Choose a picture…",
+                     help: "A picture of your own — a brand background, a texture. It is kept by ShotScribe, so the frame outlives the file.")
     }
 
     private func comboDot(_ combo: FrameStyle.Combo) -> some View {
         let on = frame.background == combo.background
-        let colors = [Color(cgColor: combo.background.first.cgColor), Color(cgColor: combo.background.second.cgColor)]
+        let colors = [combo.background.first.swiftUI, combo.background.second.swiftUI]
         return Button {
             withAnimation(.easeOut(duration: 0.18)) { frame.background = combo.background }
         } label: {
@@ -1046,7 +965,7 @@ public struct EditorView: View {
             caption(name)
             Button { open.wrappedValue.toggle() } label: {
                 HStack(spacing: 4) {
-                    Circle().fill(Color(cgColor: color.wrappedValue.cgColor))
+                    Circle().fill(color.wrappedValue.swiftUI)
                         .overlay(Circle().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1))
                         .frame(width: 18, height: 18)
                     Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
@@ -1071,13 +990,7 @@ public struct EditorView: View {
                     HStack {
                         Text("Any colour").font(.caption).foregroundStyle(.secondary)
                         Spacer()
-                        ColorPicker("", selection: Binding(
-                            get: { Color(cgColor: color.wrappedValue.cgColor) },
-                            set: { new in
-                                guard let ns = NSColor(new).usingColorSpace(.sRGB) else { return }
-                                color.wrappedValue = MarkColor(red: ns.redComponent, green: ns.greenComponent, blue: ns.blueComponent)
-                            }), supportsOpacity: false)
-                            .labelsHidden()
+                        markColorPicker(color)
                     }
                 }
                 .padding(12)
@@ -1086,16 +999,26 @@ public struct EditorView: View {
         }
     }
 
-    private func paletteDot(_ c: MarkColor, selected: Bool, action: @escaping () -> Void) -> some View {
+    /// A colour as a dot, ringed when it is the one in use.
+    private func paletteDot(_ c: MarkColor, selected: Bool, diameter: CGFloat = 20, padding: CGFloat = 3,
+                            action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Circle().fill(Color(cgColor: c.cgColor))
-                .overlay(Circle().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1))
-                .frame(width: 20, height: 20)
-                .padding(3)
+            Circle().fill(c.swiftUI)
+                .overlay(Circle().strokeBorder(Color.primary.opacity(c == .white ? 0.3 : 0.18), lineWidth: 1))
+                .frame(width: diameter, height: diameter)
+                .padding(padding)
                 .overlay(Circle().strokeBorder(ShotPalette.accent, lineWidth: selected ? 2 : 0))
         }
         .buttonStyle(.plain)
         .help(c.name)
+    }
+
+    /// The colour wheel, speaking `MarkColor`.
+    private func markColorPicker(_ colour: Binding<MarkColor>) -> some View {
+        ColorPicker("", selection: Binding(get: { colour.wrappedValue.swiftUI },
+                                           set: { if let c = MarkColor($0) { colour.wrappedValue = c } }),
+                    supportsOpacity: false)
+            .labelsHidden()
     }
 
     private func chip(_ words: String, symbol: String, on: Bool) -> some View {
@@ -1116,17 +1039,9 @@ public struct EditorView: View {
         let name = kind.flatMap { EditorTool(rawValue: $0.rawValue)?.name } ?? "Nothing"
         let symbol = kind.flatMap { EditorTool(rawValue: $0.rawValue)?.symbol } ?? "cursorarrow"
         let editing = selection != nil
-        return HStack(spacing: 5) {
-            Image(systemName: symbol).font(.system(size: 10, weight: .semibold))
-            Text(editing ? "Editing \(name.lowercased())"
-                 : kind == nil ? "Select a mark to edit it" : "Next \(name.lowercased())")
-                .font(.caption.weight(.semibold))
-        }
-        .padding(.horizontal, 9).frame(height: 24)
-        .foregroundStyle(editing ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
-        .background(Capsule().fill(editing ? AnyShapeStyle(ShotPalette.accent)
-                                           : AnyShapeStyle(Color.primary.opacity(0.07))))
-        .fixedSize()
+        return chip(editing ? "Editing \(name.lowercased())"
+                    : kind == nil ? "Select a mark to edit it" : "Next \(name.lowercased())",
+                    symbol: symbol, on: editing)
     }
 
     private func caption(_ words: String) -> some View {
@@ -1138,19 +1053,10 @@ public struct EditorView: View {
     private var badgePicker: some View {
         HStack(spacing: 2) {
             ForEach(Mark.Badge.allCases, id: \.self) { b in
-                let on = currentBadge == b
-                Button {
+                segment(on: currentBadge == b, help: b.name) {
                     badge = b
                     apply { if $0.kind == .step { $0.badge = b } }
-                } label: {
-                    badgeGlyph(b)
-                        .frame(width: 30, height: 24)
-                        .foregroundStyle(on ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(on ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.primary.opacity(0.06))))
-                }
-                .buttonStyle(.plain)
-                .help(b.name)
+                } glyph: { badgeGlyph(b) }
             }
         }
     }
@@ -1172,25 +1078,9 @@ public struct EditorView: View {
     private var swatches: some View {
         HStack(spacing: 5) {
             ForEach(MarkColor.palette, id: \.self) { c in
-                Button { setColor(c) } label: {
-                    Circle()
-                        .fill(Color(cgColor: c.cgColor))
-                        .overlay(Circle().strokeBorder(Color.primary.opacity(c == .white ? 0.3 : 0.12), lineWidth: 1))
-                        .frame(width: 18, height: 18)
-                        .padding(2)
-                        .overlay(Circle().strokeBorder(ShotPalette.accent, lineWidth: currentColor == c ? 2 : 0))
-                }
-                .buttonStyle(.plain)
-                .help(c.name)
+                paletteDot(c, selected: currentColor == c, diameter: 18, padding: 2) { setColor(c) }
             }
-            ColorPicker("", selection: Binding(
-                get: { Color(cgColor: currentColor.cgColor) },
-                set: { new in
-                    guard let ns = NSColor(new).usingColorSpace(.sRGB) else { return }
-                    setColor(MarkColor(red: ns.redComponent, green: ns.greenComponent,
-                                       blue: ns.blueComponent, alpha: 1))
-                }), supportsOpacity: false)
-                .labelsHidden()
+            markColorPicker(Binding(get: { currentColor }, set: { setColor($0) }))
                 .frame(width: 30)
                 .help("Any colour")
         }
@@ -1200,17 +1090,26 @@ public struct EditorView: View {
         HStack(spacing: 2) {
             ForEach(Weight.allCases) { w in
                 let on = currentWeight == w
-                Button { setWeight(w) } label: {
+                segment(on: on, help: w.name) { setWeight(w) } glyph: {
                     Capsule().fill(on ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
                         .frame(width: 18, height: w == .thin ? 1.5 : w == .medium ? 3 : 5)
-                        .frame(width: 30, height: 24)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(on ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.primary.opacity(0.06))))
                 }
-                .buttonStyle(.plain)
-                .help(w.name)
             }
         }
+    }
+
+    /// One cell of a segmented row — the weight, badge and placement pickers.
+    private func segment<Glyph: View>(on: Bool, width: CGFloat = 30, help: String, action: @escaping () -> Void,
+                                      @ViewBuilder glyph: () -> Glyph) -> some View {
+        Button(action: action) {
+            glyph()
+                .frame(width: width, height: 24)
+                .foregroundStyle(on ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary))
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(on ? AnyShapeStyle(ShotPalette.accent) : AnyShapeStyle(Color.primary.opacity(0.06))))
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     /// One slider from half size to two-and-a-half. It restyles the selected
@@ -1288,41 +1187,21 @@ public struct EditorView: View {
         let radius = shownFrame.radius(for: size) * fit.scale
         let shape = Path(roundedRect: picture, cornerRadius: radius, style: .circular)
 
-        // The frame, as it will be saved: background across the whole output,
-        // then the picture's shadow on it. The same colours and direction as
-        // `ImageEditor.render`, drawn here in the view's own terms.
-        switch shownFrame.background.kind {
-        case .none:
+        // The frame as it will be saved — the same background and shadow
+        // recipe as the file, drawn by `ImageEditor` into the view's context.
+        // With no background the view shows what the file cannot: a hairline
+        // round a plain picture, a checkerboard where the margin is clear.
+        if shownFrame.background.kind == .none {
             if shownFrame.isPlain {
                 ctx.stroke(Path(outer.insetBy(dx: -0.5, dy: -0.5)), with: .color(.primary.opacity(0.15)), lineWidth: 1)
             } else {
                 checkerboard(ctx, in: outer)
             }
-        case .solid:
-            ctx.fill(Path(outer), with: .color(Color(cgColor: shownFrame.background.first.cgColor)))
-        case .gradient:
-            let (start, end) = ImageEditor.gradientPoints(angle: shownFrame.background.angle, in: outer, upright: false)
-            ctx.fill(Path(outer), with: .linearGradient(
-                Gradient(colors: [Color(cgColor: shownFrame.background.first.cgColor),
-                                  Color(cgColor: shownFrame.background.second.cgColor)]),
-                startPoint: start, endPoint: end))
-        case .image:
-            if let bg = backgroundImage, bg.name == shownFrame.background.imageName {
-                var clipped = ctx
-                clipped.clip(to: Path(outer))
-                let fill = ImageEditor.aspectFill(CGSize(width: bg.image.width, height: bg.image.height), in: outer)
-                clipped.draw(Image(decorative: bg.image, scale: 1), in: fill)
-            } else {
-                ctx.fill(Path(outer), with: .color(Color(cgColor: MarkColor.frost.cgColor)))
-            }
         }
-        if shownFrame.shadow > 0, shownFrame.padding > 0 {
-            let short = min(size.width, size.height) * fit.scale
-            let s = min(max(shownFrame.shadow, 0), 1)
-            var shadowed = ctx
-            shadowed.addFilter(.shadow(color: .black.opacity(0.15 + 0.45 * s),
-                                       radius: short * 0.03 * (0.5 + s * 1.5) / 2, y: short * 0.012 * (0.5 + s)))
-            shadowed.fill(shape, with: .color(.black))
+        ctx.withCGContext { cg in
+            ImageEditor.drawBackground(shownFrame.background, in: outer, cg, upright: false)
+            ImageEditor.drawShadow(of: shape.cgPath, frame: shownFrame, pictureSize: size, scale: fit.scale,
+                                   upright: false, cg)
         }
 
         let live = marks.filter { $0.kind != .pixelate && $0.id != editingText }
@@ -1338,8 +1217,9 @@ public struct EditorView: View {
                 cg.saveGState()
                 cg.translateBy(x: 0, y: full.height)
                 cg.scaleBy(x: 1, y: -1)
-                cg.interpolationQuality = .high
-                cg.draw(shown, in: CGRect(origin: .zero, size: full))
+                // Resampled once at this scale, not on every paint.
+                cg.interpolationQuality = .default
+                cg.draw(scaled.image(of: shown, at: fit.scale), in: CGRect(origin: .zero, size: full))
                 cg.restoreGState()
                 ImageEditor.draw(live, in: cg, source: nil)
                 if let wm = previewWatermark(source: source) {
@@ -1347,7 +1227,8 @@ public struct EditorView: View {
                     cg.translateBy(x: visible.minX, y: visible.minY)
                     cg.clip(to: CGRect(origin: .zero, size: visible.size))
                     ImageEditor.drawWatermark(wm, in: cg, size: visible.size, under: shown,
-                                              underOrigin: visible.origin, logo: logo?.image)
+                                              underOrigin: visible.origin,
+                                              logo: wm.imageName.flatMap(WatermarkImages.load))
                     cg.restoreGState()
                 }
             }
@@ -1427,7 +1308,7 @@ public struct EditorView: View {
     }
 
     private func textField(for mark: Mark, fit: Fit) -> some View {
-        let frame = fit.view(ImageEditor.labelFrame(text: textDraft, fontSize: mark.fontSize, at: mark.a))
+        let frame = fit.view(ImageEditor.labelFrame(text: textDraft, fontSize: mark.fontSize, font: mark.font, at: mark.a))
         let size = max(11, mark.fontSize * fit.scale)
         return TextField("Label", text: $textDraft)
             .textFieldStyle(.plain)
@@ -1437,7 +1318,7 @@ public struct EditorView: View {
             .frame(minWidth: 120, minHeight: frame.height, alignment: .leading)
             .fixedSize()
             .background(RoundedRectangle(cornerRadius: size * 0.45, style: .continuous)
-                .fill(Color(cgColor: mark.color.cgColor)))
+                .fill(mark.color.swiftUI))
             .overlay(RoundedRectangle(cornerRadius: size * 0.45, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.8), lineWidth: 1.5))
             .offset(x: frame.minX, y: frame.minY)
@@ -1675,12 +1556,8 @@ public struct EditorView: View {
         hoveredMark = tool == .select ? marks.last(where: { $0.hit(p, tolerance: reach) })?.id : nil
         if let sel = selection, sel.handles.contains(where: { hypot($0.1.x - p.x, $0.1.y - p.y) <= reach }) {
             NSCursor.crosshair.set()
-        } else if tool == .select, marks.contains(where: { $0.hit(p, tolerance: reach) }) {
-            NSCursor.openHand.set()
         } else if tool == .select {
-            NSCursor.arrow.set()
-        } else if tool == .crop {
-            NSCursor.crosshair.set()
+            (hoveredMark == nil ? NSCursor.arrow : NSCursor.openHand).set()
         } else if tool == .text {
             NSCursor.iBeam.set()
         } else {
@@ -1797,35 +1674,33 @@ public struct EditorView: View {
     private func load() {
         guard source == nil else { return }
         let url = self.url
+        capturedAt = Capture.takenAt(url)
+        let wantsDigest = watermark?.stamp != nil || Watermark.forNewEdit()?.stamp != nil
         Task.detached(priority: .userInitiated) {
             // An edit made here comes back as it was left: the picture under
-            // the marks, and the marks as objects.
-            if let kept = EditStore.load(for: url) {
-                await MainActor.run {
-                    source = kept.base
-                    base = kept.base
-                    if marks.isEmpty { marks = kept.document.marks }
-                    frame = kept.document.frame
-                    crop = kept.document.crop
-                    scale = kept.document.scale
-                    if watermark == nil { watermark = kept.document.watermark; wmKind = .of(watermark) }
-                    capturedAt = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
-                    loadLogo()
-                    sourceIsOriginal = kept.document.baseIsOriginal
-                    reopened = true
-                    rebake()
-                }
-                return
+            // the marks, and the marks as objects. Otherwise the file itself,
+            // and — set once, used on every edit — the kept watermark.
+            let kept = EditStore.load(for: url)
+            let image = kept?.base ?? ImageEditor.load(url)
+            if let image, wantsDigest {
+                _ = ImageEditor.pixelDigest(of: image)   // the stamp's digest, before the first paint asks
             }
-            let image = ImageEditor.load(url)
             await MainActor.run {
                 source = image
                 base = image
                 failed = image == nil
-                // Set once, used on every edit: a fresh edit starts with the kept watermark.
-                if watermark == nil, let kept = Watermark.forNewEdit() { watermark = kept; wmKind = .of(kept) }
-                capturedAt = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
-                loadLogo()
+                if let kept {
+                    if marks.isEmpty { marks = kept.document.marks }
+                    frame = kept.document.frame
+                    crop = kept.document.crop
+                    scale = kept.document.scale
+                    sourceIsOriginal = kept.document.baseIsOriginal
+                    reopened = true
+                    if watermark == nil { watermark = kept.document.watermark }
+                } else if watermark == nil {
+                    watermark = Watermark.forNewEdit()
+                }
+                wmKind = .of(watermark)
                 rebake()
             }
         }
@@ -1839,19 +1714,24 @@ public struct EditorView: View {
         }
     }
 
-    /// Bake the pixelations into the picture underneath. Only the newest
-    /// request is kept, so dragging a pixelation around does not queue a
-    /// render per mouse event.
+    /// Bake the pixelations into the picture underneath. One render at a
+    /// time: a drag asks on every mouse event, and only the newest request
+    /// matters, so the next one waits for the one in flight and then runs on
+    /// whatever the marks are by then.
     private func rebake() {
         guard let source else { return }
         let pixels = marks.filter { $0.kind == .pixelate }
         baseGeneration += 1
-        let generation = baseGeneration
         guard !pixels.isEmpty else { base = source; return }
+        guard !baking else { bakeAgain = true; return }
+        baking = true
+        let generation = baseGeneration
         Task.detached(priority: .userInitiated) {
             let out = ImageEditor.render(source, marks: pixels)
             await MainActor.run {
                 if generation == baseGeneration { base = out ?? source }
+                baking = false
+                if bakeAgain { bakeAgain = false; rebake() }
             }
         }
     }
@@ -1949,10 +1829,42 @@ public final class EditorPresenter {
         window.contentView = NSHostingView(rootView: EditorView(url: url, model: model) { [weak self, weak window] in
             window?.close()
             self?.windows[url.path] = nil
+            if self?.windows.isEmpty ?? true { ImageEditor.forgetPictures() }
         })
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         windows[url.path] = window
+    }
+}
+
+extension MarkColor {
+    /// The same colour for SwiftUI.
+    var swiftUI: Color { Color(cgColor: cgColor) }
+
+    /// Back from a colour wheel; nil for a colour with no sRGB reading.
+    init?(_ color: Color) {
+        guard let ns = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        self.init(red: ns.redComponent, green: ns.greenComponent, blue: ns.blueComponent)
+    }
+}
+
+/// The picture resampled to the canvas's scale, once per scale rather than
+/// on every paint — the base of a Retina capture is tens of megabytes, and
+/// the canvas repaints on every hover. A class, so the paint can fill it
+/// without a view update.
+final class ScaledPicture {
+    private var source: CGImage?
+    private var scale: CGFloat = 1
+    private var image: CGImage?
+
+    func image(of source: CGImage, at scale: CGFloat) -> CGImage {
+        if scale >= 1 { return source }
+        if let image, self.source === source, self.scale == scale { return image }
+        let size = CGSize(width: max(1, (CGFloat(source.width) * scale).rounded()),
+                          height: max(1, (CGFloat(source.height) * scale).rounded()))
+        let made = ImageEditor.resized(source, to: size) ?? source
+        self.source = source; self.scale = scale; image = made
+        return made
     }
 }

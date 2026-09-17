@@ -69,23 +69,14 @@ public enum EditStore {
     /// operator's Application Support.
     public static var rootOverride: URL?
 
-    public static var root: URL {
-        if let rootOverride { return rootOverride }
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("ShotScribe/Edits", isDirectory: true)
-    }
+    public static var root: URL { rootOverride ?? KeptPictures.support("Edits") }
 
     public static func id(of url: URL) -> UUID? {
-        let size = getxattr(url.path, attribute, nil, 0, 0, 0)
-        guard size > 0, size < 256 else { return nil }
-        var buffer = [UInt8](repeating: 0, count: size)
-        guard getxattr(url.path, attribute, &buffer, size, 0, 0) == size else { return nil }
-        return UUID(uuidString: String(decoding: buffer, as: UTF8.self))
+        Xattr.read(attribute, at: url.path, limit: 255).flatMap { UUID(uuidString: String(decoding: $0, as: UTF8.self)) }
     }
 
     static func setID(_ id: UUID, on url: URL) {
-        let bytes = Array(id.uuidString.utf8)
-        _ = setxattr(url.path, attribute, bytes, bytes.count, 0, 0)
+        Xattr.write(Data(id.uuidString.utf8), attribute, at: url.path)
     }
 
     private static func folder(for id: UUID) -> URL {
@@ -116,11 +107,7 @@ public enum EditStore {
         let fm = FileManager.default
         try fm.createDirectory(at: dir, withIntermediateDirectories: true,
                                attributes: [.posixPermissions: 0o700])
-        let png = dir.appendingPathComponent("base.png")
-        guard let dest = CGImageDestinationCreateWithURL(png as CFURL, UTType.png.identifier as CFString, 1, nil)
-        else { throw CocoaError(.fileWriteUnknown) }
-        CGImageDestinationAddImage(dest, base, nil)
-        guard CGImageDestinationFinalize(dest) else { throw CocoaError(.fileWriteUnknown) }
+        try ImageEditor.writePNG(base, to: dir.appendingPathComponent("base.png"))
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(document).write(to: dir.appendingPathComponent("edit.json"), options: .atomic)
@@ -135,7 +122,7 @@ public enum EditStore {
     public static func remove(for url: URL) {
         guard let id = id(of: url) else { return }
         try? FileManager.default.removeItem(at: folder(for: id))
-        _ = removexattr(url.path, attribute, 0)
+        Xattr.remove(attribute, at: url.path)
     }
 }
 
@@ -187,34 +174,33 @@ extension EditStore {
     }
 }
 
-/// **Pictures the operator brought in to frame captures with** — a brand
-/// background, a texture — kept by ShotScribe under its own Application
-/// Support, so a frame still renders after the file they chose has moved.
-public enum BackgroundImages {
-    public static var rootOverride: URL?
-    public static var root: URL { rootOverride ?? KeptPictures.support("Backgrounds") }
+/// **Pictures the operator brought in** — frame backgrounds, watermark logos —
+/// kept by ShotScribe under its own Application Support, so a frame or a
+/// watermark still renders after the file they chose has moved. One store per
+/// folder; `BackgroundImages` and `WatermarkImages` are the two.
+///
+/// `load` remembers the last picture decoded, since the canvas asks for it on
+/// every paint and the save asks once more on another thread.
+public final class KeptPictures: @unchecked Sendable {
+    public let folder: String
+    /// Tests point this at a scratch folder.
+    public var rootOverride: URL?
+    private let lock = NSLock()
+    private var last: (name: String, image: CGImage)?
 
-    /// Copy a picture in. The name it is kept under is returned, and is what a
-    /// `FrameStyle.Background.image` refers to.
-    @discardableResult
-    public static func add(_ url: URL) throws -> String { try KeptPictures.add(url, to: root) }
-    public static func url(for name: String) -> URL { root.appendingPathComponent(name) }
-    public static func load(_ name: String) -> CGImage? { ImageEditor.load(url(for: name)) }
-    /// Every picture kept, newest first.
-    public static func names() -> [String] { KeptPictures.names(in: root) }
-    public static func remove(_ name: String) { try? FileManager.default.removeItem(at: url(for: name)) }
-}
+    public init(folder: String) { self.folder = folder }
 
-/// One folder of pictures the operator brought in, under ShotScribe's own
-/// Application Support — the backgrounds and the watermark logos share this.
-enum KeptPictures {
+    public var root: URL { rootOverride ?? Self.support(folder) }
+
     static func support(_ folder: String) -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ShotScribe/\(folder)", isDirectory: true)
     }
 
-    /// Copy a picture in under a name that is free; the name is returned.
-    static func add(_ url: URL, to root: URL) throws -> String {
+    /// Copy a picture in under a name that is free; the name is returned, and
+    /// is what a frame or a watermark refers to.
+    @discardableResult
+    public func add(_ url: URL) throws -> String {
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension.lowercased()
@@ -228,8 +214,18 @@ enum KeptPictures {
         return name
     }
 
+    public func url(for name: String) -> URL { root.appendingPathComponent(name) }
+
+    public func load(_ name: String) -> CGImage? {
+        lock.lock(); defer { lock.unlock() }
+        if let last, last.name == name { return last.image }
+        guard let image = ImageEditor.load(url(for: name)) else { return nil }
+        last = (name, image)
+        return image
+    }
+
     /// Every picture kept, newest first.
-    static func names(in root: URL) -> [String] {
+    public func names() -> [String] {
         let fm = FileManager.default
         guard let items = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.addedToDirectoryDateKey],
                                                        options: [.skipsHiddenFiles]) else { return [] }
@@ -241,5 +237,21 @@ enum KeptPictures {
             }
             .map(\.lastPathComponent)
     }
+
+    public func remove(_ name: String) {
+        try? FileManager.default.removeItem(at: url(for: name))
+        lock.lock(); defer { lock.unlock() }
+        if last?.name == name { last = nil }
+    }
+
+    /// Let go of the decoded picture — when no window shows it any more.
+    public func forget() {
+        lock.lock(); defer { lock.unlock() }
+        last = nil
+    }
 }
 
+/// Pictures behind a framed capture.
+public let BackgroundImages = KeptPictures(folder: "Backgrounds")
+/// Logos to watermark with.
+public let WatermarkImages = KeptPictures(folder: "Watermarks")

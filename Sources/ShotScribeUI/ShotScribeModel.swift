@@ -512,7 +512,7 @@ public final class ShotScribeModel: ObservableObject {
     /// capture card can open one the index sweep has not caught up with yet.
     /// Images only — a screen recording is not something to draw on.
     public func editFile(_ url: URL) {
-        guard ["png", "jpg", "jpeg", "heic", "tiff"].contains(url.pathExtension.lowercased()) else {
+        guard !Capture.isMovie(url) else {
             lastError = "\(url.deletingPathExtension().lastPathComponent) is a recording — only images can be edited."
             return
         }
@@ -533,7 +533,7 @@ public final class ShotScribeModel: ObservableObject {
     public func saveEdit(source: CGImage, marks: [Mark], frame: FrameStyle, crop: CGRect?, scale: CGFloat,
                          watermark: Watermark? = nil, sourceIsOriginal: Bool, to url: URL,
                          done: @escaping (Bool) -> Void) {
-        let original = indexCache.first { $0.url.standardizedFileURL == url.standardizedFileURL }?.original
+        let original = shot(atPath: url.path)?.original
         let redacts = marks.contains { $0.kind.redacts }
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -554,7 +554,7 @@ public final class ShotScribeModel: ObservableObject {
     /// Put the untouched capture back. Only offered while nothing was ever
     /// redacted — after that there is no untouched capture, on purpose.
     public func revertEdit(_ url: URL, done: @escaping (Bool) -> Void) {
-        let original = indexCache.first { $0.url.standardizedFileURL == url.standardizedFileURL }?.original
+        let original = shot(atPath: url.path)?.original
         Task.detached(priority: .userInitiated) { [weak self] in
             let ok = (try? EditStore.revert(url)) ?? false
             if ok {

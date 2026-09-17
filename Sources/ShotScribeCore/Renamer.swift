@@ -137,8 +137,5 @@ public struct Renamer: Sendable {
 
     /// Best-effort capture time: file creation date, then modification date,
     /// then now.
-    private func capturedAt(of url: URL) -> Date {
-        let vals = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
-        return vals?.creationDate ?? vals?.contentModificationDate ?? Date()
-    }
+    private func capturedAt(of url: URL) -> Date { Capture.takenAt(url) ?? Date() }
 }

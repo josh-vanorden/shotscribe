@@ -59,11 +59,8 @@ public enum Naming {
     static let captureFlag = "com.apple.metadata:kMDItemIsScreenCapture"
 
     static func isFlaggedAsCapture(_ url: URL) -> Bool {
-        let size = getxattr(url.path, captureFlag, nil, 0, 0, 0)
-        guard size > 0 else { return false }
-        var bytes = [UInt8](repeating: 0, count: size)
-        guard getxattr(url.path, captureFlag, &bytes, size, 0, 0) == size else { return false }
-        let value = try? PropertyListSerialization.propertyList(from: Data(bytes), format: nil)
+        guard let data = Xattr.read(captureFlag, at: url.path) else { return false }
+        let value = try? PropertyListSerialization.propertyList(from: data, format: nil)
         return (value as? Bool) ?? false
     }
 

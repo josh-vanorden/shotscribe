@@ -246,9 +246,7 @@ public struct ShotScribeView: View {
     private var appearanceFlip: some View {
         let dark = colorScheme == .dark
         return Button {
-            let next: ShotScribeDefaults.Appearance = dark ? .light : .dark
-            ShotScribeDefaults.setAppearance(next)
-            next.apply()
+            ShotScribeDefaults.Appearance.select(dark ? .light : .dark)
         } label: {
             Image(systemName: dark ? "sun.max" : "moon")
                 .font(.system(size: 13, weight: .medium))
@@ -258,10 +256,7 @@ public struct ShotScribeView: View {
         .glass(in: Capsule())
         .help(dark ? "Switch to light. Right-click to follow the Mac again." : "Switch to dark. Right-click to follow the Mac again.")
         .contextMenu {
-            Button("Follow the Mac") {
-                ShotScribeDefaults.setAppearance(.system)
-                ShotScribeDefaults.Appearance.system.apply()
-            }
+            Button("Follow the Mac") { ShotScribeDefaults.Appearance.select(.system) }
             .disabled(ShotScribeDefaults.appearance() == .system)
         }
     }

@@ -58,7 +58,9 @@ struct AspectThumbnail: View {
     var aspect: CGFloat = 4.0 / 3.0
     var pixels: CGFloat = 480
     @State private var image: NSImage?
-    @ObservedObject private var cache = ThumbnailCache.shared
+    /// This path's revision only — a tile must not rebuild because some
+    /// other picture was edited.
+    @State private var revision = 0
 
     var body: some View {
         Color.clear
@@ -73,7 +75,8 @@ struct AspectThumbnail: View {
                 }
             }
             .clipped()
-            .task(id: "\(path)#\(cache.revision(path))") {
+            .onReceive(ThumbnailCache.shared.$revisions.map { $0[path] ?? 0 }.removeDuplicates()) { revision = $0 }
+            .task(id: "\(path)#\(revision)") {
                 image = ThumbnailCache.shared.cached(path)
                 if image == nil {
                     image = await ThumbnailCache.shared.load(

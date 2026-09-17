@@ -12,3 +12,12 @@ public enum Capture {
     public static func isCapture(_ url: URL) -> Bool { extensions.contains(url.pathExtension.lowercased()) }
     public static func isMovie(_ url: URL) -> Bool { movieExtensions.contains(url.pathExtension.lowercased()) }
 }
+
+extension Capture {
+    /// When a capture was taken, as well as the file can say: its creation
+    /// date, else its modification date. nil when it says nothing.
+    public static func takenAt(_ url: URL) -> Date? {
+        let v = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        return v?.creationDate ?? v?.contentModificationDate
+    }
+}

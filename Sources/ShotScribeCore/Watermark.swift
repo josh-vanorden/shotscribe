@@ -128,7 +128,8 @@ public struct Watermark: Equatable, Sendable, Codable {
 
         /// The defaults: whoever is logged in, and what the Mac calls itself.
         public static var thisPerson: String { NSFullUserName() }
-        public static var thisMachine: String { Host.current().localizedName ?? ProcessInfo.processInfo.hostName }
+        /// Read once: the canvas asks per paint, and a Mac's name does not move mid-session.
+        public static let thisMachine: String = Host.current().localizedName ?? ProcessInfo.processInfo.hostName
 
         /// This stamp with its values filled for `source`, the picture the
         /// edit started from, captured at `capturedAt`, attested now.
@@ -177,34 +178,14 @@ public struct Watermark: Equatable, Sendable, Codable {
     }
 }
 
-/// Logos brought in to watermark with, kept beside the frame backgrounds.
-public enum WatermarkImages {
-    public static var rootOverride: URL?
-    public static var root: URL { rootOverride ?? KeptPictures.support("Watermarks") }
-    @discardableResult
-    public static func add(_ url: URL) throws -> String { try KeptPictures.add(url, to: root) }
-    public static func url(for name: String) -> URL { root.appendingPathComponent(name) }
-    public static func load(_ name: String) -> CGImage? { ImageEditor.load(url(for: name)) }
-    public static func names() -> [String] { KeptPictures.names(in: root) }
-    public static func remove(_ name: String) { try? FileManager.default.removeItem(at: url(for: name)) }
-}
-
 extension ImageEditor {
     /// `picture` with `watermark` on it. The picture is sampled for the ink.
     public static func stamped(_ picture: CGImage, with watermark: Watermark) -> CGImage? {
         guard !watermark.isEmpty else { return picture }
-        let w = picture.width, h = picture.height
-        guard w > 0, h > 0,
-              let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
-        ctx.draw(picture, in: CGRect(x: 0, y: 0, width: w, height: h))
-        ctx.translateBy(x: 0, y: CGFloat(h))
-        ctx.scaleBy(x: 1, y: -1)
-        drawWatermark(watermark, in: ctx, size: CGSize(width: w, height: h), under: picture,
-                      logo: watermark.imageName.flatMap(WatermarkImages.load))
-        return ctx.makeImage()
+        return overlaying(picture) { ctx in
+            drawWatermark(watermark, in: ctx, size: CGSize(width: picture.width, height: picture.height),
+                          under: picture, logo: watermark.imageName.flatMap(WatermarkImages.load))
+        }
     }
 
     /// Draw `watermark` over a picture of `size` in a top-down context whose
@@ -259,7 +240,7 @@ extension ImageEditor {
             .offsetBy(dx: underOrigin.x, dy: underOrigin.y)
         let luma = under.map { luminance(of: $0, in: sampleRect) } ?? 0.5
         let lightInk = luma < 0.55
-        let autoInk = lightInk ? CGColor(gray: 1, alpha: 1) : CGColor(srgbRed: 0.09, green: 0.09, blue: 0.09, alpha: 1)
+        let autoInk = lightInk ? CGColor(gray: 1, alpha: 1) : MarkColor.darkInk
         let ownIsLight: Bool
         switch content {
         case .words, .plate: ownIsLight = watermark.color.wantsLightText == false   // a light colour is "light"
@@ -387,8 +368,9 @@ extension ImageEditor {
             ctx.translateBy(x: box.minX, y: box.maxY)
             ctx.scaleBy(x: 1, y: -1)
             let r = CGRect(origin: .zero, size: box.size)
-            if let mask = logoMask(of: logo) { ctx.clip(to: r, mask: mask) }
-            if ink == .auto, logoMask(of: logo) != nil {
+            let mask = logoMask(of: logo)
+            if let mask { ctx.clip(to: r, mask: mask) }
+            if ink == .auto, mask != nil {
                 ctx.setFillColor(autoInk)
                 ctx.fill(r)
             } else {
@@ -404,14 +386,9 @@ extension ImageEditor {
     /// the logo, not the square (Josh, 2026-09-16: "made a shaded box").
     /// Remembered for the last logo asked about; the canvas asks on every paint.
     static func logoMask(of image: CGImage) -> CGImage? {
-        maskLock.lock(); defer { maskLock.unlock() }
-        if let c = maskCache, c.image === image { return c.mask }
-        let mask = alphaMask(of: image) ?? keyedMask(of: image)
-        maskCache = (image, mask)
-        return mask
+        masks.answer(for: image, key: 0) { alphaMask(of: image) ?? keyedMask(of: image) }
     }
-    private static var maskCache: (image: CGImage, mask: CGImage?)?
-    private static let maskLock = NSLock()
+    private static let masks = LastAnswer<Int, CGImage?>()
 
     /// The alpha channel, when at least a little of the picture is see-through.
     static func alphaMask(of image: CGImage) -> CGImage? {
@@ -436,11 +413,7 @@ extension ImageEditor {
     /// Everything that is not the colour of the picture's edges.
     static func keyedMask(of image: CGImage) -> CGImage? {
         let w = image.width, h = image.height
-        guard w > 2, h > 2,
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
-        else { return nil }
+        guard w > 2, h > 2, let ctx = bitmap(width: w, height: h, bytesPerRow: w * 4) else { return nil }
         ctx.setFillColor(CGColor(gray: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         guard let px = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
@@ -478,52 +451,66 @@ extension ImageEditor {
         let full = CGRect(x: 0, y: 0, width: image.width, height: image.height)
         let r = rect.intersection(full).integral
         guard !r.isEmpty else { return 0.5 }
-        lumaLock.lock(); defer { lumaLock.unlock() }
-        if let c = lumaCache, c.image === image, c.rect == r { return c.value }
-        guard let part = image.cropping(to: r),
-              let ctx = CGContext(data: nil, width: 4, height: 4, bitsPerComponent: 8, bytesPerRow: 16,
-                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
-              let bytes = ctx.data?.assumingMemoryBound(to: UInt8.self)
-        else { return 0.5 }
-        // Under the watermark of a see-through picture is white — the page.
-        ctx.setFillColor(CGColor(gray: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
-        ctx.interpolationQuality = .high
-        ctx.draw(part, in: CGRect(x: 0, y: 0, width: 4, height: 4))
-        var sum: CGFloat = 0
-        for i in 0..<16 {
-            let p = i * 4
-            sum += 0.2126 * CGFloat(bytes[p]) + 0.7152 * CGFloat(bytes[p + 1]) + 0.0722 * CGFloat(bytes[p + 2])
+        return luminances.answer(for: image, key: r) {
+            guard let part = image.cropping(to: r), let ctx = bitmap(width: 4, height: 4, bytesPerRow: 16),
+                  let bytes = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return 0.5 }
+            // Under the watermark of a see-through picture is white — the page.
+            ctx.setFillColor(CGColor(gray: 1, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+            ctx.interpolationQuality = .high
+            ctx.draw(part, in: CGRect(x: 0, y: 0, width: 4, height: 4))
+            var sum: CGFloat = 0
+            for i in 0..<16 {
+                let p = i * 4
+                sum += 0.2126 * CGFloat(bytes[p]) + 0.7152 * CGFloat(bytes[p + 1]) + 0.0722 * CGFloat(bytes[p + 2])
+            }
+            return sum / (16 * 255)
         }
-        let value = sum / (16 * 255)
-        lumaCache = (image, r, value)
-        return value
     }
-    private static var lumaCache: (image: CGImage, rect: CGRect, value: CGFloat)?
-    private static let lumaLock = NSLock()
+    private static let luminances = LastAnswer<CGRect, CGFloat>()
 
     /// SHA-256 over the picture's pixels — width, height, then every pixel as
     /// 8-bit sRGB — so it is the same for any lossless copy, whatever encoder
     /// wrote the file. What the stamp records, and what an auditor with the
     /// kept original can check. Remembered for the last picture asked about.
     public static func pixelDigest(of image: CGImage) -> String {
-        digestLock.lock(); defer { digestLock.unlock() }
-        if let c = digestCache, c.image === image { return c.hex }
-        let w = image.width, h = image.height
-        guard w > 0, h > 0,
-              let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
-              let bytes = ctx.data
-        else { return "" }
-        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
-        var hasher = SHA256()
-        hasher.update(data: Data("\(w)x\(h)\n".utf8))
-        hasher.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: w * 4 * h))
-        let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-        digestCache = (image, hex)
-        return hex
+        digests.answer(for: image, key: 0) {
+            let w = image.width, h = image.height
+            guard let ctx = bitmap(width: w, height: h, bytesPerRow: w * 4), let bytes = ctx.data else { return "" }
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            var hasher = SHA256()
+            hasher.update(data: Data("\(w)x\(h)\n".utf8))
+            hasher.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: w * 4 * h))
+            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        }
     }
-    private static var digestCache: (image: CGImage, hex: String)?
-    private static let digestLock = NSLock()
+    private static let digests = LastAnswer<Int, String>()
+
+    /// Let go of every remembered picture — when the editor's last window closes.
+    public static func forgetPictures() {
+        masks.forget(); luminances.forget(); digests.forget()
+        BackgroundImages.forget(); WatermarkImages.forget()
+    }
+}
+
+/// The answer for the last picture asked about — by identity, plus a key —
+/// since the canvas asks the same question on every paint and the save asks
+/// it once more from another thread. One entry: there is one picture open.
+final class LastAnswer<Key: Equatable, Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var image: CGImage?
+    private var key: Key?
+    private var value: Value?
+
+    func answer(for image: CGImage, key: Key, _ compute: () -> Value) -> Value {
+        lock.lock(); defer { lock.unlock() }
+        if self.image === image, self.key == key, let value { return value }
+        let v = compute()
+        self.image = image; self.key = key; value = v
+        return v
+    }
+
+    func forget() {
+        lock.lock(); defer { lock.unlock() }
+        image = nil; key = nil; value = nil
+    }
 }

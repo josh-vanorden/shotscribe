@@ -19,6 +19,19 @@ public struct MarkColor: Hashable, Sendable, Codable {
     /// gets dark type instead.
     public var wantsLightText: Bool { 0.2126 * red + 0.7152 * green + 0.0722 * blue < 0.62 }
 
+    /// The type that reads on this colour: white on a dark one, near-black
+    /// on a light one. Labels, step numbers and the watermark all use it.
+    public var ink: CGColor { wantsLightText ? CGColor(gray: 1, alpha: 1) : Self.darkInk }
+    public static let darkInk = CGColor(gray: 0.08, alpha: 1)
+
+    /// `#RRGGBB` or `#RGB` with the digits checked; nil for anything else.
+    public init?(validatingHex text: String) {
+        let s = text.trimmingCharacters(in: .whitespaces)
+        let digits = s.hasPrefix("#") ? String(s.dropFirst()) : s
+        guard digits.count == 6 || digits.count == 3, UInt32(digits, radix: 16) != nil else { return nil }
+        self.init(hex: s)
+    }
+
     /// `#RRGGBB`, the way a palette is written down.
     public init(hex: String) {
         var s = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
@@ -194,6 +207,9 @@ public struct Mark: Identifiable, Equatable, Sendable, Codable {
         if let p = bend { bend = CGPoint(x: p.x + dx, y: p.y + dy) }
     }
 
+    /// A step badge is about two lines of its number tall.
+    public var badgeDiameter: CGFloat { (fontSize * 1.9).rounded() }
+
     // MARK: The curve
 
     /// The control point of the quadratic curve that passes through `bend`
@@ -286,16 +302,8 @@ public struct FrameStyle: Equatable, Sendable, Codable {
             Background(kind: .gradient, first: a, second: b, angle: angle)
         }
         public static func image(_ name: String) -> Background { Background(kind: .image, imageName: name) }
-
-        private enum CodingKeys: String, CodingKey { case kind, first, second, angle, imageName }
-        public init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            kind = try c.decode(Kind.self, forKey: .kind)
-            first = try c.decode(MarkColor.self, forKey: .first)
-            second = try c.decode(MarkColor.self, forKey: .second)
-            angle = try c.decode(CGFloat.self, forKey: .angle)
-            imageName = try c.decodeIfPresent(String.self, forKey: .imageName)
-        }
+        // `imageName` is optional, so a background kept before pictures existed
+        // decodes as it is — the synthesised decoder already reads it if present.
     }
 
     /// Fraction of the short side: 0 is square, 0.12 is very round.
@@ -448,20 +456,29 @@ public enum ImageEditor {
 
     // MARK: Render
 
-    /// Flatten `marks` onto `source`, in order. The same drawing the editor uses
-    /// on screen, so the saved file is what was shown.
-    public static func render(_ source: CGImage, marks: [Mark]) -> CGImage? {
+    /// The one bitmap every render draws into: 8-bit sRGB with alpha.
+    static func bitmap(width: Int, height: Int, bytesPerRow: Int = 0) -> CGContext? {
+        guard width > 0, height > 0, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        return CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+                         space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    /// `source` with `draw` run over it in a top-down context whose origin is
+    /// the picture's top-left — the frame every overlay here is drawn in.
+    static func overlaying(_ source: CGImage, _ draw: (CGContext) -> Void) -> CGImage? {
         let w = source.width, h = source.height
-        guard w > 0, h > 0,
-              let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
+        guard let ctx = bitmap(width: w, height: h) else { return nil }
         ctx.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
         ctx.translateBy(x: 0, y: CGFloat(h))
         ctx.scaleBy(x: 1, y: -1)
-        draw(marks, in: ctx, source: source)
+        draw(ctx)
         return ctx.makeImage()
+    }
+
+    /// Flatten `marks` onto `source`, in order. The same drawing the editor uses
+    /// on screen, so the saved file is what was shown.
+    public static func render(_ source: CGImage, marks: [Mark]) -> CGImage? {
+        overlaying(source) { draw(marks, in: $0, source: source) }
     }
 
     /// The finished picture: `base` cut to `crop`, marks flattened onto it,
@@ -488,7 +505,7 @@ public enum ImageEditor {
                 return s
             }
         }
-        guard var annotated = render(working, marks: placed) else { return nil }
+        guard var annotated = placed.isEmpty ? working : render(working, marks: placed) else { return nil }
         if scale > 0, abs(scale - 1) > 0.001, let scaled = resized(annotated, by: scale) {
             annotated = scaled
         }
@@ -508,10 +525,7 @@ public enum ImageEditor {
 
     public static func resized(_ image: CGImage, to size: CGSize) -> CGImage? {
         let w = max(1, Int(size.width)), h = max(1, Int(size.height))
-        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
+        guard let ctx = bitmap(width: w, height: h) else { return nil }
         ctx.interpolationQuality = .high
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         return ctx.makeImage()
@@ -522,34 +536,19 @@ public enum ImageEditor {
     /// The frame is drawn in the bitmap's own upright coordinates, before
     /// anything is flipped, so the shadow falls downward without argument.
     public static func render(_ base: CGImage, marks: [Mark], frame: FrameStyle) -> CGImage? {
-        guard let annotated = render(base, marks: marks) else { return nil }
+        guard let annotated = marks.isEmpty ? base : render(base, marks: marks) else { return nil }
         guard !frame.isPlain else { return annotated }
         let size = CGSize(width: base.width, height: base.height)
         let inset = frame.inset(for: size)
         let out = frame.outputSize(for: size)
-        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let ctx = CGContext(data: nil, width: Int(out.width), height: Int(out.height), bitsPerComponent: 8,
-                                  bytesPerRow: 0, space: space,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
+        guard let ctx = bitmap(width: Int(out.width), height: Int(out.height)) else { return nil }
         let whole = CGRect(origin: .zero, size: out)
         drawBackground(frame.background, in: whole, ctx)
 
         let picture = CGRect(x: inset, y: inset, width: size.width, height: size.height)
         let shape = CGPath(roundedRect: picture, cornerWidth: frame.radius(for: size),
                            cornerHeight: frame.radius(for: size), transform: nil)
-        if frame.shadow > 0, inset > 0 {
-            let short = min(size.width, size.height)
-            let s = min(max(frame.shadow, 0), 1)
-            ctx.saveGState()
-            ctx.setShadow(offset: CGSize(width: 0, height: -short * 0.012 * (0.5 + s)),
-                          blur: short * 0.03 * (0.5 + s * 1.5),
-                          color: CGColor(gray: 0, alpha: 0.15 + 0.45 * s))
-            ctx.addPath(shape)
-            ctx.setFillColor(CGColor(gray: 0, alpha: 1))
-            ctx.fillPath()
-            ctx.restoreGState()
-        }
+        drawShadow(of: shape, frame: frame, pictureSize: size, scale: 1, upright: true, ctx)
         ctx.saveGState()
         ctx.addPath(shape)
         ctx.clip()
@@ -558,8 +557,29 @@ public enum ImageEditor {
         return ctx.makeImage()
     }
 
+    /// The picture's shadow onto the margin, the one recipe for the file and
+    /// the canvas: `scale` is view points per base pixel, `upright` whether
+    /// the context's y runs up (a bitmap) or down (the canvas).
+    public static func drawShadow(of shape: CGPath, frame: FrameStyle, pictureSize: CGSize, scale: CGFloat,
+                                  upright: Bool, _ ctx: CGContext) {
+        guard frame.shadow > 0, frame.padding > 0 else { return }
+        let short = min(pictureSize.width, pictureSize.height) * scale
+        let s = min(max(frame.shadow, 0), 1)
+        let drop = short * 0.012 * (0.5 + s)
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: upright ? -drop : drop),
+                      blur: short * 0.03 * (0.5 + s * 1.5),
+                      color: CGColor(gray: 0, alpha: 0.15 + 0.45 * s))
+        ctx.addPath(shape)
+        ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
     /// A frame's background, filling `rect`. Diagonal, light at the top left.
-    public static func drawBackground(_ background: FrameStyle.Background, in rect: CGRect, _ ctx: CGContext) {
+    /// `upright` says which way the context's y runs, as for `drawShadow`.
+    public static func drawBackground(_ background: FrameStyle.Background, in rect: CGRect, _ ctx: CGContext,
+                                      upright: Bool = true) {
         switch background.kind {
         case .none:
             break
@@ -571,7 +591,7 @@ public enum ImageEditor {
                   let g = CGGradient(colorsSpace: space,
                                      colors: [background.first.cgColor, background.second.cgColor] as CFArray,
                                      locations: [0, 1]) else { return }
-            let (start, end) = gradientPoints(angle: background.angle, in: rect, upright: true)
+            let (start, end) = gradientPoints(angle: background.angle, in: rect, upright: upright)
             ctx.saveGState()
             ctx.clip(to: rect)
             ctx.drawLinearGradient(g, start: start, end: end, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
@@ -586,7 +606,8 @@ public enum ImageEditor {
             ctx.saveGState()
             ctx.clip(to: rect)
             ctx.interpolationQuality = .high
-            ctx.draw(image, in: aspectFill(CGSize(width: image.width, height: image.height), in: rect))
+            let fill = aspectFill(CGSize(width: image.width, height: image.height), in: rect)
+            if upright { ctx.draw(image, in: fill) } else { drawUpright(image, in: fill, ctx) }
             ctx.restoreGState()
         }
     }
@@ -695,7 +716,7 @@ public enum ImageEditor {
     /// A badge is about two lines of its number tall. For a pin, `a` is the
     /// tip and the badge hangs above it; for the others `a` is the centre.
     public static func badgeFrame(_ mark: Mark) -> CGRect {
-        let d = (mark.fontSize * 1.9).rounded()
+        let d = mark.badgeDiameter
         switch mark.badge {
         case .bubble, .square:
             return CGRect(x: mark.a.x - d / 2, y: mark.a.y - d / 2, width: d, height: d)
@@ -712,7 +733,7 @@ public enum ImageEditor {
 
     private static func drawBadge(_ ctx: CGContext, _ mark: Mark) {
         let f = badgeFrame(mark)
-        let d = (mark.fontSize * 1.9).rounded()
+        let d = mark.badgeDiameter
         ctx.saveGState()
         ctx.setShadow(offset: CGSize(width: 0, height: d * 0.06), blur: d * 0.12, color: CGColor(gray: 0, alpha: 0.28))
         ctx.setFillColor(mark.color.cgColor)
@@ -771,7 +792,7 @@ public enum ImageEditor {
         ctx.restoreGState()
 
         // The number, centred, in type that reads on the colour.
-        let ink = mark.color.wantsLightText ? CGColor(gray: 1, alpha: 1) : CGColor(gray: 0.08, alpha: 1)
+        let ink = mark.color.ink
         let m = labelMetrics(String(mark.number), fontSize: mark.fontSize * 1.05, font: mark.font, color: ink)
         ctx.saveGState()
         ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
@@ -815,9 +836,8 @@ public enum ImageEditor {
 
     private static func drawLabel(_ ctx: CGContext, _ mark: Mark) {
         guard !mark.text.isEmpty else { return }
-        let ink = mark.color.wantsLightText ? CGColor(gray: 1, alpha: 1) : CGColor(gray: 0.08, alpha: 1)
-        let m = labelMetrics(mark.text, fontSize: mark.fontSize, font: mark.font, color: ink)
-        let box = labelFrame(text: mark.text, fontSize: mark.fontSize, font: mark.font, at: mark.a)
+        let m = labelMetrics(mark.text, fontSize: mark.fontSize, font: mark.font, color: mark.color.ink)
+        let box = CGRect(x: mark.a.x, y: mark.a.y, width: m.width + m.padX * 2, height: m.ascent + m.descent + m.padY * 2)
         ctx.setFillColor(mark.color.cgColor)
         ctx.addPath(CGPath(roundedRect: box, cornerWidth: mark.fontSize * 0.45,
                            cornerHeight: mark.fontSize * 0.45, transform: nil))
@@ -866,12 +886,8 @@ public enum ImageEditor {
     private static func pixelated(_ source: CGImage, region: CGRect) -> CGImage? {
         guard let crop = source.cropping(to: region.integral) else { return nil }
         let w = crop.width, h = crop.height
-        guard w > 0, h > 0,
-              let space = CGColorSpace(name: CGColorSpace.sRGB),
-              let read = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                   space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
-              let write = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                    space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+        guard let read = bitmap(width: w, height: h, bytesPerRow: w * 4),
+              let write = bitmap(width: w, height: h, bytesPerRow: w * 4),
               let src = read.data, let dst = write.data else { return nil }
         read.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
         let from = src.assumingMemoryBound(to: UInt8.self)
@@ -967,6 +983,14 @@ public enum ImageEditor {
     /// - **The modification date** does move: the file *was* changed, and
     ///   QuickLook keys its thumbnails on it, so leaving it would show the
     ///   unredacted picture in the grid.
+    /// A PNG at `url`, nothing else — the writer `save` and the edit store share.
+    public static func writePNG(_ image: CGImage, to url: URL) throws {
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
+        else { throw CocoaError(.fileWriteUnknown) }
+        CGImageDestinationAddImage(dest, image, nil)
+        guard CGImageDestinationFinalize(dest) else { throw CocoaError(.fileWriteUnknown) }
+    }
+
     public static func save(_ image: CGImage, over url: URL, fileManager: FileManager = .default) throws {
         let tags = Tagging.finderTags(of: url)
         let created = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
@@ -975,10 +999,7 @@ public enum ImageEditor {
                                           appropriateFor: url, create: true)
         defer { try? fileManager.removeItem(at: scratch) }
         let edited = scratch.appendingPathComponent(url.lastPathComponent)
-        guard let dest = CGImageDestinationCreateWithURL(edited as CFURL, UTType.png.identifier as CFString, 1, nil)
-        else { throw CocoaError(.fileWriteUnknown) }
-        CGImageDestinationAddImage(dest, image, nil)
-        guard CGImageDestinationFinalize(dest) else { throw CocoaError(.fileWriteUnknown) }
+        try writePNG(image, to: edited)
 
         _ = try fileManager.replaceItemAt(url, withItemAt: edited)
 
