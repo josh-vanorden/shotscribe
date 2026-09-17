@@ -1074,3 +1074,19 @@ want here." He will bring what this year's ISO audit asks for.
   asks for nothing is empty, and the digest survives a PNG round trip while
   noticing one changed pixel. 232 tests; rendered off-screen (`wm-stamp`) and
   relaunched.
+
+## 2026-09-17, afternoon — 1.6.6 shipped
+
+`serverInfo` → 1.6.6, CHANGELOG dated, tag `v1.6.6` at `9a579bb`, pushed with
+both branches. Notarized under `shotscribe-notary` (Apple: Accepted, app and
+DMG) and verified four ways — `stapler validate` on app and DMG, `spctl` on
+the DMG, a quarantined copy out of the DMG through Gatekeeper (Notarized
+Developer ID) — bundle 1.6.6. Published as latest:
+https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.6 (4.5 MB DMG).
+Toolbelt's pin raised to 1.6.6, built once against the tag, committed there
+(`1e6bbc1`, shotscribe hunk only); six pin commits now unpushed there, Josh's.
+232 tests.
+- `gh release create` was refused the first time — `gh` had drifted back to
+  the work account (`jvanorden-it`) since yesterday's `forge auto`, exactly as
+  at 1.6.4. `forge auto` immediately before the release, every time, not once
+  per session.

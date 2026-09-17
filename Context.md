@@ -5,23 +5,23 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-17
-**Phase:** Ship — 1.6.5 is public; the audit stamp, "Edit with ShotScribe" and the reordered shot menu are committed and pushed on `settings-pane`/`main` but not yet in a DMG.
-**Next action:** Josh's ISO evidence list. When it arrives: add each field as a flag on `Watermark.Stamp` + a line in `Stamp.lines`; if the SHA-256 line stays, build `shotscribe digest <file>` in the CLI so a stamp can be checked outside the app. Then ship 1.6.6 (`serverInfo`, CHANGELOG date, tag, `APPLE_NOTARY_PROFILE=shotscribe-notary`, release, Toolbelt pin).
+**Phase:** Ship — 1.6.6 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.6, notarized under `shotscribe-notary`, marked latest): the audit stamp, "Edit with ShotScribe", the shot menu in order of who does it.
+**Next action:** Josh's ISO evidence list. When it arrives: each field is a flag on `Watermark.Stamp` + a line in `Stamp.lines`; if the SHA-256 line stays, build `shotscribe digest <file>` in the CLI so a stamp can be checked outside the app.
 
 **Open loops**
-- Ship 1.6.6 when Josh says — the public DMG is 1.6.5 and predates the stamp.
 - The two standing calls: the WidgetKit widget (gate to *maintain*); auto-stamping every capture at capture time (asked 2026-09-16, not built).
-- Toolbelt's pin at `from: "1.6.5"`, five pin commits unpushed there beside Josh's own uncommitted `.gitignore` / reformatted `Package.resolved`.
+- Toolbelt's pin at `from: "1.6.6"`; six pin commits unpushed there beside Josh's own uncommitted `.gitignore` / reformatted `Package.resolved`.
 - `/security-team` over the editor's file handling once `claude` is signed in; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
+- `gh` drifts to the work account between sessions: `forge auto` right before `gh release create`, every release.
 
 **Ruled out**
-- A drawn signature as the audit option — a scribble proves nothing; the plate does. Only as a look beside the stamp, if asked.
-- Attesting at panel-open time — the file carries the save moment (`commit` fills the stamp).
-- A file-bytes hash — PNG encoders differ; the digest is over pixels so any lossless copy matches.
+- A drawn signature as the audit option — a scribble proves nothing; the plate does.
+- Attesting at panel-open time — `commit` fills the stamp, so the file carries the save moment.
+- A file-bytes hash — encoders differ; the digest is over pixels.
 - Five fixed size stops; a colour-less black-out; a grey Save; two bend pins; auto-stamping every capture unasked.
 
-**Working tree:** clean once this save's commits land
-**Unpushed commits:** none after `/clean-tree`
+**Working tree:** clean
+**Unpushed commits:** none
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at

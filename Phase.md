@@ -256,7 +256,7 @@ defer. The phase line stays **Ship** until he makes it.
   pin commits (1.6.0–1.6.5) still unpushed there; the dead MCP entry in
   `~/.claude.json`; the announcement.
 
-## 2026-09-17 — the audit stamp, unreleased on top of 1.6.5
+## 2026-09-17 — the audit stamp, shipped as 1.6.6
 Phase stays **Ship**; the gate to *maintain* is unchanged (the widget, Josh's
 call). New and waiting on him: the ISO evidence list, which decides whether the
 stamp needs more lines (a control ID, a ticket, an "evidence for" field) and
