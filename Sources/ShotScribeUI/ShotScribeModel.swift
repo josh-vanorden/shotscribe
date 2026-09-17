@@ -1190,7 +1190,7 @@ public final class ShotScribeModel: ObservableObject {
     public func name(of tile: LandingZone.Tile) -> String {
         switch tile {
         case .reveal:    return "Reveal in Finder"
-        case .markUp:    return "Edit the Image"
+        case .markUp:    return "Edit with ShotScribe"
         case .share:     return "Share"
         case .sendTo:    return "Send to \(assistantName)"
         case .editTitle: return "Edit title"
@@ -1244,7 +1244,7 @@ public final class ShotScribeModel: ObservableObject {
         // serves one purpose, we can do that purpose better" — the stored
         // value stays `markUp`, so a click default set before keeps working
         // and now lands in ShotScribe's own editor.
-        case .markUp:          return "Edit the Image"
+        case .markUp:          return "Edit with ShotScribe"
         case .sendToAssistant: return "Send to \(assistantName)"
         case .rebuildAsCode:   return "Rebuild as code"
         }

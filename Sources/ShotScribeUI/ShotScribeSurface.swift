@@ -808,7 +808,7 @@ public struct ShotScribeView: View {
         case .reveal:
             ActionTile("Reveal in Finder", icon: AppIcons.finder, art: true, sets: .reveal, model: model) { model.reveal(shot) }
         case .markUp:
-            ActionTile("Edit the Image", icon: AppIcons.editor, art: true, sets: .markUp, model: model) { model.markUp(shot) }
+            ActionTile("Edit with ShotScribe", icon: AppIcons.editor, art: true, sets: .markUp, model: model) { model.markUp(shot) }
         case .share:
             ShareRow(url: shot.url) { model.note(.share) }.id(shot.path)
         case .sendTo:
@@ -934,7 +934,7 @@ public struct ShotScribeView: View {
         } else if tile == .markUp {
             // Preview is nested here rather than standing beside it: it does one
             // thing, and the editor does that thing and the one Preview won't.
-            Button("Edit the Image") { heroShot.map(model.markUp) }
+            Button("Edit with ShotScribe…") { heroShot.map(model.markUp) }
             Button("Open in Preview") { heroShot.map(model.openInPreview) }
             Divider()
             if model.defaultAction == .markUp { Text("Default ✓") }
@@ -2182,11 +2182,11 @@ private struct ShotMenu: View {
         model.defaultAction == a ? "\(model.title(of: a))  ✓ default" : model.title(of: a)
     }
 
+    // What ShotScribe adds comes first, what the Mac already does next, the
+    // bin last (Josh, 2026-09-17: "ShotScribe Benefits first then the system
+    // defaults, send to trash last").
     var body: some View {
-        Button(title(.reveal)) { model.reveal(shot) }
         Button(title(.markUp) + "…") { model.markUp(shot) }
-        Button("Open in Preview") { model.openInPreview(shot) }
-        ShareLink(item: shot.url) { Text("Share…") }
         Button(title(.sendToAssistant)) { model.sendToAssistant(shot) }
         Button(title(.rebuildAsCode)) { model.copyCodeBrief(for: shot) }
         if model.taggingEnabled {
@@ -2203,6 +2203,10 @@ private struct ShotMenu: View {
         if shot.original != nil, !model.otherInstanceRunning {
             Button("Restore original name") { model.undo(shot) }
         }
+        Divider()
+        Button(title(.reveal)) { model.reveal(shot) }
+        Button("Open in Preview") { model.openInPreview(shot) }
+        ShareLink(item: shot.url) { Text("Share…") }
         Divider()
         Button(model.deletesForGood ? "Delete for good" : "Move to Trash", role: .destructive) { model.trash(shot) }
     }
@@ -2612,7 +2616,7 @@ private struct TileButtonStyle: ButtonStyle {
 enum AppIcons {
     static let finder = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
     static let preview = Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Applications/Preview.app"))
-    /// Edit the Image: ShotScribe's own mark, drawn for it (assets/brands/editor.svg).
+    /// Edit with ShotScribe: its own mark, drawn for it (assets/brands/editor.svg).
     static var editor: Image { BrandArt.image("editor") ?? Image(systemName: "pencil.tip.crop.circle") }
 
     /// ShotScribe's own artwork, for the button that brings its window up.

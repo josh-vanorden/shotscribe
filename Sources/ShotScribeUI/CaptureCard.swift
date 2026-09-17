@@ -200,14 +200,14 @@ public struct CaptureCard: View {
                         if let shot { model.reveal(shot) } else { revealDirectly() }
                         dismiss()
                     }
-                    // Edit the Image, in ShotScribe's own editor, with Preview one
+                    // Edit with ShotScribe, in its own editor, with Preview one
                     // right-click away for what the editor does not do.
-                    CardButton("Edit the Image", art: AppIcons.editor, hint: $hint) {
+                    CardButton("Edit with ShotScribe", art: AppIcons.editor, hint: $hint) {
                         if let shot { model.markUp(shot) } else { model.editFile(state.url) }
                         dismiss()
                     }
                     .contextMenu {
-                        Button("Edit the Image") {
+                        Button("Edit with ShotScribe…") {
                             if let shot { model.markUp(shot) } else { model.editFile(state.url) }
                             dismiss()
                         }

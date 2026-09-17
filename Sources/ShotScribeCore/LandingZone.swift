@@ -29,7 +29,7 @@ public struct LandingZone: Equatable, Sendable {
     /// right-click. A stored order still naming it is simply ignored, which is
     /// what `resolve` is for.
     ///
-    /// **`markUp` is Edit the Image** since 2026-09-16: it opens ShotScribe's
+    /// **`markUp` is Edit with ShotScribe** since 2026-09-16: it opens ShotScribe's
     /// own editor, and Preview sits under its right-click.
     public enum Tile: String, CaseIterable, Codable, Sendable {
         case reveal, markUp, share, sendTo, editTitle, fileAs
