@@ -95,6 +95,12 @@ enum Weight: String, CaseIterable, Identifiable {
     var name: String { rawValue.capitalized }
 }
 
+/// What the watermark panel is editing.
+enum WatermarkKind: Hashable {
+    case text, logo, stamp
+    static func of(_ w: Watermark?) -> WatermarkKind { w?.stamp != nil ? .stamp : w?.imageName != nil ? .logo : .text }
+}
+
 private enum CropDrag {
     case none
     case move(grab: CGPoint, original: CGRect)
@@ -183,7 +189,9 @@ public struct EditorView: View {
     /// The mark of ownership over the picture, and its panel.
     @State private var watermark: Watermark?
     @State private var branding = false
-    @State private var wantsLogo = false
+    @State private var wmKind: WatermarkKind = .text
+    /// When the picture was taken — the file's creation date — for the stamp.
+    @State private var capturedAt: Date?
     @State private var logoNames: [String] = WatermarkImages.names()
     @State private var logo: (name: String, image: CGImage)?
     @State private var everyEdit = Watermark.onEveryEdit
@@ -203,7 +211,7 @@ public struct EditorView: View {
         _framing = State(initialValue: showingFrame)
         _watermark = State(initialValue: initialWatermark)
         _branding = State(initialValue: showingWatermark)
-        _wantsLogo = State(initialValue: initialWatermark?.imageName != nil)
+        _wmKind = State(initialValue: WatermarkKind.of(initialWatermark))
         _marks = State(initialValue: initialMarks)
         _tool = State(initialValue: initialTool.flatMap(EditorTool.init(rawValue:)) ?? .pixelate)
         _selected = State(initialValue: initialSelection)
@@ -281,7 +289,7 @@ public struct EditorView: View {
                 branding.toggle(); framing = false; resizing = false
                 if branding {
                     leaveCrop()
-                    if watermark == nil { watermark = Watermark.stored() ?? .suggested; wantsLogo = watermark?.imageName != nil }
+                    if watermark == nil { watermark = Watermark.stored() ?? .suggested; wmKind = .of(watermark) }
                 }
             }
             modeButton("Resize", symbol: "arrow.down.left.and.arrow.up.right", on: resizing, tinted: abs(scale - 1) > 0.001,
@@ -512,17 +520,29 @@ public struct EditorView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 chip("Watermark", symbol: "seal", on: true)
-                Picker("", selection: Binding(get: { wantsLogo }, set: { on in
-                    wantsLogo = on
-                    setWatermark { $0.imageName = on ? logoNames.first : nil }
+                Picker("", selection: Binding(get: { wmKind }, set: { kind in
+                    wmKind = kind
+                    setWatermark {
+                        $0.imageName = kind == .logo ? logoNames.first : nil
+                        if kind == .stamp { if $0.stamp == nil { $0.stamp = Watermark.Stamp(name: Watermark.Stamp.thisPerson) } }
+                        else { $0.stamp = nil }
+                    }
                 })) {
-                    Text("Text").tag(false)
-                    Text("Logo").tag(true)
+                    Text("Text").tag(WatermarkKind.text)
+                    Text("Logo").tag(WatermarkKind.logo)
+                    Text("Stamp").tag(WatermarkKind.stamp)
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
-                if wantsLogo {
+                .help("Words, a logo, or an audit stamp: who attests, when it was captured and attested, on which Mac, and a digest of the original")
+                switch wmKind {
+                case .logo:
                     logoChoices
-                } else {
+                case .stamp:
+                    TextField("Your name", text: wmBinding({ $0.stamp?.name ?? "" }, { $0.stamp?.name = $1 }))
+                        .textFieldStyle(.roundedBorder).font(.callout).frame(width: 150)
+                    fontMenu(wmBinding({ $0.font }, { $0.font = $1 }))
+                    stampLines
+                case .text:
                     TextField("Your name or company", text: wmBinding({ $0.text }, { $0.text = $1 }))
                         .textFieldStyle(.roundedBorder).font(.callout).frame(width: 190)
                     fontMenu(wmBinding({ $0.font }, { $0.font = $1 }))
@@ -531,11 +551,11 @@ public struct EditorView: View {
                 caption("Ink")
                 Picker("", selection: wmBinding({ $0.ink }, { $0.ink = $1 })) {
                     Text("Auto").tag(Watermark.Ink.auto)
-                    Text(wantsLogo ? "As is" : "Colour").tag(Watermark.Ink.own)
+                    Text(wmKind == .logo ? "As is" : "Colour").tag(Watermark.Ink.own)
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
                 .help("Auto sets it in white or near-black, whichever reads against what is under it, with a soft halo of the other.")
-                if wm.ink == .own, !wantsLogo {
+                if wm.ink == .own, wmKind != .logo {
                     colourWell("", color: wmBinding({ $0.color }, { $0.color = $1 }), open: $pickingWatermarkColour)
                 }
                 Spacer(minLength: 0)
@@ -565,6 +585,31 @@ public struct EditorView: View {
         .padding(.horizontal, 14).padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
+    }
+
+    /// The watermark as the canvas shows it: a stamp with its values filled
+    /// the way Save will fill them, attested as of now.
+    private func previewWatermark(source: CGImage) -> Watermark? {
+        guard let wm = watermark, !wm.isEmpty else { return nil }
+        guard let s = wm.stamp else { return wm }
+        var shown = wm
+        shown.stamp = s.filled(source: source, capturedAt: capturedAt, sourceIsOriginal: sourceIsOriginal)
+        return shown
+    }
+
+    /// Which lines the stamp carries.
+    private var stampLines: some View {
+        HStack(spacing: 8) {
+            Toggle("Captured", isOn: wmBinding({ $0.stamp?.captured ?? true }, { $0.stamp?.captured = $1 }))
+                .help("When the picture was taken — the file's own date")
+            Toggle("Attested", isOn: wmBinding({ $0.stamp?.attested ?? true }, { $0.stamp?.attested = $1 }))
+                .help("When this edit is saved")
+            Toggle("Mac", isOn: wmBinding({ $0.stamp?.machine ?? true }, { $0.stamp?.machine = $1 }))
+                .help("This Mac's name")
+            Toggle("SHA-256", isOn: wmBinding({ $0.stamp?.digest ?? true }, { $0.stamp?.digest = $1 }))
+                .help("A digest of the original picture's pixels — the same for any lossless copy, so an auditor with the original can check it")
+        }
+        .toggleStyle(.checkbox).font(.caption)
     }
 
     private var placementPicker: some View {
@@ -1297,7 +1342,7 @@ public struct EditorView: View {
                 cg.draw(shown, in: CGRect(origin: .zero, size: full))
                 cg.restoreGState()
                 ImageEditor.draw(live, in: cg, source: nil)
-                if let wm = watermark, !wm.isEmpty {
+                if let wm = previewWatermark(source: source) {
                     cg.saveGState()
                     cg.translateBy(x: visible.minX, y: visible.minY)
                     cg.clip(to: CGRect(origin: .zero, size: visible.size))
@@ -1454,7 +1499,10 @@ public struct EditorView: View {
     private var footerHint: String {
         if tool == .crop { return EditorTool.crop.hint }
         if resizing { return "Pick a size to save at. The full-size picture stays in the edit." }
-        if branding { return "A watermark marks the picture as yours. Auto ink reads against whatever is under it; Tiled covers everything; “Use on every edit” keeps it for next time." }
+        if branding {
+            if wmKind == .stamp { return "An audit stamp: your name, when the picture was taken, when you saved it, this Mac, and a SHA-256 of the original's pixels. The times and the digest are filled in when you save." }
+            return "A watermark marks the picture as yours. Auto ink reads against whatever is under it; Tiled covers everything; “Use on every edit” keeps it for next time."
+        }
         if let sel = selection, tool != .select {
             let name = EditorTool(rawValue: sel.kind.rawValue)?.name.lowercased() ?? "mark"
             return "Drawing: \(tool.hint) The \(name) you just drew can be resized by its handles; to move it or pick another mark, use Select (V)."
@@ -1760,7 +1808,8 @@ public struct EditorView: View {
                     frame = kept.document.frame
                     crop = kept.document.crop
                     scale = kept.document.scale
-                    if watermark == nil { watermark = kept.document.watermark; wantsLogo = watermark?.imageName != nil }
+                    if watermark == nil { watermark = kept.document.watermark; wmKind = .of(watermark) }
+                    capturedAt = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
                     loadLogo()
                     sourceIsOriginal = kept.document.baseIsOriginal
                     reopened = true
@@ -1774,7 +1823,8 @@ public struct EditorView: View {
                 base = image
                 failed = image == nil
                 // Set once, used on every edit: a fresh edit starts with the kept watermark.
-                if watermark == nil, let kept = Watermark.forNewEdit() { watermark = kept; wantsLogo = kept.imageName != nil }
+                if watermark == nil, let kept = Watermark.forNewEdit() { watermark = kept; wmKind = .of(kept) }
+                capturedAt = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
                 loadLogo()
                 rebake()
             }

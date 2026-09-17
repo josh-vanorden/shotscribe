@@ -174,6 +174,69 @@ final class WatermarkTests: XCTestCase {
         XCTAssertGreaterThan(autoCorner.darkest, 3 * 90, "and no box in the ink either: \(autoCorner)")
     }
 
+    // MARK: The audit stamp
+
+    /// The stamp says who, when the picture was taken, when it was saved, on
+    /// which Mac, and a digest of the original — filled in at save, kept with
+    /// the edit, drawn as a plate the auditor can read.
+    func testAStampCarriesWhoWhenWhereAndADigestOfTheOriginal() throws {
+        let url = root.appendingPathComponent("evidence.png")
+        try ImageEditor.save(flat(1), over: url)
+        let wm = Watermark(placement: .bottomRight, size: 0.3, opacity: 1, stamp: .init(name: "Josh VanOrden"))
+        XCTAssertFalse(wm.isEmpty)
+        XCTAssertNil(wm.stamp?.attestedAt, "nothing is filled until it is drawn or saved")
+
+        let before = Date()
+        let doc = try EditStore.commit(source: flat(1), marks: [], frame: .plain, watermark: wm, sourceIsOriginal: true, to: url)
+        let s = try XCTUnwrap(doc.watermark?.stamp)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(s.attestedAt), before, "attested at the save")
+        XCTAssertNotNil(s.capturedAt, "captured when the file was made")
+        XCTAssertEqual(s.machineName, Watermark.Stamp.thisMachine)
+        XCTAssertEqual(s.digestHex, ImageEditor.pixelDigest(of: flat(1)))
+        XCTAssertEqual(s.digestHex?.count, 64)
+        XCTAssertTrue(s.digestOfOriginal)
+
+        let lines = s.lines
+        XCTAssertEqual(lines.title, "Josh VanOrden")
+        XCTAssertEqual(lines.details.count, 4)
+        XCTAssertTrue(lines.details[0].hasPrefix("Captured  20"), lines.details[0])
+        XCTAssertTrue(lines.details[1].hasPrefix("Attested  20"), lines.details[1])
+        XCTAssertTrue(lines.details[1].hasSuffix("T") || lines.details[1].hasSuffix("C"), "the zone is spelled: \(lines.details[1])")
+        XCTAssertEqual(lines.details[2], "Machine   " + Watermark.Stamp.thisMachine)
+        XCTAssertTrue(lines.details[3].hasPrefix("SHA-256   " + s.digestHex!.prefix(32)), lines.details[3])
+        XCTAssertTrue(lines.details[3].hasSuffix("original"))
+
+        let saved = try XCTUnwrap(ImageEditor.load(url))
+        XCTAssertLessThan(range(saved, in: corner).darkest, 300, "dark type on the plate, bottom right")
+        XCTAssertGreaterThan(range(saved, in: farCorner).darkest, 740, "nothing anywhere else")
+        let kept = try XCTUnwrap(EditStore.load(for: url))
+        XCTAssertEqual(kept.document.watermark?.stamp, s, "reopened with the same attestation")
+    }
+
+    func testAStampAskingForNothingIsEmpty() {
+        let none = Watermark.Stamp(name: " ", captured: false, attested: false, machine: false, digest: false)
+        XCTAssertTrue(Watermark(stamp: none).isEmpty)
+        XCTAssertFalse(Watermark(stamp: .init(name: "", digest: true)).isEmpty, "a digest alone is a stamp")
+        XCTAssertNil(Watermark.Stamp(name: "", captured: true).lines.title)
+        XCTAssertTrue(Watermark.Stamp(name: "", captured: true).lines.details.isEmpty, "a line with no value shows nothing")
+    }
+
+    /// The digest is of pixels, so a lossless copy has the same one and a
+    /// single changed pixel does not.
+    func testThePixelDigestSurvivesAPngRoundTripAndNoticesOnePixel() throws {
+        let a = flat(0.5, width: 120, height: 80)
+        let url = root.appendingPathComponent("digest.png")
+        try ImageEditor.save(a, over: url)
+        let b = try XCTUnwrap(ImageEditor.load(url))
+        XCTAssertEqual(ImageEditor.pixelDigest(of: a), ImageEditor.pixelDigest(of: b))
+        let ctx = CGContext(data: nil, width: 120, height: 80, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.draw(a, in: CGRect(x: 0, y: 0, width: 120, height: 80))
+        ctx.setFillColor(CGColor(gray: 0, alpha: 1)); ctx.fill(CGRect(x: 60, y: 40, width: 1, height: 1))
+        XCTAssertNotEqual(ImageEditor.pixelDigest(of: a), ImageEditor.pixelDigest(of: ctx.makeImage()!))
+    }
+
     // MARK: Kept with the edit, and set once for every edit
 
     func testAnEditKeepsItsWatermarkAndOlderEditsHaveNone() throws {

@@ -1,6 +1,7 @@
 import Foundation
 import CoreGraphics
 import CoreText
+import CryptoKit
 
 /// **A mark of ownership over the whole picture** — a line of text or a logo,
 /// in a corner, in the middle, or tiled across everything.
@@ -42,21 +43,104 @@ public struct Watermark: Equatable, Sendable, Codable {
     /// The text colour when `ink` is `own`.
     public var color: MarkColor
     public var ink: Ink
+    /// An attestation instead of words or a logo: who, when, where, and a
+    /// digest of the original. Wins over `text` and `imageName` when set.
+    public var stamp: Stamp?
 
     public static let sizeRange: ClosedRange<CGFloat> = 0.06...0.6
     public static let opacityRange: ClosedRange<CGFloat> = 0.1...1
 
     public init(text: String = "", imageName: String? = nil, placement: Placement = .bottomRight,
                 size: CGFloat = 0.2, opacity: CGFloat = 0.6, font: TextFont = .system,
-                color: MarkColor = .white, ink: Ink = .auto) {
+                color: MarkColor = .white, ink: Ink = .auto, stamp: Stamp? = nil) {
         self.text = text; self.imageName = imageName; self.placement = placement
         self.size = min(max(size, Self.sizeRange.lowerBound), Self.sizeRange.upperBound)
         self.opacity = min(max(opacity, Self.opacityRange.lowerBound), Self.opacityRange.upperBound)
-        self.font = font; self.color = color; self.ink = ink
+        self.font = font; self.color = color; self.ink = ink; self.stamp = stamp
     }
 
-    /// Nothing to draw: no picture and no words.
-    public var isEmpty: Bool { imageName == nil && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Nothing to draw: no stamp asking for anything, no picture, no words.
+    public var isEmpty: Bool {
+        if let stamp { return stamp.asksNothing }
+        return imageName == nil && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// **An audit stamp** — who attests to the picture, when it was captured
+    /// and when it was attested, on which Mac, and a digest of the original:
+    /// the DocuSign-style plate Josh asked for on 2026-09-17, for evidence
+    /// that has to stand up in an ISO audit.
+    ///
+    /// The flags say which lines appear. The values are filled in by whoever
+    /// draws — the editor for its preview, `EditStore.commit` for the file —
+    /// so the file carries the moment it was saved, not the moment the panel
+    /// opened, and the digest is of the picture the edit started from.
+    public struct Stamp: Equatable, Sendable, Codable {
+        public var name: String
+        public var captured: Bool
+        public var attested: Bool
+        public var machine: Bool
+        public var digest: Bool
+        public var capturedAt: Date?
+        public var attestedAt: Date?
+        public var machineName: String?
+        /// SHA-256 over the pixels (sRGB, 8-bit) of the picture the edit
+        /// started from, as hex — the same for any lossless copy of it.
+        public var digestHex: String?
+        /// Whether that picture was the untouched capture, or a kept base
+        /// that had already been redacted.
+        public var digestOfOriginal: Bool
+
+        public init(name: String, captured: Bool = true, attested: Bool = true, machine: Bool = true,
+                    digest: Bool = true, capturedAt: Date? = nil, attestedAt: Date? = nil,
+                    machineName: String? = nil, digestHex: String? = nil, digestOfOriginal: Bool = true) {
+            self.name = name; self.captured = captured; self.attested = attested; self.machine = machine
+            self.digest = digest; self.capturedAt = capturedAt; self.attestedAt = attestedAt
+            self.machineName = machineName; self.digestHex = digestHex; self.digestOfOriginal = digestOfOriginal
+        }
+
+        /// Nothing asked for: no name and every line off.
+        public var asksNothing: Bool {
+            name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !captured && !attested && !machine && !digest
+        }
+
+        /// `2026-09-17 09:46:12 CDT` — the zone spelled out, since an auditor
+        /// reads this somewhere else.
+        public static let timeFormat: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd HH:mm:ss zzz"
+            return f
+        }()
+
+        /// The title and the detail lines, in order. A line whose value is
+        /// not known shows nothing rather than a guess.
+        public var lines: (title: String?, details: [String]) {
+            let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            var details: [String] = []
+            if captured, let t = capturedAt { details.append("Captured  " + Self.timeFormat.string(from: t)) }
+            if attested, let t = attestedAt { details.append("Attested  " + Self.timeFormat.string(from: t)) }
+            if machine, let m = machineName, !m.isEmpty { details.append("Machine   " + m) }
+            if digest, let h = digestHex, !h.isEmpty {
+                details.append("SHA-256   " + h.prefix(32) + (digestOfOriginal ? "  original" : "  as kept"))
+            }
+            return (title.isEmpty ? nil : title, details)
+        }
+
+        /// The defaults: whoever is logged in, and what the Mac calls itself.
+        public static var thisPerson: String { NSFullUserName() }
+        public static var thisMachine: String { Host.current().localizedName ?? ProcessInfo.processInfo.hostName }
+
+        /// This stamp with its values filled for `source`, the picture the
+        /// edit started from, captured at `capturedAt`, attested now.
+        public func filled(source: CGImage, capturedAt: Date?, sourceIsOriginal: Bool, attestedAt: Date = Date()) -> Stamp {
+            var s = self
+            s.attestedAt = attestedAt
+            if s.capturedAt == nil { s.capturedAt = capturedAt }
+            if s.machine, s.machineName == nil { s.machineName = Self.thisMachine }
+            if s.digest { s.digestHex = ImageEditor.pixelDigest(of: source); s.digestOfOriginal = sourceIsOriginal }
+            return s
+        }
+    }
 
     /// Where a new one starts.
     public static let suggested = Watermark()
@@ -135,7 +219,10 @@ extension ImageEditor {
 
         // What is being drawn, and how big it is.
         let content: WatermarkContent
-        if let logo, watermark.imageName != nil {
+        if let stamp = watermark.stamp {
+            guard let plate = Plate(stamp, side: side, font: watermark.font) else { return }
+            content = .plate(plate)
+        } else if let logo, watermark.imageName != nil {
             let s = min(side / CGFloat(logo.width), side / CGFloat(logo.height))
             content = .picture(logo, CGSize(width: CGFloat(logo.width) * s, height: CGFloat(logo.height) * s))
         } else if watermark.imageName == nil {
@@ -175,11 +262,11 @@ extension ImageEditor {
         let autoInk = lightInk ? CGColor(gray: 1, alpha: 1) : CGColor(srgbRed: 0.09, green: 0.09, blue: 0.09, alpha: 1)
         let ownIsLight: Bool
         switch content {
-        case .words: ownIsLight = watermark.color.wantsLightText == false   // a light colour is "light"
+        case .words, .plate: ownIsLight = watermark.color.wantsLightText == false   // a light colour is "light"
         case .picture: ownIsLight = lightInk
         }
-        let halo = (watermark.ink == .auto ? lightInk : ownIsLight)
-            ? CGColor(gray: 0, alpha: 0.55) : CGColor(gray: 1, alpha: 0.6)
+        let inkIsLight = watermark.ink == .auto ? lightInk : ownIsLight
+        let halo = inkIsLight ? CGColor(gray: 0, alpha: 0.55) : CGColor(gray: 1, alpha: 0.6)
 
         ctx.saveGState()
         ctx.setAlpha(watermark.opacity)
@@ -195,31 +282,97 @@ extension ImageEditor {
                 var x = -reach - (row % 2 == 1 ? stepX / 2 : 0)
                 while x < reach {
                     draw(content, at: CGRect(x: x, y: y, width: extent.width, height: extent.height),
-                         ink: watermark.ink, autoInk: autoInk, color: watermark.color.cgColor, in: ctx)
+                         ink: watermark.ink, autoInk: autoInk, inkIsLight: inkIsLight, color: watermark.color.cgColor, in: ctx)
                     x += stepX
                 }
                 y += stepY; row += 1
             }
         } else {
-            draw(content, at: box, ink: watermark.ink, autoInk: autoInk, color: watermark.color.cgColor, in: ctx)
+            draw(content, at: box, ink: watermark.ink, autoInk: autoInk, inkIsLight: inkIsLight, color: watermark.color.cgColor, in: ctx)
         }
         ctx.restoreGState()
+    }
+
+    /// The stamp laid out: a title in the watermark's face, detail lines in
+    /// mono so the columns line up, a bar down the left, room around it all.
+    private struct Plate {
+        struct Row { let line: CTLine; let ascent: CGFloat; let height: CGFloat }
+        let rows: [Row]
+        let size: CGSize
+        let pad: CGFloat
+        let bar: CGFloat
+        let gap: CGFloat
+        let corner: CGFloat
+
+        init?(_ stamp: Watermark.Stamp, side: CGFloat, font: TextFont) {
+            let (title, details) = stamp.lines
+            guard title != nil || !details.isEmpty else { return nil }
+            func row(_ text: String, _ ctFont: CTFont) -> Row {
+                let attrs: [NSAttributedString.Key: Any] = [
+                    kCTFontAttributeName as NSAttributedString.Key: ctFont,
+                    kCTForegroundColorFromContextAttributeName as NSAttributedString.Key: true,
+                ]
+                let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attrs))
+                var ascent: CGFloat = 0, descent: CGFloat = 0
+                _ = CTLineGetTypographicBounds(line, &ascent, &descent, nil)
+                return Row(line: line, ascent: ascent, height: ascent + descent)
+            }
+            var rows: [Row] = []
+            if let title { rows.append(row(title, font.font(size: max(9, side * 0.17)))) }
+            let detailFont = TextFont.mono.font(size: max(7, side * 0.105))
+            rows += details.map { row($0, detailFont) }
+            self.rows = rows
+            pad = side * 0.12
+            bar = max(2, side * 0.04)
+            gap = side * 0.04
+            corner = side * 0.06
+            let widest = rows.map { CGFloat(CTLineGetTypographicBounds($0.line, nil, nil, nil)) }.max() ?? 0
+            let tall = rows.reduce(0) { $0 + $1.height } + gap * CGFloat(max(0, rows.count - 1))
+            size = CGSize(width: (widest + pad * 2 + bar + pad * 0.6).rounded(), height: (tall + pad * 2).rounded())
+        }
     }
 
     private enum WatermarkContent {
         case words(CTLine, CGSize, CGFloat)
         case picture(CGImage, CGSize)
+        case plate(Plate)
         var size: CGSize {
             switch self {
             case .words(_, let s, _): return s
             case .picture(_, let s): return s
+            case .plate(let p): return p.size
             }
         }
     }
 
     private static func draw(_ content: WatermarkContent, at box: CGRect, ink: Watermark.Ink,
-                             autoInk: CGColor, color: CGColor, in ctx: CGContext) {
+                             autoInk: CGColor, inkIsLight: Bool, color: CGColor, in ctx: CGContext) {
         switch content {
+        case .plate(let p):
+            // A card the opposite of the ink, edged in it, a bar down the
+            // left in the accent — the shape of a signature block.
+            let inkColor = ink == .auto ? autoInk : color
+            ctx.saveGState()
+            ctx.setFillColor(inkIsLight ? CGColor(gray: 0.06, alpha: 0.82) : CGColor(gray: 1, alpha: 0.9))
+            ctx.addPath(CGPath(roundedRect: box, cornerWidth: p.corner, cornerHeight: p.corner, transform: nil))
+            ctx.fillPath()
+            ctx.setShadow(offset: .zero, blur: 0, color: nil)
+            ctx.setStrokeColor(inkColor.copy(alpha: 0.35) ?? inkColor)
+            ctx.setLineWidth(1)
+            ctx.addPath(CGPath(roundedRect: box.insetBy(dx: 0.5, dy: 0.5), cornerWidth: p.corner, cornerHeight: p.corner, transform: nil))
+            ctx.strokePath()
+            ctx.setFillColor(ink == .auto ? MarkColor.vividYellow.cgColor : color)
+            ctx.fill(CGRect(x: box.minX + p.pad * 0.6, y: box.minY + p.pad * 0.8, width: p.bar, height: box.height - p.pad * 1.6))
+            ctx.setFillColor(inkColor)
+            ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+            var y = box.minY + p.pad
+            let x = box.minX + p.pad * 0.6 + p.bar + p.pad * 0.6
+            for row in p.rows {
+                ctx.textPosition = CGPoint(x: x, y: y + row.ascent)
+                CTLineDraw(row.line, ctx)
+                y += row.height + p.gap
+            }
+            ctx.restoreGState()
         case .words(let line, _, let ascent):
             ctx.saveGState()
             ctx.setFillColor(ink == .auto ? autoInk : color)
@@ -348,4 +501,29 @@ extension ImageEditor {
     }
     private static var lumaCache: (image: CGImage, rect: CGRect, value: CGFloat)?
     private static let lumaLock = NSLock()
+
+    /// SHA-256 over the picture's pixels — width, height, then every pixel as
+    /// 8-bit sRGB — so it is the same for any lossless copy, whatever encoder
+    /// wrote the file. What the stamp records, and what an auditor with the
+    /// kept original can check. Remembered for the last picture asked about.
+    public static func pixelDigest(of image: CGImage) -> String {
+        digestLock.lock(); defer { digestLock.unlock() }
+        if let c = digestCache, c.image === image { return c.hex }
+        let w = image.width, h = image.height
+        guard w > 0, h > 0,
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let bytes = ctx.data
+        else { return "" }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var hasher = SHA256()
+        hasher.update(data: Data("\(w)x\(h)\n".utf8))
+        hasher.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: w * 4 * h))
+        let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        digestCache = (image, hex)
+        return hex
+    }
+    private static var digestCache: (image: CGImage, hex: String)?
+    private static let digestLock = NSLock()
 }

@@ -156,7 +156,13 @@ extension EditStore {
                               sourceIsOriginal: Bool, to url: URL) throws -> EditDocument {
         let redactions = marks.filter { $0.kind.redacts }
         let annotations = marks.filter { !$0.kind.redacts }
-        let stamp = watermark.flatMap { $0.isEmpty ? nil : $0 }
+        var stamp = watermark.flatMap { $0.isEmpty ? nil : $0 }
+        if let s = stamp?.stamp {
+            // The file carries the moment it was saved and the digest of what
+            // this edit started from; the capture time is the file's own.
+            let captured = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+            stamp?.stamp = s.filled(source: source, capturedAt: captured, sourceIsOriginal: sourceIsOriginal)
+        }
         guard let base = redactions.isEmpty ? source : ImageEditor.render(source, marks: redactions),
               let finished = ImageEditor.render(base, marks: annotations, crop: crop, scale: scale,
                                                 watermark: stamp, frame: frame)
