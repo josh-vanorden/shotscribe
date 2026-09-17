@@ -1044,3 +1044,33 @@ Toolbelt's pin raised to 1.6.5, built once against the tag, committed there
 five pin commits stay unpushed, Josh's call. `gh` was on `Chief-Tsunami`, which
 holds push and admin on the repo, so the release went through first time.
 229 tests.
+
+## 2026-09-17 — the audit stamp, and the menu in order of who does it
+
+Josh, from the watermark panel over a JumpCloud erase result — the kind of
+picture that ends up in an audit binder: "add my name and a date / time as an
+option here… like a docusigned timestamp I think is the audit option I would
+want here." He will bring what this year's ISO audit asks for.
+
+- **`Watermark.Stamp`** (`Watermark.swift`): a third kind beside words and a
+  logo. Name (the Mac's logged-in full name by default), Captured (the file's
+  creation date), Attested, Mac, SHA-256 — each a flag. The values are filled
+  by whoever draws: the editor for its preview (attested "now"), and
+  `EditStore.commit` for the file, so the picture carries the moment it was
+  saved. The digest is `ImageEditor.pixelDigest` — SHA-256 over width, height
+  and every pixel as 8-bit sRGB — so it is the same for any lossless copy
+  whatever encoder wrote the file; it is of the picture the edit started from,
+  labelled `original` or `as kept`. Drawn as a plate: a card the opposite of
+  the ink, edged in it, a bar down the left in the accent, the title in the
+  chosen face and the details in mono so the columns line up. Times spell
+  their zone, since an auditor reads them somewhere else.
+- Not built, said so: Preview's drawn signature (a scribble proves nothing to
+  an auditor); anything for recordings; and a `shotscribe digest <file>`
+  command, which is the natural companion since only ShotScribe can recompute
+  the pixel digest today.
+- **"Edit the Image" is "Edit with ShotScribe"** everywhere it is shown, and the
+  shot menu runs ShotScribe's own → the Mac's → the bin. Josh: "I like it."
+- Three tests: the stamp filled at commit and kept with the edit, a stamp that
+  asks for nothing is empty, and the digest survives a PNG round trip while
+  noticing one changed pixel. 232 tests; rendered off-screen (`wm-stamp`) and
+  relaunched.

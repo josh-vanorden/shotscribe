@@ -255,3 +255,10 @@ defer. The phase line stays **Ship** until he makes it.
 - **Open:** a second bend pin on arrows if one ever proves short; Toolbelt's
   pin commits (1.6.0–1.6.5) still unpushed there; the dead MCP entry in
   `~/.claude.json`; the announcement.
+
+## 2026-09-17 — the audit stamp, unreleased on top of 1.6.5
+Phase stays **Ship**; the gate to *maintain* is unchanged (the widget, Josh's
+call). New and waiting on him: the ISO evidence list, which decides whether the
+stamp needs more lines (a control ID, a ticket, an "evidence for" field) and
+whether `shotscribe digest <file>` gets built so the digest is checkable
+outside the app.

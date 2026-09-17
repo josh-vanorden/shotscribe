@@ -4,24 +4,21 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-16
-**Phase:** Ship — 1.6.5 is being released this save (the editor, the watermark, fonts, the backlog sweep, the light/dark flip); the release link lands in the next commit.
-**Next action:** Josh's two calls, in his words when he makes them: (1) the WidgetKit widget — the last README roadmap item, the gate to *maintain*; (2) whether the kept watermark should stamp every *capture* as it lands, without the editor (asked 2026-09-16, not built). Until then: nothing pending in the code.
+**Last session:** 2026-09-17
+**Phase:** Ship — 1.6.5 is public; the audit stamp, "Edit with ShotScribe" and the reordered shot menu are committed and pushed on `settings-pane`/`main` but not yet in a DMG.
+**Next action:** Josh's ISO evidence list. When it arrives: add each field as a flag on `Watermark.Stamp` + a line in `Stamp.lines`; if the SHA-256 line stays, build `shotscribe digest <file>` in the CLI so a stamp can be checked outside the app. Then ship 1.6.6 (`serverInfo`, CHANGELOG date, tag, `APPLE_NOTARY_PROFILE=shotscribe-notary`, release, Toolbelt pin).
 
 **Open loops**
-- Toolbelt's pin at `from: "1.6.5"` after this release, committed there and **unpushed** with the 1.6.0–1.6.4 pin commits, beside Josh's own uncommitted `.gitignore`. Pushing Toolbelt is his call.
-- `/security-team` over the editor's file handling (xattr link, App Support stores, NSOpenPanel imports) once `claude` is signed in.
-- `~/.claude.json` still carries a dead `shotscribe` MCP entry under the old path `~/git/personal/shotscribe`.
-- The announcement stays drafted, secondary.
-- A second bend pin on arrows only if one proves short; Codex, Gemini CLI and Cursor Agent presets still unverified on this Mac.
+- Ship 1.6.6 when Josh says — the public DMG is 1.6.5 and predates the stamp.
+- The two standing calls: the WidgetKit widget (gate to *maintain*); auto-stamping every capture at capture time (asked 2026-09-16, not built).
+- Toolbelt's pin at `from: "1.6.5"`, five pin commits unpushed there beside Josh's own uncommitted `.gitignore` / reformatted `Package.resolved`.
+- `/security-team` over the editor's file handling once `claude` is signed in; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
 
 **Ruled out**
-- Five fixed size stops for text and steps — a slider ("makes it much easier").
-- A colour-less black-out — every mark takes a colour, opaque whatever it is.
-- A grey Save for "nothing to save" — read as failure twice; it is **Done** now.
-- Two bend pins on an arrow — one quadratic pin covers what a screenshot needs.
-- Auto-stamping every capture — offered as a question, not shipped.
-- ShotScribe's own artwork as a 22pt button mark; a hover overlay drawn by a row inside a `LazyVStack`; a fixture drawn through `NSImage.lockFocus`.
+- A drawn signature as the audit option — a scribble proves nothing; the plate does. Only as a look beside the stamp, if asked.
+- Attesting at panel-open time — the file carries the save moment (`commit` fills the stamp).
+- A file-bytes hash — PNG encoders differ; the digest is over pixels so any lossless copy matches.
+- Five fixed size stops; a colour-less black-out; a grey Save; two bend pins; auto-stamping every capture unasked.
 
 **Working tree:** clean once this save's commits land
 **Unpushed commits:** none after `/clean-tree`
@@ -65,11 +62,21 @@ tile; Preview is under its right-click.
   that is not its edge colour (`logoMask` / `keyedMask`). Set once: the
   watermark in `shotscribe.watermark` and the flag `shotscribe.watermarkEveryEdit`;
   `Watermark.forNewEdit()` is what a fresh edit starts with.
+- **Audit stamp** (`Watermark.Stamp`, 2026-09-17): name, Captured (file creation
+  date), Attested (filled at `commit`, so it is the save moment), Mac, SHA-256
+  (`ImageEditor.pixelDigest`: over width, height and 8-bit sRGB pixels of the
+  picture the edit started from — `digestOfOriginal` says whether that was the
+  untouched capture). Each line a flag; `Stamp.filled(source:capturedAt:
+  sourceIsOriginal:)` is the one fill used by the preview and the file. Drawn
+  as a plate in the ink's opposite with a bar in the accent; details in mono.
+  The full digest is in `edit.json`; the plate shows 32 hex.
 - **Fonts** (`TextFont`): system, rounded, serif, mono, or `family(name)`; bold
   always; stored as one string; a missing family falls back to the system face
   and `isInstalled` says so.
 - The footer button reads **Done** (and only closes) when nothing would be
   written — a grey Save read as failure.
+- The shot menu (`ShotMenu`) runs ShotScribe's own actions, then the Mac's
+  (Finder, Preview, Share), then the bin; the tile is **Edit with ShotScribe**.
 
 **Backlog sweep** (`Backlog.swift`, model `BacklogRun`): `pending(in:)` lists
 what is still called `Screenshot …`; `propose` names it; three at a time in the

@@ -2,6 +2,22 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## 1.6.6 — unreleased
+
+- **An audit stamp.** The watermark panel's third kind, beside Text and Logo:
+  a signature block with your name, when the picture was taken, when you saved
+  it (the moment of the save, not of opening the panel), which Mac, and a
+  SHA-256 of the original picture's pixels — the same for any lossless copy,
+  so an auditor holding the original can check it. Each line is a checkbox;
+  the times carry their zone; the digest reads `original` while ShotScribe
+  still has the untouched capture and `as kept` once a redaction has been
+  burned in. It can be the standing watermark ("Use on every edit").
+- **Edit with ShotScribe.** What was "Edit the Image" says whose editor it is,
+  everywhere it appears.
+- **The right-click menu, in order of who does it.** What ShotScribe adds
+  first (edit, send to your assistant, rebuild as code, tag, restore the
+  name), what the Mac already does next (Finder, Preview, Share), the bin last.
+
 ## 1.6.5 — 2026-09-16
 
 - **Edit the Image.** ShotScribe has its own editor now — the landing zone's
