@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.6.6 — unreleased
+## 1.6.6 — 2026-09-17
 
 - **An audit stamp.** The watermark panel's third kind, beside Text and Logo:
   a signature block with your name, when the picture was taken, when you saved
