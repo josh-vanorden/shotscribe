@@ -185,12 +185,14 @@ MIT. See [LICENSE](LICENSE).
 
 <div align="center">
 
-Built by [Josh VanOrden](https://github.com/josh-vanorden) | [josh-vanorden.github.io/shotscribe](https://josh-vanorden.github.io/shotscribe/)
+Built by [Josh VanOrden](https://github.com/josh-vanorden) | [josh-vanorden.github.io/shotscribe](https://josh-vanorden.github.io/shotscribe/) | [LinkedIn](https://www.linkedin.com/in/joshua-vanorden)
 
 <br />
 
 **If ShotScribe made your screenshot folder readable:**
 
 [![Star this repo](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20repo-yellow?style=for-the-badge&logo=github)](https://github.com/josh-vanorden/shotscribe/stargazers)
+&nbsp;&nbsp;
+[![Connect on LinkedIn](https://img.shields.io/badge/Connect%20on%20LinkedIn-0A66C2?style=for-the-badge)](https://www.linkedin.com/in/joshua-vanorden)
 
 </div>
