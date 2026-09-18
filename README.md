@@ -8,6 +8,8 @@
 
 <br />
 
+[![Visit the website](https://img.shields.io/badge/Visit%20the%20website-725DBA?style=for-the-badge&logo=safari&logoColor=white)](https://josh-vanorden.github.io/shotscribe/)
+&nbsp;&nbsp;
 [![Star this repo](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20repo-yellow?style=for-the-badge&logo=github)](https://github.com/josh-vanorden/shotscribe/stargazers)
 
 <br />
@@ -173,7 +175,7 @@ Next up is a WidgetKit widget: a one-tap App Intent front door. Everything that 
 
 ## Contributing
 
-Issues and pull requests are welcome. The engine lives in `ShotScribeCore`, which backs the CLI, the MCP server and the app, so most fixes land in one place. Run `swift test` before you open a PR.
+Issues and pull requests are welcome. The engine lives in `ShotScribeCore`, which backs the CLI, the MCP server and the app, so most fixes land in one place. Run `swift test` before you open a PR. The rules a pull request has to respect are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
@@ -183,12 +185,14 @@ MIT. See [LICENSE](LICENSE).
 
 <div align="center">
 
-Built by [Josh VanOrden](https://github.com/josh-vanorden)
+Built by [Josh VanOrden](https://github.com/josh-vanorden) | [josh-vanorden.github.io/shotscribe](https://josh-vanorden.github.io/shotscribe/) | [LinkedIn](https://www.linkedin.com/in/joshua-vanorden)
 
 <br />
 
 **If ShotScribe made your screenshot folder readable:**
 
 [![Star this repo](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20repo-yellow?style=for-the-badge&logo=github)](https://github.com/josh-vanorden/shotscribe/stargazers)
+&nbsp;&nbsp;
+[![Connect on LinkedIn](https://img.shields.io/badge/Connect%20on%20LinkedIn-0A66C2?style=for-the-badge)](https://www.linkedin.com/in/joshua-vanorden)
 
 </div>
