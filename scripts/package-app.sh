@@ -19,15 +19,26 @@ if [ -n "$(git rev-list -n1 "v$VERSION..HEAD" 2>/dev/null)" ]; then
     echo "==> note: HEAD is past v$VERSION; the bundle carries that number with newer code"
 fi
 
-echo "==> swift build -c release (shotscribe-menubar)"
-swift build -c release --product shotscribe-menubar
+# Universal: one slice per architecture, joined with lipo. Through 1.6.6 this
+# built for the host alone, so the release was arm64 only and never launched on
+# an Intel Mac that macOS 13 still supports — and nothing said so (2026-09-18).
+# Two plain builds rather than both --arch flags at once: that form hands the
+# build to XCBuild and moves the products out of .build/<triple>/release.
+SLICES=()
+for ARCH in arm64 x86_64; do
+    echo "==> swift build -c release --arch $ARCH (shotscribe-menubar)"
+    swift build -c release --product shotscribe-menubar --arch "$ARCH"
+    SLICES+=("$(swift build -c release --arch "$ARCH" --show-bin-path)/shotscribe-menubar")
+done
 
 APP="dist/ShotScribe.app"
-BIN=".build/release/shotscribe-menubar"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp "$BIN" "$APP/Contents/MacOS/ShotScribe"
+lipo -create "${SLICES[@]}" -output "$APP/Contents/MacOS/ShotScribe"
+# A missing slice must stop the ship stage, not surface as a bug report.
+lipo "$APP/Contents/MacOS/ShotScribe" -verify_arch arm64 x86_64
+echo "==> universal: $(lipo -archs "$APP/Contents/MacOS/ShotScribe")"
 cp assets/ShotScribe.icns "$APP/Contents/Resources/ShotScribe.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
