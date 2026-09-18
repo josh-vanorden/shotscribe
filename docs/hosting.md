@@ -10,12 +10,15 @@ one view:
 ```swift
 import ShotScribeUI
 
-ShotScribeSurface(chrome: .hosted)   // roomy detail pane
-ShotScribeSurface(chrome: .menuBar)  // the 340pt popover
+ShotScribeSurface(chrome: .hosted)   // the Library, as a roomy pane
 ```
 
 It owns its own state, takes no other arguments, and knows nothing about what's
-hosting it. `.hosted` omits "Launch at login" and "Quit" on purpose —
+hosting it. (Through 1.7.0 there was a second chrome, `.menuBar`, a 340pt
+popover; it went when the menu bar item became a real menu. A host that wants
+that menu mounts `ShotScribeMenu(model:goToLibrary:openSettings:quit:)` and
+says for itself how its window and settings open.) The pane omits "Launch at
+login" and "Quit" on purpose —
 `SMAppService.mainApp` and `NSApplication.shared.terminate` would act on the
 *host*, not on ShotScribe.
 

@@ -2,6 +2,15 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## Unreleased
+
+- **Removed: the menu bar popover in `ShotScribeUI`.** `ShotScribeChrome.menuBar`
+  — the 340pt panel the menu bar item opened through 1.6.6 — and
+  `ShotScribeView`'s `onOpenWindow:` are gone; 1.7.0 replaced the panel with a
+  menu and nothing used it. `ShotScribeSurface(chrome: .hosted)` is unchanged.
+  A host that built its own popover on `.menuBar` should mount
+  `ShotScribeMenu` instead.
+
 ## 1.7.0 — 2026-09-18
 
 - **Dock, menu bar, or both.** Settings (⌘,) has **Show in Dock** and **Show in

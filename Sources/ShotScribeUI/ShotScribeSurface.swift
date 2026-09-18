@@ -3,19 +3,21 @@ import ShotScribeCore
 import UniformTypeIdentifiers
 import AppKit
 
-/// How much room the surface has, and therefore which controls make sense.
+/// How the surface is mounted. One way, since 1.7.1: the 340pt menu bar popover
+/// (`.menuBar`) went when the menu bar item became a real menu —
+/// `ShotScribeMenu` — and nothing was left using it. The type and the
+/// parameter stay so a host's `ShotScribeSurface(chrome: .hosted)` still reads
+/// the same.
 public enum ShotScribeChrome {
-    /// A 340pt menu bar popover: compact, and the place where app-level
-    /// controls (launch at login, Quit) belong.
-    case menuBar
     /// A roomy pane: the app's own window, or a detail pane inside some other
     /// host. App-level controls are omitted — `SMAppService.mainApp` would
-    /// register *that* host at login, and "Quit" would quit it.
+    /// register *that* host at login, and "Quit" would quit it. They belong to
+    /// whatever is hosting: ShotScribe.app keeps them in its Settings and menu.
     case hosted
 }
 
-/// **ShotScribe's face.** Watch toggle, titler preference, rename-latest, and
-/// recent history over a `ShotScribeModel`.
+/// **ShotScribe's face.** The Library — captures, search, the landing zone and
+/// the inspector — over a `ShotScribeModel`.
 ///
 /// Self-contained: no arguments, owns its state, one line to mount. Per the
 /// repo's doctrine this package has no idea what's hosting it and must never
@@ -49,7 +51,6 @@ public struct ShotScribeView: View {
     /// handler is the reliable shape.
     @State private var kindDraft: AIProvider.Kind = .claude
     @ObservedObject var model: ShotScribeModel
-    let chrome: ShotScribeChrome
     @State private var folderTargeted = false
     /// Drafts, not bindings to the model: half-typed text is invalid text, and
     /// a name template or a new tag is only worth saving once it is finished.
@@ -65,63 +66,11 @@ public struct ShotScribeView: View {
     /// Mirrors Apple's own setting, read when the pane first appears — the
     /// value lives in macOS's domain, not ShotScribe's.
     @State private var systemThumbnailOff = false
-    /// Supplied by a host that has a window to show — the menu bar app. The
-    /// popover cannot open one itself: this package has no idea what is hosting
-    /// it, and must never grow one.
-    private let onOpenWindow: (() -> Void)?
-
-    public init(model: ShotScribeModel, chrome: ShotScribeChrome = .hosted,
-                onOpenWindow: (() -> Void)? = nil) {
-        self.onOpenWindow = onOpenWindow
+    public init(model: ShotScribeModel, chrome: ShotScribeChrome = .hosted) {
         self.model = model
-        self.chrome = chrome
     }
 
-    public var body: some View {
-        switch chrome {
-        case .menuBar: panel
-        case .hosted:  pane
-        }
-    }
-
-    // MARK: Menu bar popover
-
-    private var panel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            Divider()
-            folderRow
-            watchToggle
-            aiToggle
-            Toggle(isOn: Binding(get: { model.launchAtLogin },
-                                 set: { model.setLaunchAtLogin($0) })) {
-                Text("Launch at login")
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            renameAction
-            errorLine
-            if !model.events.isEmpty {
-                Divider()
-                historyList(limit: 6)
-            }
-            Divider()
-            HStack {
-                Button("Open folder") { NSWorkspace.shared.open(model.folder) }
-                    .buttonStyle(.link).font(.caption)
-                if let onOpenWindow {
-                    Spacer()
-                    Button("Go to Library") { onOpenWindow() }
-                        .buttonStyle(.link).font(.caption)
-                }
-                Spacer()
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(.link).font(.caption)
-            }
-        }
-        .padding(12)
-        .frame(width: 340)
-    }
+    public var body: some View { pane }
 
     // MARK: The window
 
@@ -175,7 +124,7 @@ public struct ShotScribeView: View {
         .onAppear {
             // The window only. The menu bar popover is 340pt of panel and has
             // no room to introduce anything.
-            showGreeting = (chrome == .hosted && !model.greeted)
+            showGreeting = !model.greeted
             systemThumbnailOff = !SystemThumbnail.isOn
         }
         // Paint the window colour ourselves: the content is the ScrollView and
@@ -1740,37 +1689,6 @@ public struct ShotScribeView: View {
 
     // MARK: Shared pieces
 
-    /// **What ShotScribe is doing — not where the folder is.**
-    ///
-    /// The header used to lead with the watch folder's full path, so the first
-    /// thing anyone read on this surface was `/Users/…/Pictures/…`: the answer
-    /// to a question you ask once, parked in the spot you look at every time.
-    /// The path did not go away — it moved to the drop zone's hover, where it
-    /// is attached to the thing it actually describes.
-    ///
-    /// What the top of a watcher owes you instead is whether it is *on*.
-    private var header: some View {
-        HStack(spacing: 8) {
-            ToolIcon(icon: nil, fallback: "text.viewfinder",
-                     tint: ShotPalette.accent, size: 30)
-            Image(systemName: watchState.symbol)
-                .font(.system(size: 9))
-                .foregroundStyle(watchState.tint)
-                .accessibilityHidden(true)
-            Text(watchState.title)
-                .font(.caption.weight(.medium))
-                .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 8)
-            if model.busy {
-                Text("Naming the newest capture…")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary).lineLimit(1)
-                ProgressView().controlSize(.small)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     /// The three states worth a word at the top of a folder watcher.
     private enum WatchState {
         case watching, paused, standingDown
@@ -1961,60 +1879,6 @@ public struct ShotScribeView: View {
         }
         .toggleStyle(.switch)
         .controlSize(.small)
-    }
-
-    /// The popover's one AI switch. The full choice lives in the window's AI tab.
-    private var aiToggle: some View {
-        Toggle(isOn: Binding(get: { model.aiTitling }, set: { model.aiTitling = $0 })) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(model.aiTitling ? "Title with \(model.aiProvider.kind.name)" : "Title with AI")
-                Text(model.aiTitling ? model.aiAvailability.text : "Off: keyword titles, nothing leaves this Mac. Choose an assistant in the window’s AI tab.")
-                    .font(.caption2).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-    }
-
-    private var renameAction: some View {
-        Button {
-            model.renameLatest()
-        } label: {
-            Label("Rename latest capture now", systemImage: "wand.and.stars")
-        }
-        .disabled(model.busy || model.otherInstanceRunning)
-    }
-
-    @ViewBuilder
-    private var errorLine: some View {
-        if let err = model.lastError {
-            Text(err).font(.caption2).foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func historyList(limit: Int) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Recent").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            ForEach(model.events.prefix(limit)) { e in
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(e.to).font(.caption).lineLimit(1).truncationMode(.middle)
-                        Text(e.from).font(.caption2).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
-                    Spacer(minLength: 8)
-                    // The way back, on the row that describes the rename — for
-                    // as long as the file is still where the rename left it.
-                    if model.canUndo(e) {
-                        Button("Undo") { model.undo(e) }
-                            .controlSize(.mini)
-                            .help("Put “\(e.from)” back")
-                    }
-                }
-            }
-        }
     }
 }
 

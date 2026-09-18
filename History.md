@@ -1207,3 +1207,13 @@ already on the right account this time. Toolbelt's pin raised to `from: "1.7.0"`
 — a minor bump `.upToNextMinor(from: "1.6.6")` could never resolve — built once
 against the tag, committed there (`b0c05f3`, shotscribe hunk only); seven pin
 commits unpushed there, Josh's. 238 tests.
+
+## 2026-09-18, later — the old menu bar panel comes out of ShotScribeUI
+Josh asked what "remove the old panel" referred to, then: "remove it." The
+340pt popover (`ShotScribeChrome.menuBar`, the `panel` view and the five helpers
+only it used, `ShotScribeView`'s `onOpenWindow:`) had no caller left: the app
+shows `ShotScribeMenu` since 1.7.0 and Toolbelt mounts `.hosted`. The enum and
+the `chrome:` parameter stay, with one case, so a host's
+`ShotScribeSurface(chrome: .hosted)` reads the same. An API removal, so it is
+in the changelog under Unreleased as Removed. 238 tests; the Library renders
+as before.

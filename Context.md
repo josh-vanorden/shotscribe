@@ -53,8 +53,8 @@ Dock icon. The capture card's **Go to Library** calls the same `show()`.
 handed in): Go to Library · status, watch switch, rename latest · last capture:
 Edit with ShotScribe…, Watermark ▸ Apply / Remove (`EditStore.setWatermark`,
 `model.setWatermark`) · Recent ▸ five, each Edit / Reveal / Undo · Settings ·
-Quit. `ShotScribeChrome.menuBar` (the old panel) is still public and unused by
-the app.
+Quit. The old 340pt panel (`ShotScribeChrome.menuBar`) was removed after 1.7.0;
+`.hosted` is the one chrome left, kept so hosts read the same.
 
 **The Library's top bar:** the status capsule and a Tags capsule are `Menu`s
 whose labels are single concatenated `Text`s (a macOS menu label keeps only
@@ -329,7 +329,7 @@ plan the user saw). 50 tests.
   notifications do not fire for an `LSUIElement` app) and stands down with a
   banner rather than fighting over the same capture. It resumes on its own when
   the app quits.
-- **App-level controls are `.menuBar`-only.** "Launch at login" resolves through
+- **App-level controls belong to the host** (they were `.menuBar`-only until that chrome was removed after 1.7.0; ShotScribe.app keeps them in its Settings and menu). "Launch at login" resolves through
   `SMAppService.mainApp` and "Quit" terminates `NSApplication.shared` — in a
   hosted pane both would act on the host, so the surface omits them.
 
