@@ -159,7 +159,7 @@ public struct CaptureCard: View {
 
                 // The row, under the name it belongs to.
                 HStack(spacing: 8) {
-                    CardButton("Open ShotScribe", symbol: "text.viewfinder", hint: $hint) { open(); dismiss() }
+                    CardButton("Go to Library", symbol: "text.viewfinder", hint: $hint) { open(); dismiss() }
 
                     // One AI button, not one per assistant. Which assistant it
                     // reaches is a setting, and the setting is on its own

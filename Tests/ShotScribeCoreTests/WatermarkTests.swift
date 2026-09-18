@@ -255,6 +255,33 @@ final class WatermarkTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(EditDocument.self, from: Data(older.utf8)).watermark)
     }
 
+    /// From the menu bar, with no editor: the watermark goes on a capture never
+    /// edited, comes off again leaving the picture as it was taken, and a kept
+    /// edit's marks are not disturbed on the way.
+    func testAWatermarkGoesOnAndComesOffWithoutTheEditor() throws {
+        let url = root.appendingPathComponent("plain.png")
+        try ImageEditor.save(flat(1), over: url)
+        XCTAssertNil(try EditStore.setWatermark(nil, on: url), "nothing to take off a capture never edited")
+        XCTAssertNil(EditStore.document(for: url))
+
+        let wm = Watermark(text: "ACME", placement: .bottomRight, size: 0.3, opacity: 1)
+        let on = try XCTUnwrap(try EditStore.setWatermark(wm, on: url))
+        XCTAssertEqual(on.watermark, wm)
+        XCTAssertTrue(on.marks.isEmpty)
+        XCTAssertEqual(EditStore.document(for: url)?.watermark, wm, "read back without decoding the picture")
+        XCTAssertLessThan(range(try XCTUnwrap(ImageEditor.load(url)), in: corner).darkest, 300)
+
+        let off = try XCTUnwrap(try EditStore.setWatermark(nil, on: url))
+        XCTAssertNil(off.watermark)
+        XCTAssertGreaterThan(range(try XCTUnwrap(ImageEditor.load(url)), in: corner).darkest, 740, "the picture as it was taken")
+
+        let box = Mark(kind: .rectangle, a: CGPoint(x: 40, y: 40), b: CGPoint(x: 200, y: 160), color: .scarlet, lineWidth: 8)
+        _ = try EditStore.commit(source: flat(1), marks: [box], frame: .plain, sourceIsOriginal: true, to: url)
+        let both = try XCTUnwrap(try EditStore.setWatermark(wm, on: url))
+        XCTAssertEqual(both.marks, [box], "the marks already on it stay")
+        XCTAssertEqual(both.watermark, wm)
+    }
+
     func testTheKeptWatermarkStartsEveryEditOnlyWhenAsked() {
         let wm = Watermark(text: "ACME", placement: .centre, size: 0.25, opacity: 0.5)
         XCTAssertNil(Watermark.stored())

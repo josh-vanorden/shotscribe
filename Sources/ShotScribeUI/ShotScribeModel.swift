@@ -569,6 +569,32 @@ public final class ShotScribeModel: ObservableObject {
         }
     }
 
+    // MARK: The last capture, from the menu bar
+
+    /// The capture taken most recently — what "last capture" means in the menu.
+    var newestShot: IndexedShot? { indexCache.max { $0.captured < $1.captured } }
+
+    /// Whether a capture carries a watermark ShotScribe can take off again.
+    func hasWatermark(_ shot: IndexedShot) -> Bool {
+        !(EditStore.document(for: shot.url)?.watermark?.isEmpty ?? true)
+    }
+
+    /// Put a watermark on a capture, or take it off with nil — no editor. The
+    /// same ending as any edit: the index re-read, the thumbnail refreshed.
+    func setWatermark(_ watermark: Watermark?, on shot: IndexedShot) {
+        let url = shot.url, original = shot.original
+        Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                guard try EditStore.setWatermark(watermark, on: url) != nil else { return }
+                ShotIndex.record(url, original: original)
+                Log.write("\(watermark == nil ? "watermark off" : "watermarked") \(url.lastPathComponent)")
+                await MainActor.run { self?.afterEdit(url) }
+            } catch {
+                await MainActor.run { self?.lastError = "Couldn’t change the watermark: \(error.localizedDescription)" }
+            }
+        }
+    }
+
     private func afterEdit(_ url: URL) {
         ThumbnailCache.shared.refresh(url.path)
         loadIndex()

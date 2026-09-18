@@ -162,6 +162,31 @@ extension EditStore {
         return document
     }
 
+    /// The kept edit's description alone — no picture decoded. What a menu
+    /// reads to say whether a capture carries a watermark.
+    public static func document(for url: URL) -> EditDocument? {
+        guard let id = id(of: url),
+              let data = try? Data(contentsOf: folder(for: id).appendingPathComponent("edit.json")) else { return nil }
+        return try? JSONDecoder().decode(EditDocument.self, from: data)
+    }
+
+    /// Put `watermark` on a capture — or take it off, with nil — without the
+    /// editor. Everything else about a kept edit stays as it was; a capture
+    /// never edited becomes an edit whose only change is the watermark.
+    /// Returns nil when there was nothing to do: no watermark to remove.
+    @discardableResult
+    public static func setWatermark(_ watermark: Watermark?, on url: URL) throws -> EditDocument? {
+        if let kept = load(for: url) {
+            guard kept.document.watermark != watermark else { return kept.document }
+            return try commit(source: kept.base, marks: kept.document.marks, frame: kept.document.frame,
+                              crop: kept.document.crop, scale: kept.document.scale, watermark: watermark,
+                              sourceIsOriginal: kept.document.baseIsOriginal, to: url)
+        }
+        guard let watermark, !watermark.isEmpty else { return nil }
+        guard let image = ImageEditor.load(url) else { throw CocoaError(.fileReadCorruptFile) }
+        return try commit(source: image, marks: [], frame: .plain, watermark: watermark, sourceIsOriginal: true, to: url)
+    }
+
     /// Put the untouched capture back and forget the edit. Refused — `false` —
     /// once anything has been redacted, because then there is no untouched
     /// capture to put back, by design.
