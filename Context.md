@@ -5,14 +5,15 @@
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
 **Last session:** 2026-09-18
-**Phase:** Ship — 1.7.0 is being released this save: Dock / menu bar presence, the real menu, the capsules, the /simplify pass, and the first universal (arm64 + Intel) build. The release link lands in the next commit.
+**Phase:** Ship — 1.7.0 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.7.0, notarized under `shotscribe-notary`, marked latest, the first universal arm64 + Intel build): Dock / menu bar presence, the real menu, the capsules, the /simplify pass.
 **Next action:** Josh's calls, none blocking: (1) remove the now-unused `.menuBar` panel from `ShotScribeUI` or keep it for hosts — it is public API; (2) turn GitHub Pages on for `main` `/docs` and set the About box; (3) the ISO evidence list for the stamp, then `shotscribe digest <file>`.
 
 **Open loops**
 - The widget (gate to *maintain*); auto-stamping every capture at capture time (asked, not built).
-- Toolbelt's pin — raised to 1.7.0 this save; its pin commits stay unpushed there, beside Josh's own uncommitted files.
-- `/security-team` over the editor's and the new presence code's file handling once convenient; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
-- `gh` drifts to the work account between sessions: `forge auto` right before `gh release create`, every release.
+- Toolbelt's pin at `from: "1.7.0"`; seven pin commits unpushed there beside Josh's own uncommitted files.
+- `main` now moves on its own (another session commits docs there); `settings-pane` merges it in. Promote with `git branch -f main HEAD` only after `git merge-base --is-ancestor main HEAD`.
+- `/security-team` over the editor's and the presence code's file handling; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
+- `forge auto` right before `gh release create`, every release.
 
 **Ruled out**
 - Starting as a Dock app and removing the icon — it flashes on every menu-bar-only launch; `LSUIElement` + promote is the only no-flash order (cost: no launch bounce).
@@ -21,8 +22,8 @@
 - A rich `Menu` label (dot, spinner) — macOS keeps only text; one concatenated `Text`.
 - A drawn signature as the audit option; a file-bytes hash; five fixed size stops; a grey Save.
 
-**Working tree:** clean once this save's commits land
-**Unpushed commits:** none after `/clean-tree`
+**Working tree:** clean
+**Unpushed commits:** none
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at

@@ -1191,3 +1191,19 @@ Library's inspector, and the public version was 1.6.6, not 1.6.3.
   off): each launch mode's policy and window, reopen in menu-bar-only, the
   impossible both-off state. The live toggles, the line and the pointer were
   Josh's to test: "Everything works from my end." 238 tests.
+
+## 2026-09-18, afternoon — 1.7.0 shipped, the first universal release
+`serverInfo` → 1.7.0, CHANGELOG dated, the three `release-fact` markers flipped
+to "Apple silicon and Intel". Committed in four groups on `settings-pane`
+(presence, the menu, the capsules, the release), `main` fast-forwarded — it had
+moved on its own that morning with the landing README and the site, merged in
+here — tagged `v1.7.0` at `18ede21`, pushed. Notarized under `shotscribe-notary`
+(Apple: Accepted, app and DMG) and verified four ways, plus the one that is new:
+the app *inside the DMG* answers `x86_64 arm64` to `lipo -archs`, version 1.7.0,
+`LSUIElement` true. Published as latest:
+https://github.com/josh-vanorden/shotscribe/releases/tag/v1.7.0 (7.3 MB, up from
+4.5 — two slices). `forge auto` immediately before `gh release create`; gh was
+already on the right account this time. Toolbelt's pin raised to `from: "1.7.0"`
+— a minor bump `.upToNextMinor(from: "1.6.6")` could never resolve — built once
+against the tag, committed there (`b0c05f3`, shotscribe hunk only); seven pin
+commits unpushed there, Josh's. 238 tests.
