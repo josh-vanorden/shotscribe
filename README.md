@@ -1,379 +1,167 @@
-# ShotScribe
+<div align="center">
 
-**Every screenshot, named — the moment it lands, by the AI you already use,
-and it stays a file in your folder.**
+<img src="docs/img/icon.png" width="128" alt="ShotScribe app icon" />
 
-Turn `Screenshot 2026-08-11 at 3.41.07 PM.png` into
-`2026-08-11 1541 AWS Billing Console.png` — automatically, on-device, and
-findable later.
+# ShotScribe: the screenshot renamer for macOS
 
-`shotscribe` watches your screenshot folder, reads the text in each new capture
-with Apple's **on-device Vision OCR** (nothing leaves your machine), asks a
-local LLM for a 2–3 word title, and renames the file: **date first** (so
-name-sort stays chronological) then a scannable label. macOS default capture
-names, in any language, are the only ones it touches — a file you named
-yourself is never renamed.
+**Every Mac screenshot, named the moment it lands, by the AI you already use, and it stays a file in your folder.**
 
-Screen recordings too: macOS drops `Screen Recording … .mov` into the same
-folder, and ShotScribe names one from a couple of its frames, same OCR, same
-titler, same template, `.mov` kept.
+<br />
 
-It's one small, single-purpose tool. The logic lives in a reusable core
-(`ShotScribeCore`) so the same engine backs the CLI today and — next — an MCP
-server, a menu-bar app, and a widget.
+[![Star this repo](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20repo-yellow?style=for-the-badge&logo=github)](https://github.com/josh-vanorden/shotscribe/stargazers)
 
-## Before you install — what it touches
+<br />
 
-ShotScribe is a small tool with a sharp edge: it renames files. Read this
-once.
+[![Latest release](https://img.shields.io/github/v/release/josh-vanorden/shotscribe?style=for-the-badge&color=2f81f7)](https://github.com/josh-vanorden/shotscribe/releases/latest)
+&nbsp;
+[![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)](#install)
+&nbsp;
+[![Signed and notarized](https://img.shields.io/badge/Apple-Notarized-34c759?style=for-the-badge)](#what-it-touches)
+&nbsp;
+[![MIT license](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-- **It renames only macOS default capture names** (`Screenshot …`, `Screen
-  Shot …`, `Screen Recording …`, and the equivalents in other languages when
-  the file carries macOS's own capture flag). A file you named yourself is
-  never touched unless you pass `--force` on the CLI. **Auto-rename is on by
-  default** the moment the app runs; the switch is on the Rename tab.
-- **It writes Finder tags** (up to two per capture, from a list you control)
-  onto the renamed file. Tags you added by hand are kept; the switch is on the
-  File tab.
-- **It keeps a search index at `~/.shotscribe/index.json`**: the text read off
-  every capture. It never leaves the machine and is readable by your user
-  only, but it is more sensitive than the screenshots — see *Privacy*.
-- **With AI titling on, the text read off each capture goes to whichever
-  assistant the AI tab names** — Claude Code by default, through the `claude`
-  CLI on your own subscription; Codex, Gemini CLI, Cursor, an endpoint, or
-  Ollama on this Mac. Offline, nothing leaves the machine. The only network
-  code in the app is the endpoint titler, and it runs only when an endpoint is
-  the choice; there is no telemetry.
-- **macOS may ask for folder access.** If your captures land on the Desktop
-  (or in Documents or Downloads), the first look there triggers the standard
-  folder-access prompt; denying it leaves the app idle. `~/Pictures` needs no
-  prompt.
-- **Signed and notarized** by Apple's notary service under a Developer ID, so
-  Gatekeeper opens it without a warning. It is not App Store sandboxed.
-- **One watcher at a time.** ShotScribe.app and a copy mounted in another host
-  (Toolbelt) both watch the same folder; the hosted copy notices the app
-  running and stands down.
+---
 
-Everything it writes and how to remove it is under *Uninstall*.
+Your screenshot folder is a wall of `Screenshot 2026-09-18 at 9.41.07 AM.png`. ShotScribe reads each new capture on your Mac, asks your own assistant for a two or three word title, and renames the file with the date first. The folder becomes readable, and you can search what each screenshot said, which matters more a month later than any title.
 
-## Whose AI is it?
+[Website](https://josh-vanorden.github.io/shotscribe/) | [Install](#install) | [How it works](#how-screenshot-renaming-works) | [Features](#features) | [Whose AI?](#whose-ai-is-it) | [MCP server](#mcp-server-and-the-screenshot-skill) | [What it touches](#what-it-touches)
 
-**Yours.** ShotScribe ships no API keys and has no account of its own. The
-**AI** tab names who titles a capture, and every door — the app, the CLI, the
-watcher — honours the same choice:
+</div>
 
-| Titler | What it drives | Where the text goes |
-|---|---|---|
-| **Claude Code** (default) | the `claude` CLI you are signed in to, with its tools disabled | Anthropic, on your subscription |
-| **Codex** | `codex exec` in a read-only sandbox | OpenAI, on your login |
-| **Gemini CLI** | `gemini -p`, sandboxed | Google, on your login |
-| **Cursor Agent** | `cursor-agent -p` | Cursor, on your login |
-| **Ollama** | `ollama run <model>` | nowhere — the model runs on this Mac |
-| **An endpoint** | any OpenAI-compatible `/chat/completions` — OpenAI, OpenRouter, LM Studio, Ollama's `/v1`, a team gateway | the endpoint you name; a local one keeps it here |
-| **Other CLI…** | any tool that answers a prompt on the command line — `llm`, `aichat`, `mods`, a team script | wherever it sends it |
-| **Offline** | the keyword titler | nowhere |
+<img src="docs/img/rename-after.jpg" alt="ShotScribe window: the newest capture renamed to Halyard API Keys, tagged settings and dashboard, with the original name and a Restore link underneath" />
 
-The CLI presets are commands you can see and edit in the tab (`{prompt}` is
-the instruction plus the text read off the capture, as one argument); each
-ships with the flags that stop the tool from *acting* on that text, because
-what is on your screen is not always text you wrote. An endpoint's key lives
-in your Keychain, never in the settings file. **Try it on the newest capture**
-shows the title the choice would give, without renaming anything. Nothing
-installed? Everything still works with the offline titler — just blunter
-labels.
+## A folder nobody can read
 
-The inversion also exists: **`shotscribe-mcp`** is an MCP server (stdio) that
-lets Claude Code, Cursor, Codex, Gemini CLI, LibreChat or any MCP client call
-the same engine as tools *during a session* — there, the calling model IS the
-intelligence, so the server only does the mechanical, on-device parts and
-takes the model's title as input.
+macOS names every capture after the second it was taken. A month later you remember a billing console and a DNS error. The filenames remember `3.41.07 PM`. You open twelve files to find one.
+
+Renaming by hand works for about a day.
+
+## Before and after
+
+| macOS gave you | ShotScribe left you |
+|---|---|
+| `Screenshot 2026-09-14 at 3.41.07 PM.png` | `2026-09-14 1541 Cloud Billing Console.png` |
+| `Screenshot 2026-09-17 at 11.30.52 AM.png` | `2026-09-17 1130 DNS Lookup Failure.png` |
+| `Screenshot 2026-09-18 at 9.03.19 AM.png` | `2026-09-18 0903 Sign-in Failed 403.png` |
+| `Screen Recording 2026-09-16 at 10.26.44 AM.mov` | `2026-09-16 1026 Deploy Thread.mov` |
+
+Date first, so sorting by name stays chronological. A file you named yourself is never touched.
+
+<img src="docs/img/folder-after.jpg" alt="The same folder in list view: twelve date-first names, each with its Finder tags, and a strip of tag counts above" />
 
 ## Install
 
-**The app:** download `ShotScribe-<version>.dmg` from the
-[latest release](https://github.com/josh-vanorden/shotscribe/releases/latest),
-open it, drag ShotScribe to Applications. The app and the disk image are
-Developer ID signed, notarized and stapled, so macOS 13 and later open them
-without a warning. Requires macOS 13.
+**The app.** Download `ShotScribe-<version>.dmg` from the [latest release](https://github.com/josh-vanorden/shotscribe/releases/latest), open it, and drag ShotScribe to Applications. It is Developer ID signed, notarized and stapled, so macOS 13 and later open it without a warning. <!--release-fact-->It needs an Apple silicon Mac: the release is built for arm64 only.<!--/release-fact-->
 
-**The CLI and the MCP server** build from source in under a minute, with no
-dependencies beyond Xcode's toolchain:
+**The CLI and the MCP server.** They build from source in under a minute, with nothing beyond Xcode's toolchain:
 
 ```bash
 git clone https://github.com/josh-vanorden/shotscribe.git && cd shotscribe
 swift build -c release
-cp .build/release/shotscribe /usr/local/bin/   # or anywhere on your PATH
+cp .build/release/shotscribe /usr/local/bin/
 ```
 
-## Usage
+Try it without renaming anything:
 
 ```bash
-# Print the title shotscribe would give a shot (no rename) — the quickest way
-# to see the Claude connection working end-to-end:
-shotscribe label "~/Desktop/Screenshot 2026-08-11 at 3.41.07 PM.png"
-
-# Rename one capture in place:
-shotscribe rename "~/Desktop/Screenshot 2026-08-11 at 3.41.07 PM.png"
-
-# See what it WOULD do, without moving anything:
-shotscribe rename --dry-run "~/Desktop/Screenshot ....png"
-
-# Watch a folder and rename new captures as they land
-# (defaults to your macOS screenshot location):
-shotscribe watch
-shotscribe watch ~/Pictures/Screenshots
-
-# Skip the AI tab's choice for one run and use the offline keyword titler:
-shotscribe label --offline "~/Desktop/Screenshot ....png"
-
-# Who titles, as the AI tab set it (SHOTSCRIBE_DEFAULTS=<domain> tries another):
-shotscribe ai
-
-# Rename without filing it under Finder tags:
-shotscribe rename --no-tags "~/Desktop/Screenshot ....png"
-
-# How good is the titler? Score it against the names you kept:
-shotscribe eval --limit 25
+shotscribe rename --dry-run "~/Desktop/Screenshot 2026-09-18 at 9.41.07 AM.png"
 ```
 
-`eval` treats your own folder as the test set: every capture that is already
-named is a judged answer, and its Finder tags a judged filing. It re-titles each
-one and reports exact matches, title recall and tag precision and recall, so a
-prompt change or a different titler gets a number instead of a feeling. (The
-shape is borrowed from screenshot-to-code's evals; the twist is that no fixture
-set is needed.) One honest caveat: the names it judges against are only as good
-as whoever kept them. If the offline titler named a fortnight of captures while
-Claude was signed out, it will agree with itself; the number is a regression
-check then, not a quality score.
+## How screenshot renaming works
 
-## Naming
+```
+  ⌘⇧4                                                        your folder
+   │                                                              ▲
+   ▼                                                              │
+┌────────────┐   ┌──────────────────┐   ┌───────────────┐   ┌─────┴──────────┐
+│ new capture│──▶│ Apple Vision OCR │──▶│  your titler  │──▶│ rename + tag   │
+│ lands      │   │ on this Mac      │   │ 2–3 words     │   │ + index        │
+└────────────┘   └──────────────────┘   └───────────────┘   └────────────────┘
+                  pixels never leave      text only, and       date first,
+                  the machine             only if you say so   file stays put
+```
 
-The name is a template. `{date} {time} {title}` is the default and spells
-exactly what ShotScribe has always spelled, so an upgrade changes nobody's
-names. Edit it in the window's **Name** tab: the layout carries the separators
-(`{date}_{time}_{title}` is how you get underscores), and pickers cover the
-date style, the time style, how the title's words are joined, and how many are
-kept. A fourth token, `{app}`, is the app or window name read off the capture's
-own menu bar or title bar; it is best effort and simply empty when the shot has
-no chrome. A template that would spell a name macOS uses for a fresh capture is
-refused, because the watcher would then rename its own output forever.
+1. **Watch.** New captures are picked up from your macOS screenshot folder. Screen recordings land there too, and it names those from a couple of frames.
+2. **Read.** Apple's on-device Vision OCR pulls the text out of the capture. The picture never leaves your Mac.
+3. **Title.** The text goes to the titler you picked: Claude Code, Codex, Gemini CLI, Cursor, Ollama, an endpoint, or the offline keyword titler.
+4. **File.** The capture is renamed from a template you control, gets up to two Finder tags from a list you control, and its text goes into a local search index.
 
-## Tags
+## Features
 
-A renamed capture is also filed under up to two **Finder tags** — so it shows in
-Finder, sorts in the sidebar, and answers a Spotlight search without ShotScribe
-running at all.
-
-Tags come from a fixed list (`terminal`, `code`, `error`, `browser`, `docs`,
-`chat`, `email`, `calendar`, `design`, `dashboard`, `settings`, `logs`,
-`ticket`, `meeting`, `diagram`, `receipt`). That is deliberate: the text on your
-screen is not always text you wrote, so a screenshot never gets to invent a tag
-of its own — anything off the list is dropped. Tags you added by hand are kept.
-`--no-tags` turns filing off.
-
-## MCP server (Claude Code, Cursor, Codex, Gemini CLI, LibreChat…)
-
-`shotscribe-mcp` speaks MCP over stdio and exposes four tools:
-
-| Tool | What it does |
+| | What you get |
 |---|---|
-| `latest_screenshots` | List the newest captures from your macOS screenshot folder |
-| `ocr_screenshot` | On-device OCR — returns the text (+ an offline suggested title) so the *calling model* composes the label |
-| `layout_screenshot` | The text *with its layout*: every line in reading order with top/left/width/height in percent, so a model can rebuild the screen as code. Still on-device; no pixels leave the machine |
-| `rename_screenshot` | Safe rename to `<date> <time> <Label>.ext`; takes the caller's `title`, protects user-named files (`force` to override), supports `dry_run` |
+| **Auto-rename** | Captures are named as they land. Only macOS default names are touched, in any language. |
+| **Your own AI** | No API keys shipped, no account. It drives the assistant you are already signed in to. |
+| **Works offline** | Pick Ollama or the keyword titler and nothing leaves the machine. |
+| **Finder tags** | Up to two per capture from a fixed list, so Finder and Spotlight can filter without ShotScribe running. |
+| **Search what it said** | `shotscribe find "NXDOMAIN"` searches the text on the screenshot, because a three-word title is a thin hook. |
+| **A built-in editor** | Pixelate, black out, arrows, step numbers, frames, crop, resize, and a watermark. |
+| **Audit stamp** | A signature block with your name, capture time, save time, the Mac, and a SHA-256 of the original pixels. |
+| **MCP server** | Four tools over stdio, so Claude Code, Cursor, Codex or Gemini CLI can name and read screenshots mid-session. |
+| **Rebuild as code** | Hands your assistant the screenshot's text with its layout, so a capture becomes a diff in your project. |
+| **Scored titles** | `shotscribe eval` re-titles the captures you already kept and reports recall and precision. A prompt change gets a number instead of a feeling. |
 
-Build it once — `swift build -c release` — then register the binary with
-whichever client you use (the path is `$(pwd)/.build/release/shotscribe-mcp`):
+<img src="docs/img/editor-audit.jpg" alt="Edit with ShotScribe: three API keys pixelated, a lavender frame, and an audit stamp showing captured and attested times, the machine, and a SHA-256 digest" />
 
-```bash
-claude mcp add shotscribe -- /path/to/shotscribe-mcp            # Claude Code
-codex mcp add shotscribe -- /path/to/shotscribe-mcp             # Codex CLI
-gemini mcp add shotscribe /path/to/shotscribe-mcp               # Gemini CLI
-```
+## Whose AI is it?
 
-Cursor reads `.cursor/mcp.json`, LibreChat its `librechat.yaml`; both take a
-stdio server the same way:
+**Yours.** The AI tab names who titles a capture. The app, the CLI and the watcher all honour the same choice.
 
-```json
-{ "mcpServers": { "shotscribe": { "command": "/path/to/shotscribe-mcp" } } }
-```
-
-Then, mid-session: *"grab my latest screenshot and give it a proper name"* —
-the model lists, OCRs, composes the title, renames. No nested LLM calls: when
-the caller is already a model, the server stays mechanical. It has no network
-listener and never calls a model itself.
-
-### The `/screenshot` skill
-
-[`skills/screenshot/SKILL.md`](skills/screenshot/SKILL.md) turns "see my newest
-screenshot" into a one-word gesture for Claude Code: it finds the newest
-capture (via ShotScribe's MCP tools when registered, plain `ls` otherwise),
-reads it as an image, and addresses it in the context of what you're doing —
-then quietly renames it if it still wears a raw capture name, titling from
-what Claude *saw* rather than just the OCR text. Install:
-
-```bash
-mkdir -p ~/.claude/skills/screenshot
-curl -fsSL https://raw.githubusercontent.com/josh-vanorden/shotscribe/main/skills/screenshot/SKILL.md \
-  -o ~/.claude/skills/screenshot/SKILL.md
-```
-
-Then type `/screenshot` in any Claude Code session. `/screenshot 2` reads the
-second-newest; `/screenshot "<path>"` reads that one.
-
-The app's **Send to Claude** (on the hero, or any shot's context menu) copies
-that second form for the shot you picked, so the gesture works on a capture
-from last week as well as the one from a minute ago: paste it into whatever
-session you are in and Claude reads the shot there. Nothing can push into a
-running session, so the pasteboard is the honest bridge; dragging a tile into
-the composer does the same without words.
-
-`/screenshot code` goes one step further: it rebuilds the newest capture as
-code in the project you are standing in — your stack, your components, a diff
-to review — using `layout_screenshot` for structure and exact strings and the
-image for everything else. The working discipline (create once then edit,
-extract assets rather than redraw them, render and verify before stopping) is
-borrowed from [abi/screenshot-to-code](https://github.com/abi/screenshot-to-code);
-what ShotScribe changes is where the result lands, and that no key or second
-app is involved.
-
-From the app, **Rebuild as code** on any shot (the hero's button, or a shot's
-context menu) copies the same brief with the layout already in it, and says
-where to paste it: into Claude Code, inside the project the code should land
-in. That is stage two; stage one was the name and the filing.
-
-## Menu bar app
-
-`ShotScribe.app` is the always-there face: a menu bar panel with an
-auto-rename watch toggle, a **configurable watch folder** ("Change…" — defaults
-to your macOS screenshot location), an AI titling switch, **launch at login**,
-"Rename latest capture now", and a history of recent renames. The window's
-inspector has five tabs: **Folder**, **Rename** (the switch, and the filename
-template with a live sample), **AI** (who titles — see *Whose AI is it?*),
-**File** (the tag vocabulary) and **Keep**; any shot's context menu can file it
-after the fact. The newest capture sits at the top as the landing zone: its title edits in
-place (click it, type, Return — the date stays, the words change) when a name is
-not what you would have said, and a row of tiles below it carries the icon of
-each service it reaches, named on hover — Finder, **Edit with ShotScribe** (its own
-editor: pixelate or black out a region, boxes, arrows that bend, highlights, labels, step
-numbers, a frame with a margin and a gradient or a picture behind it, crop, resize, and a
-watermark — your name, a logo, or an audit stamp with the capture time, the save time,
-the Mac and a SHA-256 of the original — that can be set once and put on every edit; edits
-stay editable, and Preview is one right-click away), **Share** (which unfolds
-into AirDrop, Messages, Mail, Notes…), your assistant, code, tags. Any shot also drags out as
-a copy. A moon or sun beside the search field flips the app between light and dark. First launch opens the window on the folder it is watching with the
-inspector open, so the settings are found; a folder with nothing named yet
-shows the welcome instead of an empty grid.
-Activity logs to `~/Library/Logs/ShotScribe.log`.
-
-```bash
-./scripts/package-app.sh     # → dist/ShotScribe.app (ad-hoc signed, no Dock icon)
-open dist/ShotScribe.app
-```
-
-Auto-rename is ON by default — launching an app whose one job is renaming
-screenshots is the opt-in; the toggle is right there in the panel.
-
-## Mounting the face somewhere else
-
-The panel is a library, not a private part of the app. `ShotScribeUI` exposes
-one view:
-
-```swift
-import ShotScribeUI
-
-ShotScribeSurface(chrome: .hosted)   // roomy detail pane
-ShotScribeSurface(chrome: .menuBar)  // the 340pt popover
-```
-
-It owns its own state, takes no other arguments, and knows nothing about what's
-hosting it. `.hosted` omits "Launch at login" and "Quit" on purpose —
-`SMAppService.mainApp` and `NSApplication.shared.terminate` would act on the
-*host*, not on ShotScribe.
-
-Two things a host gets for free, because they're ShotScribe's job and not the
-host's:
-
-- **Your settings come with it.** The surface reads the
-  `com.joshvanorden.shotscribe` preferences domain by name, so a copy running
-  inside another app sees the watch folder you actually chose and the history
-  you actually have — rather than starting blank and renaming files somewhere
-  you never pointed it at.
-- **It won't fight ShotScribe.app.** Two live watchers would race to rename the
-  same capture. A hosted copy notices the standalone app running, says so, and
-  stands down until you quit it.
-
-[Toolbelt](https://github.com/josh-vanorden/toolbelt) mounts it this way; its
-whole integration is a twenty-line adapter. ShotScribe has no dependency on
-Toolbelt and never will.
-
-## Privacy
-
-OCR runs entirely on-device (Apple Vision). Only the *extracted text* is sent
-to the titler — and offline, or with Ollama, nothing leaves the machine at all.
-With the default, that text goes to `claude -p` (inference on Anthropic's
-servers, billed to your Claude subscription) with Claude Code's tools disabled
-and no MCP servers, because the text on your screen is not always text you
-wrote; the other CLI presets carry their own tool-denying flags, and you can
-see and edit every one of them in the AI tab.
-
-What ShotScribe keeps on the machine, and where:
-
-| What | Where | Contains |
+| Titler | What it drives | Where the text goes |
 |---|---|---|
-| Search index | `~/.shotscribe/index.json` (mode 0600) | The text read off every capture, its name, tags, original name |
-| Settings | `defaults` domain `com.joshvanorden.shotscribe` | Watch folder, template, vocabulary, switches, recent renames |
-| Log | `~/Library/Logs/ShotScribe.log` | File names and outcomes — never the text of a capture |
-| Finder tags | On the renamed files themselves | The tags chosen from your list |
-| Endpoint key | Your login Keychain, item `endpoint-api-key` | Only when you enter one; removable from the AI tab |
+| **Claude Code** (default) | the `claude` CLI you are signed in to, tools disabled | Anthropic, on your subscription |
+| **Codex** | `codex exec` in a read-only sandbox | OpenAI, on your login |
+| **Gemini CLI** | `gemini -p`, sandboxed | Google, on your login |
+| **Cursor Agent** | `cursor-agent -p` | Cursor, on your login |
+| **Ollama** | `ollama run <model>` | nowhere, the model runs on this Mac |
+| **An endpoint** | any OpenAI-compatible `/chat/completions` | the endpoint you name |
+| **Other CLI** | `llm`, `aichat`, `mods`, a team script | wherever it sends it |
+| **Offline** | the keyword titler | nowhere |
 
-Treat the index like the screenshots it describes: keep it out of backups
-and shared folders you would not trust with them. Nothing here is uploaded,
-synced or reported anywhere.
+Every preset ships with the flags that stop the tool from *acting* on the text, because what is on your screen is not always text you wrote. An endpoint key lives in your Keychain. **Try it on the newest capture** shows the title a choice would give without renaming anything.
 
-## Uninstall
+The presets, the `{prompt}` contract and what happens with nothing installed: [docs/titlers.md](docs/titlers.md)
+
+## MCP server and the /screenshot skill
+
+`shotscribe-mcp` exposes the same engine as tools. When the caller is already a model, the server stays mechanical: it never calls a model itself and has no network listener.
 
 ```bash
-osascript -e 'tell application "ShotScribe" to quit'
-rm -rf /Applications/ShotScribe.app
-rm -rf ~/.shotscribe                       # the search index
-defaults delete com.joshvanorden.shotscribe # settings
-rm -f ~/Library/Logs/ShotScribe.log
+claude mcp add shotscribe -- /path/to/shotscribe-mcp     # Claude Code
+codex mcp add shotscribe -- /path/to/shotscribe-mcp      # Codex CLI
+gemini mcp add shotscribe /path/to/shotscribe-mcp        # Gemini CLI
 ```
 
-Renamed files keep their names and tags; nothing else is left behind. If you
-turned on launch at login, the entry under System Settings › General › Login
-Items goes with the app.
+Then, mid-session: *"grab my latest screenshot and give it a proper name."*
 
-## Known limitations
+The [`/screenshot` skill](skills/screenshot/SKILL.md) turns that into one word for Claude Code. `/screenshot code` rebuilds the capture as code in the project you are standing in.
 
-- `{app}` on a browser window names the tab, not the browser: it reads what
-  the window's chrome says.
-- Screen recordings are recognised by their English default name only; macOS
-  puts no capture flag on a recording, so other languages are not detected.
-- The offline titler picks salient words, which can include OCR noise; any
-  assistant in the AI tab gives titles that read like titles, and
-  `shotscribe eval` measures the difference.
-- The Claude Code, Ollama, custom-command and endpoint titlers have been run
-  end to end; the Codex, Gemini CLI and Cursor Agent presets are shipped as
-  their documented invocations and are editable — the "Try it" button is the
-  check. Keep a CLI's tool-denying flags, and keep the CLI itself current and
-  signed: macOS will refuse a binary it recognises as malware, and ShotScribe
-  then reports the failure rather than working around it.
-- The window and the menu bar item are one process; a copy of the pane hosted
-  in another app stands down while ShotScribe.app runs.
+Full tool reference: [docs/mcp.md](docs/mcp.md)
 
-## Roadmap
+## What it touches
 
-- [x] Core engine + CLI (`rename` / `label` / `watch`)
-- [x] MCP server target (`shotscribe-mcp`) — Claude Code / Cowork call it as tools
-- [x] `MenuBarExtra` app — the always-there local UI (`scripts/package-app.sh`)
-- [x] App icon, first-launch welcome, configurable folder, launch at login
-- [x] Notarized distribution — Developer ID signed, notarized, stapled (app + DMG)
-- [x] `/screenshot` skill — the gesture, for any Claude Code user
-- [x] `ShotScribeUI` — the face as a mountable library, so any shell can host it
-- [x] Backlog sweep — rename captures that landed while the app wasn't running (1.6.5: preview, three at a time, approve or drop)
-- [ ] WidgetKit widget — a one-tap App Intent front door
+ShotScribe is a small tool with a sharp edge: it renames files. Read this once.
+
+- **It renames only macOS default capture names.** Anything you named yourself is left alone unless you pass `--force`.
+- **Auto-rename is on by default.** Launching an app whose one job is renaming screenshots is the opt-in. The switch is on the Rename tab.
+- **It keeps a search index at `~/.shotscribe/index.json`**, readable by your user only. Treat it like the screenshots it describes.
+- **The only network code is the endpoint titler**, and it runs only when you choose an endpoint. There is no telemetry.
+- **Removing it takes five lines.** Renamed files keep their names and tags. Nothing else is left behind.
+
+The long version: [docs/privacy.md](docs/privacy.md) | [docs/uninstall.md](docs/uninstall.md) | [SECURITY.md](SECURITY.md)
+
+## Documentation
+
+| Guide | What is in it |
+|---|---|
+| [Whose AI is it?](docs/titlers.md) | Every titler, the editable CLI presets, where the text goes |
+| [CLI reference](docs/cli.md) | `label`, `rename`, `watch`, `find`, `index`, `eval`, `ai`, and every flag |
+| [Naming and tags](docs/naming.md) | The `{date} {time} {title} {app}` template and the tag vocabulary |
+| [MCP server](docs/mcp.md) | The four tools, client setup for Cursor and LibreChat, the `/screenshot` skill |
+| [Menu bar app](docs/app.md) | The panel, the five inspector tabs, the editor |
+| [Hosting the pane](docs/hosting.md) | `ShotScribeUI` as a library: mount the surface in your own app in twenty lines |
+| [Privacy](docs/privacy.md) | What is kept on the machine, where, and what it contains |
+| [Known limitations](docs/limitations.md) | What is tested end to end and what is shipped as documented |
 
 ## Why this exists
 
@@ -381,45 +169,26 @@ Extracted from a larger app ("Navi") as its own tool, on the theory that a
 handful of small, sharp, open-source tools beats one monolith — each easy to
 understand, iterate, and hand to Claude as a capability.
 
-## Finding a screenshot again
+Next up is a WidgetKit widget: a one-tap App Intent front door. Everything that has shipped is in the [CHANGELOG](CHANGELOG.md).
 
-ShotScribe reads every capture to name it. It now **keeps** that text instead of
-discarding it, so you can search what a screenshot *said* rather than what it got
-called — a three-word title is a thin hook a month later.
+## Contributing
 
-```bash
-shotscribe index            # read the watched folder into the index
-shotscribe find "NXDOMAIN"  # search what they say
-shotscribe find error       # …or how they are filed
-```
+Issues and pull requests are welcome. The engine lives in `ShotScribeCore`, which backs the CLI, the MCP server and the app, so most fixes land in one place. Run `swift test` before you open a PR.
 
-The search field in the app does the same thing, and new captures index
-themselves the moment they are renamed. Tags are searched alongside the text and
-rank with the filename, since a tag was chosen deliberately and body text merely
-crossed the screen. In the app the tags sit on each tile; clicking one isolates
-everything filed the same way, a strip above the grid lists every tag in use
-with its count (click to isolate, a second to narrow, Clear to undo), and
-**By tag** in the sort menu groups the grid by filing. A tag you add by hand in Finder is picked up by
-the next sweep.
+## License
 
-`SHOTSCRIBE_INDEX=/tmp/scratch.json shotscribe …` points the index somewhere
-else, which is how to try the CLI against a folder without writing into your own
-searchable history.
+MIT. See [LICENSE](LICENSE).
 
-Two deliberate choices:
+---
 
-- **The index OCRs again rather than reusing the label's text.** Labelling uses
-  `.fast` recognition capped at 900 characters — right for a title, wrong for
-  search, since 900 characters stops partway down most screenshots and `.fast`
-  misreads exactly the strings you would search for (`i-0a3f`, `NXDOMAIN`,
-  `PROJ-4821`).
-- **It indexes the folder, not the rename history.** That history is capped and
-  holds no paths, so a search built on it would only ever see the last handful.
+<div align="center">
 
-### On sensitivity
+Built by [Josh VanOrden](https://github.com/josh-vanorden)
 
-`~/.shotscribe/index.json` never leaves this machine, and it is **more sensitive
-than the screenshots it describes**. Tokens, hostnames and customer names get
-caught in captures in passing; in a PNG they are buried in pixels, and in an
-index they are greppable and durable. Keep it out of backups you would not trust
-with the screenshots themselves.
+<br />
+
+**If ShotScribe made your screenshot folder readable:**
+
+[![Star this repo](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20repo-yellow?style=for-the-badge&logo=github)](https://github.com/josh-vanorden/shotscribe/stargazers)
+
+</div>

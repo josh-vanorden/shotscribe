@@ -2,6 +2,21 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## Unreleased
+
+- **Universal.** The app builds for Apple silicon and Intel. Through 1.6.6 the
+  release carried only the build host's slice (`arm64`), so it never launched
+  on an Intel Mac that macOS 13 still supports, and nothing said so.
+  `package-app.sh` now builds one slice per architecture, joins them with
+  `lipo`, and stops if either is missing. All 232 tests pass on the Intel slice
+  under Rosetta. When this ships, the three `release-fact` markers (README,
+  `docs/index.html` twice) change from "Apple silicon" to "Apple silicon and
+  Intel".
+- **The README is a landing page.** The reference moved verbatim into `docs/`;
+  the README shows the app, then says what it touches.
+- **A site.** `docs/index.html`, ready for GitHub Pages from `main` `/docs`:
+  one file, four images, no third-party requests.
+
 ## 1.6.6 — 2026-09-17
 
 - **An audit stamp.** The watermark panel's third kind, beside Text and Logo:

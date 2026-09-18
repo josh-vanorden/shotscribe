@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShotScribe: every Mac screenshot, named</title>
+<meta name="description" content="ShotScribe names every Mac screenshot the moment it lands, with on-device OCR and the AI you already use. Free, open source, signed and notarized.">
+<link rel="canonical" href="https://josh-vanorden.github.io/shotscribe/">
+<link rel="icon" type="image/png" href="img/icon.png">
+<meta name="theme-color" content="#131313">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://josh-vanorden.github.io/shotscribe/">
+<meta property="og:title" content="ShotScribe: every Mac screenshot, named">
+<meta property="og:description" content="The moment it lands, by the AI you already use. And it stays a file in your folder.">
+<meta property="og:image" content="https://josh-vanorden.github.io/shotscribe/img/rename-after.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script>try{var t=localStorage.getItem("theme")}catch(e){}document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark")</script>
+<style>
+/* Design system: Google Stitch's pass (2026-09-18), seeded from ShotScribe's own #725DBA.
+   Tonal surfaces instead of borders, Material-3 colour roles, Stitch's type scale.
+   Fonts: Stitch asked for Inter + JetBrains Mono from Google Fonts; this page uses the system
+   equivalents so it makes zero external requests. */
+:root{
+  --bg:#131313;--s-lowest:#0e0e0e;--s-low:#1b1b1c;--s:#202020;--s-high:#2a2a2a;--s-highest:#353535;
+  --on:#e5e2e1;--on-var:#cac4d3;--outline:#938e9c;--hair:rgba(255,255,255,.06);
+  --pri:#cdbdff;--btn:#725dba;--on-btn:#f3ebff;--chip-bg:rgba(114,93,186,.4);--chip-fg:#f3ebff;
+  --sec:#94ccff;--ter:#4ce266;--ter-tint:rgba(0,125,43,.3);--warn:#FF9F0A;
+  --lift:0 24px 60px -20px rgba(0,0,0,.7);--lift-sm:0 8px 24px -12px rgba(0,0,0,.6);
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+/* Stitch shipped a theme toggle with no light colours. These come from its own inverse-primary / fixed roles. */
+:root[data-theme="light"]{
+  --bg:#fcf8ff;--s-lowest:#ffffff;--s-low:#f6f2fa;--s:#f0ecf4;--s-high:#eae7ef;--s-highest:#e2dfe7;
+  --on:#1c1b1f;--on-var:#48454e;--outline:#79757f;--hair:rgba(28,27,31,.09);
+  --pri:#644fab;--btn:#644fab;--on-btn:#ffffff;--chip-bg:rgba(100,79,171,.14);--chip-fg:#4c3691;
+  --sec:#00639a;--ter:#006e25;--ter-tint:rgba(0,110,37,.12);--warn:#a85f00;
+  --lift:0 24px 50px -24px rgba(60,40,120,.28),0 0 0 1px var(--hair);--lift-sm:0 6px 18px -10px rgba(60,40,120,.22),0 0 0 1px var(--hair);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--on);font:400 14px/22px var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;height:auto;display:block}
+code,kbd{font:400 13px/20px var(--mono)}
+code{color:var(--pri)}
+kbd{background:var(--s-lowest);color:var(--on);padding:1px 6px;border-radius:4px;font-size:11px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+section{padding:64px 0;scroll-margin-top:72px}
+h1,h2,h3,h4{margin:0}
+.display{font:600 clamp(36px,1.6rem + 3.2vw,64px)/1.12 var(--sans);letter-spacing:-.03em}
+.h-lg{font:600 clamp(28px,1.3rem + 1.7vw,40px)/1.2 var(--sans);letter-spacing:-.025em}
+.h-sm{font:500 18px/26px var(--sans);letter-spacing:-.01em}
+.body-lg{font:400 16px/26px var(--sans);letter-spacing:-.005em;color:var(--on-var)}
+.body-sm{font:400 12px/18px var(--sans);letter-spacing:.005em}
+.label-md{font:500 13px/18px var(--mono)}
+.label-sm{font:400 11px/16px var(--mono);letter-spacing:.02em}
+.eyebrow{display:block;font:400 11px/16px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--pri);margin-bottom:8px}
+.head{text-align:center;max-width:42rem;margin:0 auto 40px}
+.head p{margin:8px 0 0;color:var(--on-var)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ter);flex:none}
+.dot.out{background:var(--warn)}
+
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--s-low) 85%,transparent);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);box-shadow:0 1px 0 0 var(--hair),0 12px 32px -8px rgba(0,0,0,.35)}
+.top .wrap{height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand img{width:32px;height:32px}
+.brand .tag{background:var(--s-highest);color:var(--on-var);padding:2px 6px;border-radius:4px}
+.top nav{display:flex;gap:24px;color:var(--on-var)}.top nav a{font-size:12px}.top nav a:hover{color:var(--on)}
+.top .right{display:flex;align-items:center;gap:8px}
+.icon-btn{width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background:var(--s-high);color:var(--on-var);cursor:pointer}
+.icon-btn:hover{color:var(--on)}.icon-btn svg{width:16px;height:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:8px;cursor:pointer;transition:opacity .15s,transform .1s,background .15s;white-space:nowrap}
+.btn:active{transform:scale(.99)}
+.btn.pri{background:var(--btn);color:var(--on-btn);box-shadow:inset 0 1px 0 0 rgba(255,255,255,.2),var(--lift-sm)}.btn.pri:hover{opacity:.92}
+.btn.sec{background:var(--s-high);color:var(--on)}.btn.sec:hover{background:var(--s-highest)}
+.btn.lg{padding:12px 24px;font:500 18px/26px var(--sans);letter-spacing:-.01em}
+.btn.sm{padding:6px 16px;font-size:12px}
+.btn svg{width:20px;height:20px;flex:none}
+
+/* hero */
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--s-high);color:var(--on-var);transition:background .15s}
+.pill:hover{background:var(--s-highest);color:var(--on)}.pill svg{width:12px;height:12px;color:var(--outline)}
+.hero{text-align:center;padding:40px 0 0}
+.hero h1{max-width:56rem;margin:24px auto 16px}.hero h1 em{font-style:normal;color:var(--pri)}
+.hero .body-lg{max-width:42rem;margin:0 auto 40px}
+.cta{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+.fine{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;margin-top:12px;color:var(--outline)}
+.fine .ok{color:var(--ter);display:inline-flex;align-items:center;gap:6px}.fine .ok .dot{width:6px;height:6px}
+
+/* windows */
+.win{border-radius:12px;overflow:hidden;background:var(--s);box-shadow:var(--lift)}
+.chrome{height:40px;padding:0 16px;background:var(--s-high);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chrome .l{display:flex;align-items:center;gap:8px;min-width:0;color:var(--on-var)}
+.chrome i{width:12px;height:12px;border-radius:50%;background:#FF5F56;flex:none}.chrome i:nth-child(2){background:#FFBD2E}.chrome i:nth-child(3){background:#27C93F}
+.chrome .t{margin-left:8px;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chrome .t svg{width:16px;height:16px;flex:none}
+.seg{display:flex;gap:4px;background:var(--s-lowest);padding:4px;border-radius:8px}
+.seg button{border:0;background:none;color:var(--on-var);padding:4px 10px;border-radius:4px;cursor:pointer;font:400 11px/16px var(--mono);letter-spacing:.02em;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--btn);color:var(--on-btn)}
+.cols{padding:8px 16px;background:var(--s-low);display:grid;grid-template-columns:minmax(0,1fr) 11rem 8.5rem;gap:16px;color:var(--outline)}
+.rows{list-style:none;margin:0;padding:8px}
+.row{display:grid;grid-template-columns:20px minmax(0,1fr) 11rem 8.5rem;gap:12px;align-items:center;padding:10px;border-radius:8px}
+.row:hover{background:color-mix(in srgb,var(--s-high) 60%,transparent)}
+.row>svg{width:20px;height:20px;color:var(--sec)}.row.mov>svg{color:var(--pri)}
+.nm{display:grid;min-width:0}
+.nm>span{grid-area:1/1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .45s,transform .45s cubic-bezier(.2,.7,.2,1)}
+.nm .old{color:var(--outline)}
+.nm .new{opacity:0;transform:translateY(8px);color:var(--on)}
+.row.named .old{opacity:0;transform:translateY(-8px)}.row.named .new{opacity:1;transform:none}
+.tg{display:flex;gap:6px}
+.tg b,.chip{font:400 11px/16px var(--mono);letter-spacing:.02em;padding:2px 8px;border-radius:4px;background:var(--chip-bg);color:var(--chip-fg)}
+.tg b{opacity:.1;transition:opacity .4s .15s}.row.named .tg b{opacity:1}
+.kind{color:var(--outline)}
+.status{padding:8px 16px;background:var(--s-high);display:flex;justify-content:space-between;gap:12px;color:var(--outline)}
+.status .l{display:flex;align-items:center;gap:6px}.status .nn{color:var(--sec);transition:opacity .4s}.win.done .status .nn{opacity:0}
+.cap{color:var(--outline);text-align:center;margin:14px 0 0}
+.shotwin img{width:100%}
+
+/* cards */
+.grid{display:grid;gap:24px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
+.card{border-radius:12px;padding:24px;background:var(--s);box-shadow:var(--lift-sm);display:flex;flex-direction:column;justify-content:space-between;transition:background .15s}
+.card:hover{background:var(--s-high)}
+.card p{margin:8px 0 0;color:var(--on-var)}
+.tile{width:40px;height:40px;border-radius:8px;background:var(--s-high);display:grid;place-items:center;margin-bottom:16px;color:var(--pri)}
+.card:hover .tile{background:var(--s-highest)}.tile svg{width:22px;height:22px}.tile.sec{color:var(--sec)}.tile.ter{color:var(--ter)}
+.proof{margin-top:24px;padding-top:16px;box-shadow:inset 0 1px 0 0 var(--hair);color:var(--outline);display:flex;align-items:center;gap:8px}
+.proof svg{width:16px;height:16px;color:var(--ter);flex:none}
+.step .n{color:var(--pri)}.step h3{margin:12px 0 0}
+.where{margin-top:20px;display:flex;align-items:center;gap:8px;color:var(--ter)}.where.out{color:var(--warn)}
+
+/* quickstart */
+.split{display:grid;grid-template-columns:5fr 7fr;gap:24px;align-items:center}
+.qs{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:16px}
+.qs li{display:flex;gap:12px;padding:14px;border-radius:8px;background:var(--s);box-shadow:var(--lift-sm)}
+.qs .n{width:24px;height:24px;border-radius:50%;background:var(--btn);color:var(--on-btn);display:grid;place-items:center;flex:none;margin-top:2px}
+.qs p{margin:2px 0 0;color:var(--on-var)}
+.term{border-radius:12px;overflow:hidden;background:#0e0e0e;box-shadow:var(--lift);color:#cac4d3}
+.term .chrome{height:36px;background:#1b1b1c}.term .chrome i{width:10px;height:10px}.term .chrome .t{color:#938e9c}
+.copy{display:flex;align-items:center;gap:4px;border:0;border-radius:4px;background:#202020;color:#938e9c;padding:2px 8px;cursor:pointer}.copy:hover{color:#e5e2e1}.copy svg{width:14px;height:14px}
+.term pre{margin:0;padding:20px;overflow:auto;font:400 13px/24px var(--mono)}
+.term .p{color:#4ce266}.term .c{color:#e5e2e1;font-weight:500}.term .o{color:#e5e2e1}.term .m{color:#938e9c}
+
+/* editor */
+.frame{border-radius:16px;padding:clamp(24px,4vw,48px);background:linear-gradient(135deg,#2D214F,var(--s) 55%,var(--bg));box-shadow:var(--lift)}
+:root[data-theme="light"] .frame{background:linear-gradient(135deg,#9687DE,#cdbdff 55%,var(--s-low))}
+.frame .win{max-width:60rem;margin:0 auto}
+.ticks{margin-top:32px}
+.ticks .card{padding:20px}.ticks h3{font:500 14px/22px var(--sans)}
+.warnpill{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--sans);color:#1b1200;background:#FF9F0A;padding:8px 12px;border-radius:999px}
+
+/* table */
+.tablewrap{overflow-x:auto}
+table{width:100%;min-width:44rem;border-collapse:collapse;text-align:left}
+thead{background:var(--s-high);color:var(--on-var)}
+th{padding:12px 16px;font:400 11px/16px var(--mono);letter-spacing:.02em}
+td{padding:12px 16px;box-shadow:inset 0 1px 0 0 var(--hair);color:var(--on-var);vertical-align:top}
+td:first-child{font:500 14px/22px var(--sans);color:var(--on);white-space:nowrap}
+td:nth-child(2){font:400 12px/20px var(--mono);color:var(--outline)}
+td:last-child,th:last-child{text-align:right;white-space:nowrap}
+tbody tr:hover{background:color-mix(in srgb,var(--s-high) 40%,transparent)}
+tr.local{background:color-mix(in srgb,var(--ter) 7%,transparent)}tr.local td:nth-child(3){color:var(--ter);font-weight:500}
+.chip.def{margin-left:6px;background:var(--btn);color:var(--on-btn)}
+.chip.plain{background:var(--s-high);color:var(--outline)}.chip.local{background:var(--ter-tint);color:var(--ter)}
+
+/* final + footer */
+.final{text-align:center}
+.final .win{max-width:64rem;margin:0 auto 40px}
+.ctacard{border-radius:16px;padding:clamp(32px,6vw,64px);background:var(--s);box-shadow:var(--lift);display:flex;flex-direction:column;align-items:center}
+.ctacard img{width:56px;height:56px;margin-bottom:24px}
+.ctacard h2{max-width:40rem;margin-bottom:16px}.ctacard .body-lg{max-width:36rem;margin:0 0 32px}
+footer{background:var(--s-lowest);box-shadow:inset 0 1px 0 0 var(--hair);padding:40px 0 24px;color:var(--on-var)}
+.fcols{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:24px;margin-bottom:40px}
+.fcols h3{font:400 11px/16px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--outline);margin-bottom:8px}
+.fcols ul{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:12px}.fcols a:hover{color:var(--on)}
+.legal{padding-top:16px;box-shadow:inset 0 1px 0 0 var(--hair);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--outline)}
+.legal .badge{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;background:var(--s-high);color:var(--ter)}.legal .badge .dot{width:6px;height:6px}
+
+
+@media (max-width:80rem){.top nav{display:none}}
+@media (max-width:64rem){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}.fcols{grid-template-columns:1fr 1fr}}
+@media (max-width:48rem){
+  .wrap{padding:0 20px}section{padding:48px 0}
+  .cols,.row{grid-template-columns:minmax(0,1fr) auto}.row{grid-template-columns:20px minmax(0,1fr)}
+  .cols span:nth-child(n+2),.row .tg,.row .kind{display:none}
+  .g4,.g3{grid-template-columns:1fr}.seg button{padding:4px 6px}.chrome .t span{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 15-4.5-4.5L7 20"/></symbol>
+  <symbol id="i-mov" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 20h16"/></symbol>
+</defs></svg>
+
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="#top"><img src="img/icon.png" alt=""><span class="h-sm">ShotScribe</span><span class="tag label-sm">macOS</span></a>
+  <nav>
+    <a href="#how">How it works</a><a href="#features">Features</a><a href="#editor">Editor</a>
+    <a href="#ai">Your AI</a><a href="#touches">What it touches</a><a href="https://github.com/josh-vanorden/shotscribe">GitHub</a>
+  </nav>
+  <div class="right">
+    <button class="icon-btn" id="theme" type="button" aria-label="Switch between light and dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg></button>
+    <a class="btn pri sm" href="https://github.com/josh-vanorden/shotscribe/releases/latest">Download</a>
+  </div>
+</div></header>
+
+<main id="top">
+
+<section class="hero"><div class="wrap">
+  <a class="pill label-sm" href="https://github.com/josh-vanorden/shotscribe/releases/latest"><span class="dot"></span><!--release-fact-->Apple silicon<!--/release-fact--> · macOS 13 or later · free and open source
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg></a>
+  <h1 class="display">Every screenshot, <em>named.</em></h1>
+  <p class="body-lg">The moment it lands, by the AI you already use. And it stays a file in your folder.</p>
+  <div class="cta">
+    <a class="btn pri lg" href="https://github.com/josh-vanorden/shotscribe/releases/latest"><svg><use href="#i-dl"/></svg>Download for macOS</a>
+    <a class="btn sec lg" href="https://github.com/josh-vanorden/shotscribe"><svg><use href="#i-gh"/></svg>View on GitHub</a>
+  </div>
+  <div class="fine label-sm"><span>Signed and notarized by Apple</span><span>·</span><span>MIT</span><span>·</span><span class="ok"><span class="dot"></span>No account, no telemetry</span></div>
+</div></section>
+
+<section style="padding:32px 0 40px"><div class="wrap">
+  <div class="win" id="finder" aria-label="A folder of screenshots, before and after ShotScribe">
+    <div class="chrome">
+      <div class="l"><i></i><i></i><i></i><span class="t label-sm"><svg><use href="#i-folder"/></svg><span>~/Pictures/Screenshots</span></span></div>
+      <div class="seg" role="group" aria-label="Show names as">
+        <button type="button" id="segBefore" aria-pressed="true">Default macOS</button>
+        <button type="button" id="segAfter" aria-pressed="false">Named by ShotScribe</button>
+      </div>
+    </div>
+    <div class="cols body-sm"><span>Name</span><span>Tags</span><span>Kind</span></div>
+    <ul class="rows label-md">
+      <li class="row"><svg><use href="#i-img"/></svg><span class="nm"><span class="old">Screenshot 2026-09-18 at 9.41.07 AM.png</span><span class="new">2026-09-18 0941 Halyard API Keys.png</span></span><span class="tg"><b>settings</b><b>dashboard</b></span><span class="kind label-sm">PNG image</span></li>
+      <li class="row"><svg><use href="#i-img"/></svg><span class="nm"><span class="old">Screenshot 2026-09-18 at 9.03.19 AM.png</span><span class="new">2026-09-18 0903 Sign-in Failed 403.png</span></span><span class="tg"><b>error</b><b>browser</b></span><span class="kind label-sm">PNG image</span></li>
+      <li class="row"><svg><use href="#i-img"/></svg><span class="nm"><span class="old">Screenshot 2026-09-17 at 3.20.44 PM.png</span><span class="new">2026-09-17 1520 Pin Base Images.png</span></span><span class="tg"><b>code</b><b>browser</b></span><span class="kind label-sm">PNG image</span></li>
+      <li class="row"><svg><use href="#i-img"/></svg><span class="nm"><span class="old">Screenshot 2026-09-17 at 11.30.52 AM.png</span><span class="new">2026-09-17 1130 DNS Lookup Failure.png</span></span><span class="tg"><b>terminal</b><b>error</b></span><span class="kind label-sm">PNG image</span></li>
+      <li class="row mov"><svg><use href="#i-mov"/></svg><span class="nm"><span class="old">Screen Recording 2026-09-16 at 10.26.44 AM.mov</span><span class="new">2026-09-16 1026 Deploy Thread.mov</span></span><span class="tg"><b>chat</b></span><span class="kind label-sm">QuickTime movie</span></li>
+      <li class="row"><svg><use href="#i-img"/></svg><span class="nm"><span class="old">Screenshot 2026-09-14 at 3.41.07 PM.png</span><span class="new">2026-09-14 1541 Cloud Billing Console.png</span></span><span class="tg"><b>dashboard</b><b>browser</b></span><span class="kind label-sm">PNG image</span></li>
+    </ul>
+    <div class="status label-sm"><span class="l"><span class="dot"></span>6 screenshots <span class="nn">· <span id="left">6</span> never named</span></span><span>date first, so sorting by name is sorting by time</span></div>
+  </div>
+</div></section>
+
+<section style="padding:0 0 64px"><div class="wrap">
+  <div class="win shotwin">
+    <div class="chrome"><div class="l"><i></i><i></i><i></i><span class="t label-sm">ShotScribe</span></div></div>
+    <img src="img/rename-after.jpg" width="1600" height="586" decoding="async" alt="The ShotScribe window: the newest capture renamed to Halyard API Keys, tagged settings and dashboard, with its original name and a Restore link underneath">
+  </div>
+  <p class="cap label-sm">The real app, with demo data. Every name comes with a way back.</p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="head"><span class="eyebrow">How it works</span><h2 class="h-lg">Four steps. Three of them never leave your Mac.</h2></div>
+  <div class="grid g4">
+    <div class="card step"><div><span class="n label-md">01</span><h3 class="h-sm">Watch</h3><p>New captures are picked up from your macOS screenshot folder. Screen recordings too.</p></div><span class="where label-sm"><span class="dot"></span>on this Mac</span></div>
+    <div class="card step"><div><span class="n label-md">02</span><h3 class="h-sm">Read</h3><p>Apple's on-device Vision OCR pulls the text out. The picture itself goes nowhere.</p></div><span class="where label-sm"><span class="dot"></span>on this Mac</span></div>
+    <div class="card step"><div><span class="n label-md">03</span><h3 class="h-sm">Title</h3><p>The text goes to the titler you picked, for two or three words back.</p></div><span class="where out label-sm"><span class="dot out"></span>your AI, or nowhere if you pick offline</span></div>
+    <div class="card step"><div><span class="n label-md">04</span><h3 class="h-sm">File</h3><p>Renamed from a template you control, tagged from a list you control, indexed for search.</p></div><span class="where label-sm"><span class="dot"></span>on this Mac</span></div>
+  </div>
+</div></section>
+
+<section id="features"><div class="wrap">
+  <div class="head"><span class="eyebrow">Features</span><h2 class="h-lg">Built for people who take dozens of screenshots a week.</h2>
+    <p>macOS names every capture after the second it was taken. A month later you remember a billing console. The filename remembers <code>3.41.07 PM</code>.</p></div>
+  <div class="grid g3">
+    <div class="card"><div><div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div><h3 class="h-sm">Named as it lands</h3><p>Only macOS default capture names (<code>Screenshot …</code>, <code>Screen Recording …</code>) are touched, in any language.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>A file you named yourself is never renamed</div></div>
+    <div class="card"><div><div class="tile sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><h3 class="h-sm">Your AI, your login</h3><p>It drives the assistant you are already signed in to: Claude Code, Codex, Gemini CLI, Cursor, or Ollama on this Mac.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>No API keys shipped, no account</div></div>
+    <div class="card"><div><div class="tile ter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg></div><h3 class="h-sm">Filed with Finder tags</h3><p>Up to two per capture from a fixed list you control. A screenshot never gets to invent a tag of its own.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>Works in Finder and Spotlight without ShotScribe running</div></div>
+    <div class="card"><div><div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div><h3 class="h-sm">Search what it said</h3><p><code>shotscribe find "NXDOMAIN"</code> searches the text on the screenshot. A three-word title is a thin hook a month later.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>One local index, readable by your user only</div></div>
+    <div class="card"><div><div class="tile sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div><h3 class="h-sm">Tools for your assistant</h3><p>An MCP server with four tools, a <code>/screenshot</code> skill for Claude Code, and "Rebuild as code" for turning a capture into a diff.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>No network listener; it never calls a model itself</div></div>
+    <div class="card"><div><div class="tile ter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg></div><h3 class="h-sm">Scored titles</h3><p><code>shotscribe eval</code> re-titles the captures you already kept. A prompt change gets a number instead of a feeling.</p></div><div class="proof label-sm"><svg><use href="#i-check"/></svg>Your own folder is the test set</div></div>
+  </div>
+</div></section>
+
+<section id="start"><div class="wrap split">
+  <div>
+    <span class="eyebrow">Quickstart</span>
+    <h2 class="h-lg">Running in a minute.</h2>
+    <ol class="qs">
+      <li><span class="n label-sm">1</span><div><h3 class="h-sm">Download the DMG</h3><p class="body-sm">From the latest release. Developer ID signed, notarized and stapled, so macOS opens it without a warning.</p></div></li>
+      <li><span class="n label-sm">2</span><div><h3 class="h-sm">Drag it to Applications</h3><p class="body-sm">It lives in the menu bar. If your captures land on the Desktop, macOS asks once for folder access.</p></div></li>
+      <li><span class="n label-sm">3</span><div><h3 class="h-sm">Take a screenshot</h3><p class="body-sm">Press <kbd>⌘⇧4</kbd> as you always do. Auto-rename is on from the first launch; the switch is on the Rename tab.</p></div></li>
+    </ol>
+  </div>
+  <div class="term">
+    <div class="chrome"><div class="l"><i></i><i></i><i></i><span class="t label-sm">zsh</span></div>
+      <button class="copy label-sm" id="copyCli" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span id="copyLbl">Copy CLI</span></button></div>
+<pre><span class="m"># what would it call this one? renames nothing</span>
+<span class="p">$</span> <span class="c">shotscribe label "~/Desktop/Screenshot 2026-09-18 at 9.41.07 AM.png"</span>
+<span class="o">  Halyard API Keys</span>
+<span class="m">  tags: settings, dashboard</span>
+
+<span class="m"># watch the folder macOS saves to</span>
+<span class="p">$</span> <span class="c">shotscribe watch</span>
+<span class="m">  shotscribe: watching ~/Pictures/Screenshots  (Ctrl-C to stop)</span>
+
+<span class="m"># search what your screenshots said</span>
+<span class="p">$</span> <span class="c">shotscribe find "NXDOMAIN"</span>
+
+<span class="m"># give your assistant the same engine</span>
+<span class="p">$</span> <span class="c">claude mcp add shotscribe -- /path/to/shotscribe-mcp</span></pre>
+  </div>
+</div></section>
+
+<section id="editor"><div class="wrap">
+  <div class="head"><span class="eyebrow">Edit with ShotScribe</span><h2 class="h-lg">Redact it before it leaves your Mac.</h2>
+    <p>Its own editor, for the things people do to a screenshot before sharing it.</p></div>
+  <div class="frame">
+    <div class="win shotwin"><img src="img/editor-audit.jpg" width="1600" height="1003" loading="lazy" alt="The editor: three API keys pixelated, a lavender frame, and an audit stamp listing captured and attested times, the machine and a SHA-256 digest"></div>
+  </div>
+  <div class="grid g4 ticks">
+    <div class="card"><div><h3>Pixelate or black out</h3><p class="body-sm">Keys, e-mails, account numbers. Text under it can't be read back.</p></div></div>
+    <div class="card"><div><h3>Frame it</h3><p class="body-sm">A margin, a shadow, and a gradient or a picture behind it.</p></div></div>
+    <div class="card"><div><h3>Sign it</h3><p class="body-sm">An audit stamp: your name, capture time, save time, the Mac, and a SHA-256 of the original pixels that an auditor can check.</p></div></div>
+    <div class="card"><div><h3>Mark it up</h3><p class="body-sm">Arrows that bend, step numbers, highlights, crop, resize. Edits stay editable.</p></div></div>
+  </div>
+  <p class="cap" style="margin-top:24px"><span class="warnpill">Hidden areas can't be undone after Save</span></p>
+  <p class="cap label-sm">The app's own warning. It means it.</p>
+</div></section>
+
+<section id="ai"><div class="wrap">
+  <div class="head"><span class="eyebrow">Whose AI is it?</span><h2 class="h-lg">Yours.</h2>
+    <p>ShotScribe ships no API keys and has no account of its own. You pick who titles a capture, and the app, the CLI and the watcher all honour the same choice.</p></div>
+  <div class="win"><div class="tablewrap"><table>
+    <thead><tr><th>Titler</th><th>What it drives</th><th>Where the text goes</th><th>On whose terms</th></tr></thead>
+    <tbody>
+      <tr><td>Claude Code<span class="chip def">default</span></td><td>claude CLI, tools disabled</td><td>Anthropic, on your subscription</td><td><span class="chip plain">your login</span></td></tr>
+      <tr><td>Codex</td><td>codex exec, read-only sandbox</td><td>OpenAI, on your login</td><td><span class="chip plain">your login</span></td></tr>
+      <tr><td>Gemini CLI</td><td>gemini -p, sandboxed</td><td>Google, on your login</td><td><span class="chip plain">your login</span></td></tr>
+      <tr><td>Cursor Agent</td><td>cursor-agent -p</td><td>Cursor, on your login</td><td><span class="chip plain">your login</span></td></tr>
+      <tr class="local"><td>Ollama</td><td>ollama run &lt;model&gt;</td><td>Nowhere. The model runs on this Mac.</td><td><span class="chip local">on this Mac</span></td></tr>
+      <tr><td>An endpoint</td><td>any OpenAI-compatible /chat/completions</td><td>The endpoint you name; a local one keeps it here</td><td><span class="chip plain">you decide</span></td></tr>
+      <tr><td>Other CLI</td><td>llm, aichat, mods, a team script</td><td>Wherever it sends it</td><td><span class="chip plain">you decide</span></td></tr>
+      <tr class="local"><td>Offline</td><td>the keyword titler</td><td>Nowhere.</td><td><span class="chip local">on this Mac</span></td></tr>
+    </tbody>
+  </table></div></div>
+  <p class="cap label-sm">Every preset ships with the flags that stop the tool from acting on the text, because what is on your screen is not always text you wrote.</p>
+</div></section>
+
+<section id="touches"><div class="wrap">
+  <div class="head"><span class="eyebrow">What it touches</span><h2 class="h-lg">A small tool with a sharp edge: it renames files.</h2>
+    <p>So here is all of it before you install. Removing it takes five lines, and renamed files keep their names.</p></div>
+  <div class="grid g4">
+    <div class="card"><div><div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M7 5v14m10-14v14M4 19h16"/></svg></div><h3 class="h-sm">Only default names</h3><p class="body-sm">Anything you or another tool named is left alone, unless you pass <code>--force</code>.</p></div></div>
+    <div class="card"><div><div class="tile sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3 class="h-sm">Never overwrites</h3><p class="body-sm">If a name is taken it adds <code>(2)</code>, then <code>(3)</code>. The app keeps the original name, and Restore puts it back.</p></div></div>
+    <div class="card"><div><div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div><h3 class="h-sm">One local index</h3><p class="body-sm"><code>~/.shotscribe/index.json</code>, readable by your user only. Treat it like the screenshots it describes.</p></div></div>
+    <div class="card"><div><div class="tile ter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3 class="h-sm">Notarized, not sandboxed</h3><p class="body-sm">Signed under a Developer ID and notarized by Apple. No telemetry; the only network code is the endpoint titler, and only if you choose it.</p></div></div>
+  </div>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <div class="win shotwin"><div class="chrome"><div class="l"><i></i><i></i><i></i><span class="t label-sm">ShotScribe · the same folder, a week later</span></div></div>
+    <img src="img/folder-after.jpg" width="1600" height="537" loading="lazy" alt="The same folder in list view: twelve date-first names, each with its Finder tags, under a strip of tag counts"></div>
+  <div class="ctacard">
+    <img src="img/icon.png" alt="">
+    <h2 class="display" style="font-size:clamp(28px,1.3rem + 2.4vw,48px)">Make your screenshot folder readable.</h2>
+    <p class="body-lg">Drag ShotScribe to Applications and take your next capture.</p>
+    <div class="cta">
+      <a class="btn pri lg" href="https://github.com/josh-vanorden/shotscribe/releases/latest"><svg><use href="#i-dl"/></svg>Download for macOS</a>
+      <a class="btn sec lg" href="https://github.com/josh-vanorden/shotscribe"><svg><use href="#i-gh"/></svg>Star on GitHub</a>
+    </div>
+    <span class="label-sm" style="color:var(--outline);margin-top:24px"><!--release-fact-->Apple silicon<!--/release-fact-->, macOS 13 or later · free and open source</span>
+  </div>
+</div></section>
+
+</main>
+
+<footer><div class="wrap">
+  <div class="fcols">
+    <div><a class="brand" href="#top" style="color:var(--on)"><img src="img/icon.png" alt=""><span class="h-sm">ShotScribe</span></a><p class="body-sm" style="max-width:22rem;margin:12px 0 0">Every screenshot, named. One small, single-purpose tool for macOS.</p></div>
+    <div><h3>Project</h3><ul>
+      <li><a href="https://github.com/josh-vanorden/shotscribe#readme">README</a></li>
+      <li><a href="https://github.com/josh-vanorden/shotscribe/blob/main/CHANGELOG.md">Changelog</a></li>
+      <li><a href="https://github.com/josh-vanorden/shotscribe/blob/main/LICENSE">License</a></li>
+      <li><a href="https://github.com/josh-vanorden/shotscribe/blob/main/SECURITY.md">Security</a></li></ul></div>
+    <div><h3>Community</h3><ul>
+      <li><a href="https://github.com/josh-vanorden/shotscribe">GitHub</a></li>
+      <li><a href="https://github.com/josh-vanorden/shotscribe/issues">Issues</a></li>
+      <li><a href="https://github.com/josh-vanorden/shotscribe/releases">Releases</a></li></ul></div>
+    <div><h3>Built with</h3><ul class="label-sm"><li>Swift 5.9</li><li>SwiftUI</li><li>Apple Vision</li><li>Model Context Protocol</li></ul></div>
+  </div>
+  <div class="legal label-sm"><span>MIT · josh-vanorden/shotscribe · built by Josh VanOrden</span><span class="badge"><span class="dot"></span>No account · no telemetry</span></div>
+</div></footer>
+
+
+<script>
+const $=s=>document.querySelector(s), root=document.documentElement;
+$('#theme').onclick=()=>{const n=root.dataset.theme==='light'?'dark':'light';root.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}};
+$('#copyCli').onclick=()=>navigator.clipboard.writeText('shotscribe label "~/Desktop/Screenshot 2026-09-18 at 9.41.07 AM.png"\nshotscribe watch\nshotscribe find "NXDOMAIN"').then(()=>{$('#copyLbl').textContent='Copied';setTimeout(()=>$('#copyLbl').textContent='Copy CLI',1600)});
+
+// The rename, performed. Auto-plays row by row until you touch Stitch's before/after switch.
+const finder=$('#finder'), rows=[...finder.querySelectorAll('.row')], left=$('#left'), segB=$('#segBefore'), segA=$('#segAfter');
+let auto=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+const setNamed=n=>{rows.forEach((r,i)=>r.classList.toggle('named',i<n));left.textContent=rows.length-n;
+  const done=n===rows.length;finder.classList.toggle('done',done);segA.setAttribute('aria-pressed',done);segB.setAttribute('aria-pressed',!done)};
+segB.onclick=()=>{auto=false;setNamed(0)};
+segA.onclick=()=>{auto=false;setNamed(rows.length)};
+if(!auto){setNamed(rows.length)}else{
+  let n=0;(function tick(){
+    if(!auto) return;
+    if(document.hidden){setTimeout(tick,1000);return}
+    if(n>rows.length){n=0;setNamed(0);setTimeout(tick,1600);return}
+    setNamed(n);n++;setTimeout(tick,n>rows.length?4200:(n===1?1400:650));
+  })();
+}
+</script>
+</body>
+</html>
