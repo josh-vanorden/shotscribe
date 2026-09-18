@@ -1090,3 +1090,55 @@ Toolbelt's pin raised to 1.6.6, built once against the tag, committed there
   the work account (`jvanorden-it`) since yesterday's `forge auto`, exactly as
   at 1.6.4. `forge auto` immediately before the release, every time, not once
   per session.
+
+## 2026-09-18 — The README becomes a landing page
+The README was well-written documentation in the place an advertisement should
+be: 425 lines, no picture anywhere, a 26-word average sentence, and "what it
+touches" as the first section, ahead of what the app does. Rewritten as a
+landing page (194 lines): icon, pitch and badges, a real app shot by line 31, a
+before/after filename table, install by line 59 with a dry-run command under
+it, a four-box pipeline that says where the data goes at each step, a features
+table, and "what it touches" kept as five bullets with its opening line intact.
+The reference moved verbatim into nine files under `docs/` (cli, naming,
+titlers, mcp, app, hosting, privacy, uninstall, limitations), sliced by heading
+with a check that every source line landed; the one rewrite is the Menu bar app
+section, a 151-word sentence that is now five paragraphs. Four images went into
+`assets/readme/` from the 09-18 brag captures (real app, fictional Halyard
+data). Fixed on the way: the intro still called the MCP server and the menu bar
+app "next". The star badge carries no count while the count is 0. Not done, by
+decision: the GitHub About box (description and topics are drafted; it is public
+content and waits for a yes), CONTRIBUTING.md, and a Pages site. Nothing is
+committed.
+
+## 2026-09-18 — The release is arm64 only, and now says so
+Found while checking a generated landing page's claim of a "universal binary":
+`lipo -archs` on the app inside `ShotScribe-1.6.6.dmg` answers `arm64`, and
+`package-app.sh` builds for the host architecture only. Neither the old README
+nor the new one told an Intel owner the download would not launch. The Install
+section now says it needs an Apple silicon Mac. Open question for Josh: keep it
+arm64 and say so, or build universal (`swift build --arch arm64 --arch x86_64`).
+
+## 2026-09-18 — Universal build, and a site
+Josh's call on the arm64 question: build universal. `package-app.sh` builds
+`arm64` and `x86_64` separately and joins them with `lipo` (both `--arch` flags
+at once would hand the build to XCBuild and move the products), then
+`-verify_arch` stops the ship stage if a slice is missing. Verified without a
+release: the script ran into a throwaway output because ShotScribe.app was
+running out of `dist/` at the time; the result was `x86_64 arm64`, Developer ID
+signature valid, 22 MB against 12. The Intel slice was then executed, not just
+inspected: the CLI ran under Rosetta, and the whole suite passed there, 232
+tests and no failures (`swift test --arch x86_64` cannot do this, since its
+helper launches as arm64; `arch -x86_64 xcrun xctest <bundle>` can). 1.6.6 on
+GitHub is still arm64, so README and site keep saying "Apple silicon" until the
+next release; three `release-fact` markers find the spots.
+
+The site: Josh ran the landing-page prompt through Google Stitch by hand. Its
+design system was kept (tonal surfaces and Material roles grown from `#725DBA`,
+the type scale, a Finder window with a before/after switch). Its copy was not:
+25 inventions, among them Secure Enclave attestation, App Sandbox entitlements,
+a universal binary, a SQLite index, two MCP tools that do not exist, and
+Stripe-format keys written into the page as text. Every claim now on the page
+comes from the README or the source. `docs/index.html` is 37 KB with four images
+in `docs/img/`, which the README shares. Committed on a branch cut from `main`,
+so the settings-pane work in progress stayed out of it, and pushed on Josh's
+word, to be served by GitHub Pages from `main` `/docs`.
