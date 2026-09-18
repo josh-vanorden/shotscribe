@@ -53,7 +53,7 @@ Date first, so sorting by name stays chronological. A file you named yourself is
 
 ## Install
 
-**The app.** Download `ShotScribe-<version>.dmg` from the [latest release](https://github.com/josh-vanorden/shotscribe/releases/latest), open it, and drag ShotScribe to Applications. It is Developer ID signed, notarized and stapled, so macOS 13 and later open it without a warning. <!--release-fact-->It needs an Apple silicon Mac: the release is built for arm64 only.<!--/release-fact-->
+**The app.** Download `ShotScribe-<version>.dmg` from the [latest release](https://github.com/josh-vanorden/shotscribe/releases/latest), open it, and drag ShotScribe to Applications. It is Developer ID signed, notarized and stapled, so macOS 13 and later open it without a warning. <!--release-fact-->It runs on Apple silicon and Intel Macs: the release is a universal build.<!--/release-fact-->
 
 **The CLI and the MCP server.** They build from source in under a minute, with nothing beyond Xcode's toolchain:
 
@@ -160,7 +160,7 @@ The long version: [docs/privacy.md](docs/privacy.md) | [docs/uninstall.md](docs/
 | [CLI reference](docs/cli.md) | `label`, `rename`, `watch`, `find`, `index`, `eval`, `ai`, and every flag |
 | [Naming and tags](docs/naming.md) | The `{date} {time} {title} {app}` template and the tag vocabulary |
 | [MCP server](docs/mcp.md) | The four tools, client setup for Cursor and LibreChat, the `/screenshot` skill |
-| [Menu bar app](docs/app.md) | The panel, the five inspector tabs, the editor |
+| [Menu bar app](docs/app.md) | The menu, the Library's five inspector tabs, the editor, Dock or menu bar |
 | [Hosting the pane](docs/hosting.md) | `ShotScribeUI` as a library: mount the surface in your own app in twenty lines |
 | [Privacy](docs/privacy.md) | What is kept on the machine, where, and what it contains |
 | [Known limitations](docs/limitations.md) | What is tested end to end and what is shipped as documented |

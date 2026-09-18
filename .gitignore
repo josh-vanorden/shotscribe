@@ -7,3 +7,6 @@ dist/
 
 # Local planning only — roadmap stays out of the repo (see Hook.md)
 /roadmap.md
+
+# /brag runs write their renders here — output, not source
+brag-output*/

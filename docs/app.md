@@ -2,12 +2,21 @@
 
 [← Back to the README](../README.md)
 
-`ShotScribe.app` is the always-there face: a menu bar panel with an
-auto-rename watch toggle, a **configurable watch folder** ("Change…", which
-defaults to your macOS screenshot location), an AI titling switch, **launch at
-login**, "Rename latest capture now", and a history of recent renames.
+`ShotScribe.app` is the always-there face. It lives in the Dock, the menu bar,
+or both: **Settings** (⌘,) has *Show in Dock* and *Show in menu bar*, both on
+by default and never both off, switched live. In the menu bar only, launch is
+silent and the Library opens from the menu. **Launch at login** is there too.
 
-The window's inspector has five tabs: **Folder**, **Rename** (the switch, and
+The menu bar icon opens a menu in order of whose job it is: **Go to Library**
+first; the watch switch and "Rename latest capture now"; the last capture into
+the editor, or under your kept watermark with no editor (**Watermark ▸ Apply /
+Remove**); the five most recent renames, each with Edit, Reveal and Undo; then
+Settings and Quit.
+
+The **Library** is the window. At its top, the status capsule is a menu — the
+usual folders, a picker, Finder, pause — and a Tags capsule beside it shows
+whether new captures are filed, with the switch and the vocabulary behind it.
+Its inspector has five tabs: **Folder**, **Rename** (the switch, and
 the filename template with a live sample), **AI** (who titles; see [Whose AI is
 it?](titlers.md)), **File** (the tag vocabulary) and **Keep**. Any shot's context menu can
 file it after the fact.
@@ -35,9 +44,9 @@ nothing named yet shows the welcome instead of an empty grid.
 Activity logs to `~/Library/Logs/ShotScribe.log`.
 
 ```bash
-./scripts/package-app.sh     # → dist/ShotScribe.app (ad-hoc signed, no Dock icon)
+./scripts/package-app.sh     # → dist/ShotScribe.app (universal; signed with your Developer ID if you have one)
 open dist/ShotScribe.app
 ```
 
 Auto-rename is ON by default: launching an app whose one job is renaming
-screenshots is the opt-in. The toggle is right there in the panel.
+screenshots is the opt-in. The switch is the second thing in the menu.

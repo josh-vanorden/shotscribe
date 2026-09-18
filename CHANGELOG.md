@@ -2,16 +2,36 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## Unreleased
+## 1.7.0 — 2026-09-18
 
+- **Dock, menu bar, or both.** Settings (⌘,) has **Show in Dock** and **Show in
+  menu bar**. Both are on by default, so an upgrade changes nothing, and they
+  can never both be off — the last one ticked is disabled rather than refused.
+  Switching is live, no restart. In the menu bar only, launch is silent: no
+  Dock icon appears even for a moment, no window opens, and the Library opens
+  from the menu (or by launching ShotScribe again). Launch at login moved here
+  too.
+- **A real menu.** The menu bar icon opens a menu, not a panel, in order of
+  whose job it is: **Go to Library** first; pause, and rename the capture that
+  was missed; the last capture into the editor, or under your kept watermark
+  (**Watermark ▸ Apply / Remove**, no editor); the five most recent, each with
+  Edit, Reveal and Undo Rename; then Settings and Quit. The folder and AI
+  controls it used to repeat are where they always also were, in the Library.
+- **Go to Library.** The window has a name, and the capture card's button and
+  the menu use it.
+- **The folder and the tags, from the top of the Library.** The status capsule
+  is a menu now — the four usual folders, a picker, Finder, pause — and a Tags
+  capsule beside it shows whether new captures are filed and under how many
+  words, with the switch, a search by tag, and the vocabulary behind it.
+- **A lighter editor.** The picture is resampled once per size instead of on
+  every mouse move, a dragged pixelation no longer queues a full render per
+  event, and the frame you see is drawn by the same code that writes the file.
 - **Universal.** The app builds for Apple silicon and Intel. Through 1.6.6 the
   release carried only the build host's slice (`arm64`), so it never launched
   on an Intel Mac that macOS 13 still supports, and nothing said so.
   `package-app.sh` now builds one slice per architecture, joins them with
   `lipo`, and stops if either is missing. All 232 tests pass on the Intel slice
-  under Rosetta. When this ships, the three `release-fact` markers (README,
-  `docs/index.html` twice) change from "Apple silicon" to "Apple silicon and
-  Intel".
+  under Rosetta.
 - **The README is a landing page.** The reference moved verbatim into `docs/`;
   the README shows the app, then says what it touches.
 - **A site.** `docs/index.html`, ready for GitHub Pages from `main` `/docs`:

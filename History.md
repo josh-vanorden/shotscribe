@@ -1142,3 +1142,52 @@ comes from the README or the source. `docs/index.html` is 37 KB with four images
 in `docs/img/`, which the README shares. Committed on a branch cut from `main`,
 so the settings-pane work in progress stayed out of it, and pushed on Josh's
 word, to be served by GitHub Pages from `main` `/docs`.
+
+## 2026-09-17, evening — /simplify over the editor, and two capsules that do something
+Four cleanup reviews (reuse, simplification, efficiency, altitude) of the
+1.6.5–1.6.6 diff, deduplicated into one commit (`992004f`, −487/+440): one
+`KeptPictures` store with a cached decode behind backgrounds and logos, so both
+loaders and the `onChange` hooks that fed them are gone; `bitmap`/`overlaying`
+behind every render; `drawBackground(upright:)` and `drawShadow` drawing the
+frame for the file and the canvas alike; `LastAnswer` for the three identity
+caches, released when the last editor window closes; `Xattr`; `Capture.takenAt`.
+The base picture was being resampled at `.high` on every paint — it is now
+resampled once per scale (`ScaledPicture`), and rebakes no longer stack per
+mouse event. Skipped as rewrites: `EditDocument` as the editor's state, a panel
+enum, `Watermark.content` as an enum. Renders before and after match.
+- Josh: the status capsule "needs to be clickable so the user can set a new
+  folder, I want a similar button for Tag there too." Both are menus. The first
+  render lost the dot and the folder name: a SwiftUI `Menu` label on macOS is a
+  button title and keeps only text, so each label is one concatenated `Text`.
+
+## 2026-09-18 — Dock, menu bar, or both; and the panel becomes a menu
+Josh's brief, discussed before any code: user-selectable Dock / menu bar
+presence, a tray menu in order of purpose, upgrades unchanged. What the repo
+said first: the Dock icon was nobody's code (no `LSUIElement` in the generated
+plist), the "tray menu" was a 340pt `.window`-style panel repeating the
+Library's inspector, and the public version was 1.6.6, not 1.6.3.
+- **`Presence`** (Core): dock and menu bar, never neither — the guard is in the
+  type, so every door gets it; a key never stored is on, which is the whole
+  migration. Six tests.
+- **`LSUIElement` is true** and the app promotes itself to a Dock app in
+  `applicationWillFinishLaunching`. The other direction flashes a Dock icon on
+  every menu-bar-only launch. Cost, stated: Dock users lose the launch bounce.
+- **The Library is the app's own `NSWindow`** (`HostedWindow`), not a SwiftUI
+  scene: a scene opens itself at launch and only from inside a view, and the
+  card, the Dock, the menu and a relaunch all have to open it — and it must
+  stay shut on a silent launch. It adopts the old scene's saved frame once;
+  the first attempt lost it, because `setFrameAutosaveName` re-applies whatever
+  is stored under the new name.
+- **`ShotScribeMenu`** lives in `ShotScribeUI` (it needs the model's internal
+  actions) with Library, Settings and Quit handed in by the host. Josh added
+  two items in discussion: the last capture into the editor, and **Watermark ▸
+  Apply / Remove** — `EditStore.setWatermark`, no editor, a kept edit's marks
+  untouched.
+- **"The Library now opens from the menu bar."** — a line in Settings and a
+  callout under the icon. macOS 26 hosts every menu bar icon in Control Center,
+  so no outside probe can see ours; in-process `NSStatusBarWindow` still has
+  the true frame, one per display.
+- Verified on the packaged binary against a scratch settings domain (watching
+  off): each launch mode's policy and window, reopen in menu-bar-only, the
+  impossible both-off state. The live toggles, the line and the pointer were
+  Josh's to test: "Everything works from my end." 238 tests.

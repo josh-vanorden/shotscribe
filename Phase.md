@@ -262,3 +262,14 @@ call). New and waiting on him: the ISO evidence list, which decides whether the
 stamp needs more lines (a control ID, a ticket, an "evidence for" field) and
 whether `shotscribe digest <file>` gets built so the digest is checkable
 outside the app.
+
+## 2026-09-18 — 1.7.0: presence, a real menu, and the first universal release
+Phase stays **Ship**. 1.7.0 carries Dock / menu bar presence, the menu in place
+of the panel, the capsules, the /simplify pass, and the universal build the
+other session made the same day. The gate to *maintain* is unchanged: the
+widget, Josh's call.
+- **Open, Josh's call:** the old 340pt panel (`ShotScribeChrome.menuBar`) is
+  still public API in `ShotScribeUI` and no longer used by the app — removing
+  it is an API break for any host; the ISO evidence list for the stamp; the
+  GitHub About box and turning Pages on for `docs/` (both public, both wait
+  for a yes); auto-stamping every capture.

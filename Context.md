@@ -4,31 +4,65 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-17
-**Phase:** Ship — 1.6.6 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.6.6, notarized under `shotscribe-notary`, marked latest): the audit stamp, "Edit with ShotScribe", the shot menu in order of who does it.
-**Next action:** Josh's ISO evidence list. When it arrives: each field is a flag on `Watermark.Stamp` + a line in `Stamp.lines`; if the SHA-256 line stays, build `shotscribe digest <file>` in the CLI so a stamp can be checked outside the app.
+**Last session:** 2026-09-18
+**Phase:** Ship — 1.7.0 is being released this save: Dock / menu bar presence, the real menu, the capsules, the /simplify pass, and the first universal (arm64 + Intel) build. The release link lands in the next commit.
+**Next action:** Josh's calls, none blocking: (1) remove the now-unused `.menuBar` panel from `ShotScribeUI` or keep it for hosts — it is public API; (2) turn GitHub Pages on for `main` `/docs` and set the About box; (3) the ISO evidence list for the stamp, then `shotscribe digest <file>`.
 
 **Open loops**
-- The two standing calls: the WidgetKit widget (gate to *maintain*); auto-stamping every capture at capture time (asked 2026-09-16, not built).
-- Toolbelt's pin at `from: "1.6.6"`; six pin commits unpushed there beside Josh's own uncommitted `.gitignore` / reformatted `Package.resolved`.
-- `/security-team` over the editor's file handling once `claude` is signed in; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
+- The widget (gate to *maintain*); auto-stamping every capture at capture time (asked, not built).
+- Toolbelt's pin — raised to 1.7.0 this save; its pin commits stay unpushed there, beside Josh's own uncommitted files.
+- `/security-team` over the editor's and the new presence code's file handling once convenient; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
 - `gh` drifts to the work account between sessions: `forge auto` right before `gh release create`, every release.
 
 **Ruled out**
-- A drawn signature as the audit option — a scribble proves nothing; the plate does.
-- Attesting at panel-open time — `commit` fills the stamp, so the file carries the save moment.
-- A file-bytes hash — encoders differ; the digest is over pixels.
-- Five fixed size stops; a colour-less black-out; a grey Save; two bend pins; auto-stamping every capture unasked.
+- Starting as a Dock app and removing the icon — it flashes on every menu-bar-only launch; `LSUIElement` + promote is the only no-flash order (cost: no launch bounce).
+- A SwiftUI `Window` scene for the Library — it opens itself at launch and only from inside a view.
+- Finding the menu bar icon from outside the process — macOS 26 hosts it in Control Center.
+- A rich `Menu` label (dot, spinner) — macOS keeps only text; one concatenated `Text`.
+- A drawn signature as the audit option; a file-bytes hash; five fixed size stops; a grey Save.
 
-**Working tree:** clean
-**Unpushed commits:** none
+**Working tree:** clean once this save's commits land
+**Unpushed commits:** none after `/clean-tree`
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
 3.41.07 PM.png") into dated, findable titles ("2026-08-11 1541 AWS Billing
 Console.png") — on-device OCR (Apple Vision) plus a swappable Titler seam.
 
-## Current state (2026-09-16 — 1.6.5 public)
+## Current state (2026-09-18 — 1.7.0 public)
+
+**Where the app lives.** `Presence` (Core): `dock` and `menuBar`, never both
+off, stored as `shotscribe.showInDock` / `shotscribe.showInMenuBar` with an
+absent key meaning on. The bundle is `LSUIElement`; `PresenceController`
+(app target) promotes it to `.regular` in `applicationWillFinishLaunching` when
+the Dock is on, switches live, re-fronts the key window after a policy change,
+and says "The Library now opens from the menu bar." in Settings plus a callout
+under the icon (`MenuBarPointer`, found via the in-process `NSStatusBarWindow`
+on the key window's display).
+
+**Windows are the app's own.** `HostedWindow` makes the Library ("ShotScribe",
+autosave `ShotScribeLibrary`, adopts the old scene's `shotscribe.main` frame
+once) and Settings on demand; there is no SwiftUI `Window` scene. A Dock launch
+shows the Library unless it was closed at last quit
+(`shotscribe.libraryOpenAtQuit`); a menu-bar-only launch shows nothing.
+`applicationShouldHandleReopen` opens the Library — also the way in with no
+Dock icon. The capture card's **Go to Library** calls the same `show()`.
+
+**The menu** (`ShotScribeMenu`, in `ShotScribeUI`; Library / Settings / Quit
+handed in): Go to Library · status, watch switch, rename latest · last capture:
+Edit with ShotScribe…, Watermark ▸ Apply / Remove (`EditStore.setWatermark`,
+`model.setWatermark`) · Recent ▸ five, each Edit / Reveal / Undo · Settings ·
+Quit. `ShotScribeChrome.menuBar` (the old panel) is still public and unused by
+the app.
+
+**The Library's top bar:** the status capsule and a Tags capsule are `Menu`s
+whose labels are single concatenated `Text`s (a macOS menu label keeps only
+text). **The release is universal** (`package-app.sh`: two `--arch` builds,
+`lipo`, `-verify_arch`).
+
+Everything in the 2026-09-16 section below still holds.
+
+## Earlier state (2026-09-16 — 1.6.5 public)
 
 Everything in the 2026-09-13 section below still holds; this is what 1.6.5 added.
 
