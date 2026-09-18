@@ -55,8 +55,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleIconFile</key><string>ShotScribe</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
-    <!-- No LSUIElement: ShotScribe has a window and a Dock icon as of 1.5.0.
-         The menu bar item stays, so closing the window leaves it watching. -->
+    <!-- LSUIElement since 1.7.0: the app starts with no Dock icon and puts one
+         up itself at launch when "Show in Dock" is on (the default). The other
+         way round — starting as a Dock app and taking the icon away — flashes
+         it on every menu-bar-only launch. -->
+    <key>LSUIElement</key><true/>
     <key>NSHumanReadableCopyright</key><string>MIT — Josh VanOrden</string>
 </dict>
 </plist>
