@@ -111,7 +111,7 @@ public struct ShotScribeView: View {
                     .buttonStyle(.link).font(.caption)
                 if let onOpenWindow {
                     Spacer()
-                    Button("Open ShotScribe") { onOpenWindow() }
+                    Button("Go to Library") { onOpenWindow() }
                         .buttonStyle(.link).font(.caption)
                 }
                 Spacer()
@@ -190,18 +190,9 @@ public struct ShotScribeView: View {
     /// as capsules over the content. There is no bar: the content runs under.
     private var topBar: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 7) {
-                Circle().fill(watchState.tint).frame(width: 7, height: 7)
-                    .shadow(color: watchState.tint.opacity(0.45), radius: 3)
-                Text(watchState.short).foregroundStyle(.secondary)
-                Text(model.folder.lastPathComponent).fontWeight(.semibold)
-                    .lineLimit(1).truncationMode(.middle)
-                if model.busy { ProgressView().controlSize(.mini).padding(.leading, 2) }
-            }
-            .font(.callout)
-            .padding(.horizontal, 12).frame(height: 32)
-            .glass(in: Capsule())
-            .help(watchState.title)
+            folderCapsule
+            tagCapsule
+            if model.busy { ProgressView().controlSize(.mini) }
 
             Spacer(minLength: 8)
 
@@ -238,6 +229,79 @@ public struct ShotScribeView: View {
             .help(model.inspectorOpen ? "Hide the inspector" : "Show the inspector")
         }
         .padding(.horizontal, Self.inset).padding(.top, 10)
+    }
+
+    /// The watch folder, as a menu: the status it always showed, and behind
+    /// it the four common folders, a picker, the way back to the system's
+    /// folder, Finder, and pause. It read as a label and was one (Josh,
+    /// 2026-09-17: "we need that to be clickable so the user can set a new
+    /// folder").
+    private var folderCapsule: some View {
+        Menu {
+            Section("Watch") {
+                ForEach(ShotScribeModel.quickFolders) { c in
+                    Button(c.label) { _ = model.use(c) }
+                        .disabled(model.folder.path == c.url.path)
+                }
+                Button("Choose another folder…") { model.chooseFolder() }
+                if model.usesCustomFolder {
+                    Button("Back to the system screenshot folder") { model.useSystemFolder() }
+                }
+            }
+            Divider()
+            Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([model.folder]) }
+            Divider()
+            if model.otherInstanceRunning {
+                Text("Standing down — ShotScribe.app is running")
+            } else {
+                Toggle("Rename new captures", isOn: $model.watching)
+            }
+        } label: {
+            // One `Text`: a menu's label is drawn as a button title, which keeps
+            // runs of text and drops any other view — the dot went missing as a
+            // `Circle`, and the accent took the words.
+            (Text(Image(systemName: "circle.fill")).font(.system(size: 7)).foregroundColor(watchState.tint)
+             + Text("  \(watchState.short)  ").foregroundColor(.secondary)
+             + Text(model.folder.lastPathComponent).fontWeight(.semibold).foregroundColor(.primary))
+                .font(.callout).lineLimit(1)
+                .padding(.horizontal, 12).frame(height: 32)
+                .contentShape(Capsule())
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .glass(in: Capsule())
+        .help("\(watchState.title) — \(model.folder.path). Click to change the folder.")
+    }
+
+    /// Tagging, beside the folder: whether new captures are filed and how many
+    /// words they can be filed under; the switch and the vocabulary behind it.
+    private var tagCapsule: some View {
+        Menu {
+            Toggle("Tag new captures", isOn: Binding(get: { model.taggingEnabled }, set: { model.setTaggingEnabled($0) }))
+            Divider()
+            Section(model.vocabulary.isEmpty ? "No words yet" : "Files under") {
+                ForEach(model.vocabulary.prefix(12), id: \.self) { word in
+                    Button(word) { model.query = word; model.runSearch() }
+                }
+                if model.vocabulary.count > 12 {
+                    Text("and \(model.vocabulary.count - 12) more")
+                }
+            }
+            Divider()
+            Button("Manage tags…") { model.askForFileTab() }
+        } label: {
+            (Text(Image(systemName: "tag")).foregroundColor(model.taggingEnabled ? .primary : .secondary)
+             + Text(model.taggingEnabled ? "  Tags" : "  Tags off").fontWeight(.semibold)
+                .foregroundColor(model.taggingEnabled ? .primary : .secondary)
+             + Text(model.taggingEnabled ? "  \(model.vocabulary.count)" : "").foregroundColor(.secondary))
+                .font(.callout).lineLimit(1)
+                .padding(.horizontal, 12).frame(height: 32)
+                .contentShape(Capsule())
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .glass(in: Capsule())
+        .help(model.taggingEnabled
+              ? "New captures are filed under \(model.vocabulary.count) words. Click to switch it off, search by a tag, or manage the words."
+              : "Tagging is off. Click to switch it on or manage the words.")
     }
 
     /// One click flips light and dark for the whole app; the menu behind it
