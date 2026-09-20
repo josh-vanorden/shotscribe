@@ -897,6 +897,13 @@ public final class ShotScribeModel: ObservableObject {
     /// copy stands down rather than racing.
     @Published public private(set) var otherInstanceRunning = false
 
+    /// Tests point this at `false` so a real ShotScribe.app that happens to be
+    /// running on the machine the suite executes on can't make a watcher test
+    /// fail for a reason that has nothing to do with what it is checking. The
+    /// same seam `InFlight.storeOverride` and `ShotIndex.storeOverride` cut,
+    /// for the same reason (`WatchStartRetryTests`, 2026-09-20).
+    static var otherInstanceRunningOverride: Bool?
+
     private static let appBundleID = "com.joshvanorden.shotscribe"
     private var runningAppsObservation: NSKeyValueObservation?
 
@@ -917,6 +924,10 @@ public final class ShotScribeModel: ObservableObject {
     static let defaults: UserDefaults = ShotScribeDefaults.suite
 
     private func refreshOtherInstance() {
+        if let override = Self.otherInstanceRunningOverride {
+            otherInstanceRunning = override
+            return
+        }
         let me = Bundle.main.bundleIdentifier
         otherInstanceRunning = NSWorkspace.shared.runningApplications.contains {
             $0.bundleIdentifier == Self.appBundleID && $0.bundleIdentifier != me
@@ -976,9 +987,57 @@ public final class ShotScribeModel: ObservableObject {
         }
         if w.start() {
             watcher = w
+            retryInterrupted()
         } else {
             lastError = "Can't watch \(folder.path)"
             watching = false
+        }
+    }
+
+    /// A capture the app was still renaming when it last quit is left sitting
+    /// under its raw name, and the watcher just armed can never pick it up on
+    /// its own: `FolderWatcher.start()` seeds `seen` from everything already in
+    /// the folder, so a raw name that was there before watching started looks
+    /// exactly like one nobody has touched yet. `Backlog.retryInFlight` (p1b)
+    /// is what finishes it, given the chance; this is that chance, so a
+    /// capture interrupted by a quit does not sit there until someone happens
+    /// to run the backlog by hand (the goal card, decision 1).
+    ///
+    /// Called from `startWatcher()` alone, so both doors into watching go
+    /// through it: a launch with the toggle already on, and turning it on
+    /// mid-session.
+    ///
+    /// Fired off, not awaited. `startWatcher()` is synchronous and must return
+    /// immediately, but the retry itself (OCR, then a title) takes real time.
+    ///
+    /// **A retried capture gets an offline name, not the AI one** (2026-09-20).
+    /// The `Renamer` here matches the one `rename(_:)` builds, but that is only
+    /// half the path: `rename(_:)` composes OCR and the AI title itself and
+    /// hands the result down as a label, and `Renamer`'s own `KeywordTitler` is
+    /// just the fallback for when that label is nil. `Backlog.retryInFlight`
+    /// renames without a label, so the fallback is what titles it. Closing that
+    /// means letting `retryInFlight` take a titler the way `Backlog.propose`
+    /// already does, which is a change to `Backlog` and not to this file.
+    ///
+    /// The renamed output can land back in the watcher's own scan a moment
+    /// later, the same thing that already happens for every ordinary capture
+    /// (see the comment on `Naming.isRawCapture` above), and that guard is
+    /// what already keeps it harmless; nothing here needs to repeat it.
+    private func retryInterrupted() {
+        let renamer = Renamer(titler: KeywordTitler(), template: nameTemplate,
+                              vocabulary: taggingEnabled ? vocabulary : [])
+        let watchedFolder = folder
+        Task { [weak self] in
+            let outcomes = await Backlog.retryInFlight(in: watchedFolder, renamer: renamer)
+            guard !outcomes.isEmpty else { return }
+            for case .renamed(let from, let to) in outcomes {
+                ShotIndex.forget(from.path)
+                ShotIndex.record(to, original: from.lastPathComponent)
+                Log.write("retried in-flight capture: \(from.lastPathComponent) → \(to.lastPathComponent)")
+            }
+            self?.loadIndex()
+            self?.runSearch()
+            self?.refreshBacklogCount()
         }
     }
 
