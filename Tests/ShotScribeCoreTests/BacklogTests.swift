@@ -8,14 +8,22 @@ import AppKit
 /// name moves nothing.
 final class BacklogTests: XCTestCase {
     private var dir: URL!
+    /// Kept apart from `dir` (the captures folder) so a test asserting on
+    /// `dir`'s exact contents is never tripped up by `InFlight`'s own file.
+    private var inflightDir: URL!
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("backlog-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        inflightDir = FileManager.default.temporaryDirectory.appendingPathComponent("backlog-inflight-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: inflightDir, withIntermediateDirectories: true)
+        InFlight.storeOverride = inflightDir.appendingPathComponent("inflight.json")
     }
 
     override func tearDownWithError() throws {
+        InFlight.storeOverride = nil
         try? FileManager.default.removeItem(at: dir)
+        try? FileManager.default.removeItem(at: inflightDir)
     }
 
     /// A real PNG with words on it, drawn at 2x like a capture, dated as asked.
@@ -100,5 +108,58 @@ final class BacklogTests: XCTestCase {
                                       titler: KeywordTitler(), vocabulary: [])
         XCTAssertNil(p)
         XCTAssertTrue(FileManager.default.fileExists(atPath: named.path))
+    }
+
+    // MARK: - Retrying interrupted renames (p1b)
+
+    /// Acceptance 1: a capture `InFlight` remembers as mid-rename — the trail
+    /// `Renamer.rename` leaves when the app quits while the titler is still
+    /// thinking (p1a) — is retried before the ordinary sweep, and ends up
+    /// renamed exactly as a direct `Renamer.rename` call would leave it.
+    func testACaptureWithAnInFlightRecordIsRetriedAndRenamed() async throws {
+        let raw = try capture("Screenshot 2026-08-06 at 11.40.00 AM.png", taken: day(6))
+        InFlight.begin(raw)   // the record a crash mid-rename would leave behind
+
+        let outcomes = await Backlog.retryInFlight(in: dir, renamer: Renamer(titler: KeywordTitler()))
+
+        guard case .renamed(let from, let to) = outcomes.first else {
+            return XCTFail("expected the retry to rename the capture, got \(outcomes)")
+        }
+        XCTAssertEqual(outcomes.count, 1)
+        XCTAssertEqual(from, raw)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: raw.path), "no longer under its raw name")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: to.path), "renamed, not just moved aside")
+        XCTAssertTrue(InFlight.records().isEmpty, "the record is cleared once the retry resolves it")
+    }
+
+    /// Acceptance 2, the subtle one: a record can outlive the rename it
+    /// describes. The app can crash *after* `Renamer.rename` already moved
+    /// the file to its new name but *before* the record naming the old path
+    /// was cleared — so a record can point at a path with nothing left there,
+    /// for a capture that is already correctly named elsewhere. "Already
+    /// renamed" is read straight off disk (nothing exists at the recorded
+    /// path any more), and that must resolve and clear the record, never
+    /// rename the real file a second time.
+    func testACaptureThatWasAlreadyRenamedIsNotRenamedTwice() async throws {
+        let raw = try capture("Screenshot 2026-08-06 at 11.40.00 AM.png", taken: day(6))
+        let renamer = Renamer(titler: KeywordTitler())
+        let outcome = try await renamer.rename(fileAt: raw)
+        guard case .renamed(_, let renamed) = outcome else {
+            return XCTFail("setup: expected the capture to rename cleanly, got \(outcome)")
+        }
+        XCTAssertTrue(InFlight.records().isEmpty, "setup: a completed rename already clears its own record")
+
+        // Simulate the crash: a record still names the original raw path,
+        // even though the rename it was tracking already succeeded and the
+        // file has since moved on to `renamed`.
+        InFlight.begin(raw)
+
+        let outcomes = await Backlog.retryInFlight(in: dir, renamer: renamer)
+
+        XCTAssertTrue(outcomes.isEmpty, "nothing to retry — the file the record names is gone")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: renamed.path), "the already-renamed file is untouched")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), [renamed.lastPathComponent],
+                       "still exactly the one file, under its one name — never renamed twice")
+        XCTAssertTrue(InFlight.records().isEmpty, "the stale record is cleared, not left to accumulate")
     }
 }

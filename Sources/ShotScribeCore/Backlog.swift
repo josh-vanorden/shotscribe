@@ -61,4 +61,51 @@ public enum Backlog {
         return Proposal(url: url, label: label, tags: tags, name: target.lastPathComponent)
     }
 
+    // MARK: - Retrying interrupted renames
+
+    /// Every capture `InFlight` still remembers as mid-rename in `folder`,
+    /// resolved *before* `pending` runs. These are the ones a user already
+    /// watched fail once; they are retried first rather than folded into the
+    /// ordinary sweep, which only ever sees a raw name and has no memory that
+    /// this one was already attempted.
+    ///
+    /// **What "already renamed" means.** A record can outlive the rename it
+    /// describes: the app can crash *after* `Renamer.rename` has moved the
+    /// file to its new name but *before* the `InFlight.end` that follows it
+    /// lands on disk. A restarted process has exactly two observable facts
+    /// about a record, both read straight off the filesystem rather than
+    /// inferred from anything remembered in memory: whether a file still
+    /// exists at the path the record names, and — if one does — whether it is
+    /// still shaped like an untouched capture (`Naming.isRawCapture`). Either
+    /// a missing file (moved to its new name, or removed some other way) or a
+    /// present-but-no-longer-raw one means the rename this record was tracking
+    /// is already resolved, one way or another. There is nothing safe left to
+    /// do with either, so the record is cleared rather than retried — the
+    /// alternative would rename whatever now happens to sit at that path, or
+    /// would just "retry" a rename that already happened.
+    ///
+    /// **A record that genuinely cannot be retried does not accumulate
+    /// either.** `Renamer.rename` itself clears the record (via `defer`) on
+    /// every outcome once it actually attempts one — renamed, or turned away
+    /// for lacking a usable label — so a capture that is stuck for good is
+    /// cleared here the one time it is looked at, and simply reappears in the
+    /// ordinary raw-capture backlog next, rather than being "retried" forever
+    /// as an in-flight record that can never resolve.
+    @discardableResult
+    public static func retryInFlight(in folder: URL, renamer: Renamer) async -> [RenameOutcome] {
+        let folder = folder.standardizedFileURL
+        var outcomes: [RenameOutcome] = []
+        for record in InFlight.records() {
+            let url = URL(fileURLWithPath: record.path)
+            guard url.deletingLastPathComponent().standardizedFileURL.path == folder.path else { continue }
+            guard FileManager.default.fileExists(atPath: url.path), Naming.isRawCapture(at: url) else {
+                InFlight.end(url)   // resolved already (renamed away, or gone) — nothing to retry
+                continue
+            }
+            if let outcome = try? await renamer.rename(fileAt: url) {
+                outcomes.append(outcome)
+            }
+        }
+        return outcomes
+    }
 }
