@@ -129,7 +129,6 @@ case "rename":
 
 case "watch":
     let dir = positional.first.map(expand) ?? FolderWatcher.defaultScreenshotDirectory()
-    print("shotscribe: watching \(dir.path)  (Ctrl-C to stop)")
     let watcher = FolderWatcher(directory: dir) { url in
         Task {
             do {
@@ -140,8 +139,29 @@ case "watch":
             }
         }
     }
+    // Arm first, retry second. `start()` seeds `seen` from everything already
+    // in the folder, so a capture that lands while the retry is still running
+    // would be seeded as already seen and then silently never renamed: not by
+    // the retry, which has no record for it, and not by the watcher, which
+    // thinks it was always there. Measured 2026-09-20 with the retry held open
+    // by 40 in-flight records: a capture dropped 50ms in was still sitting
+    // under its raw name at the end. Arming first costs nothing, because the
+    // in-flight captures are on disk under raw names at this moment too, so
+    // they are seeded as seen and the watcher will not race the retry for them.
     guard watcher.start() else {
         FileHandle.standardError.write(Data("error: can't watch \(dir.path)\n".utf8)); exit(1)
+    }
+    print("shotscribe: watching \(dir.path)  (Ctrl-C to stop)")
+    // Inside a Task, never behind a top-level `await`: `main.swift` is
+    // top-level code, and a bare `await` here would be the first genuine
+    // suspension on the `watch` path, which hands control to the run loop that
+    // the trailing `dispatchMain()` then re-enters and traps on (SIGTRAP in
+    // `dispatch_main`, measured 2026-09-20). Inside a Task the top-level code
+    // never suspends and falls through to `dispatchMain()` as it always did.
+    Task {
+        for outcome in await Backlog.retryInFlight(in: dir, renamer: renamer) {
+            print(describe(outcome))
+        }
     }
     dispatchMain()   // run forever
 
