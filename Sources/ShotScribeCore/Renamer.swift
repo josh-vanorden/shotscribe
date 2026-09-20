@@ -76,6 +76,19 @@ public struct Renamer: Sendable {
         guard Capture.isCapture(url) else { return .skippedNotACapture(url) }
         guard force || Naming.isRawCapture(at: url) else { return .skippedNotRawCapture(url) }
 
+        // From here on this is a real rename attempt, not a preview: record it
+        // durably *before* the slow OCR/titler work starts, so a capture
+        // interrupted mid-rename — the app quits while the titler is still
+        // thinking — leaves a trail instead of silently joining the backlog
+        // with no memory a rename was ever attempted (`InFlight`). `defer`
+        // clears it on every return from here — success, skip, or a thrown
+        // error — so the clear can never be skipped on the path that matters;
+        // only an actual crash, where no `defer` runs, leaves it behind, which
+        // is the point. A dry run never touches the file, so it neither begins
+        // nor needs the record.
+        if !dryRun { InFlight.begin(url) }
+        defer { if !dryRun { InFlight.end(url) } }
+
         let label: String
         var app = explicitApp
         var tags = Tagging.accepted(explicitTags, vocabulary: vocabulary.isEmpty
