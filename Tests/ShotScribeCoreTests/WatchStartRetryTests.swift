@@ -56,6 +56,7 @@ final class WatchStartRetryTests: XCTestCase {
         ShotIndex.storeOverride = nil
         Log.urlOverride = nil
         ShotScribeModel.otherInstanceRunningOverride = nil
+        ShotScribeModel.titlerOverride = nil
         try? FileManager.default.removeItem(at: dir)
         try? FileManager.default.removeItem(at: inflightDir)
     }
@@ -201,5 +202,83 @@ final class WatchStartRetryTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), [renamed.lastPathComponent],
                        "still exactly the one file, under its one name, never renamed twice")
         XCTAssertTrue(InFlight.records().isEmpty, "the stale record is cleared, not left to accumulate")
+    }
+
+    // MARK: - Acceptance: the retry goes through the configured titler (p4a)
+
+    /// Returns a fixed title regardless of what it is asked to read — proof of
+    /// *which* titler named the retried capture, the way `InFlightTests`'
+    /// `WitnessTitler` proves durability. The fixture's OCR text ("Quarterly
+    /// Revenue Dashboard") is exactly what `KeywordTitler` would pick from it,
+    /// so a result carrying this title instead is only explained by the
+    /// configured titler having been asked.
+    private struct StubTitler: Titler {
+        let fixedTitle: String
+        func title(forOCRText text: String) async throws -> String { fixedTitle }
+    }
+
+    /// Stands in for a titler that is signed out, offline, or otherwise
+    /// unavailable — proof that a retry survives that rather than leaving the
+    /// capture raw.
+    private struct FailingTitler: Titler {
+        struct Failure: Error {}
+        func title(forOCRText text: String) async throws -> String { throw Failure() }
+    }
+
+    /// Criterion 1. `ShotScribeModel.titlerOverride` stands in for
+    /// `ShotScribeDefaults.aiProvider()` — a real provider can't be pointed at
+    /// a stub without actually shelling out — the same kind of seam
+    /// `otherInstanceRunningOverride` cuts for the same reason.
+    ///
+    /// Before the fix, `retryInterrupted()` built its `Renamer` with a
+    /// hardcoded `KeywordTitler()`, so this failed: the file landed named
+    /// "Quarterly Revenue Dashboard" (`KeywordTitler`'s own read of the
+    /// fixture), never seeing `titlerOverride` at all.
+    func testRetryAtWatchStartUsesTheConfiguredTitlerNotTheOfflineFallback() async throws {
+        let raw = try capture()
+        InFlight.begin(raw)
+        suite.set(dir.path, forKey: ShotScribeModel.folderKey)
+        suite.set(true, forKey: ShotScribeModel.watchingKey)
+        ShotScribeModel.titlerOverride = StubTitler(fixedTitle: "Board Meeting Notes")
+
+        let model = ShotScribeModel()
+        XCTAssertTrue(model.watching, "precondition: launched with watching already on")
+
+        await waitUntilGone(raw)
+        try await Task.sleep(nanoseconds: 2_500_000_000)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: raw.path),
+                       "the interrupted capture should have been retried")
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        XCTAssertEqual(remaining.count, 1, "exactly the one capture, under its new name: \(remaining)")
+        XCTAssertTrue(remaining.first?.contains("Board Meeting Notes") ?? false,
+                     "the retried capture should carry the configured titler's title, " +
+                     "not KeywordTitler's own read of the fixture: \(remaining)")
+        XCTAssertNil(model.lastError)
+    }
+
+    /// Criterion 2. The configured titler throws on every call; the retry must
+    /// still rename the capture rather than leave it sitting under its raw
+    /// name. `Renamer.rename` already falls back to a plain "Screenshot"
+    /// label when the titler it is handed fails — this proves that fallback
+    /// still holds when that titler is the operator's configured one, reached
+    /// through the retry path rather than a label passed in directly.
+    func testRetryAtWatchStartStillRenamesWhenTheConfiguredTitlerFails() async throws {
+        let raw = try capture()
+        InFlight.begin(raw)
+        suite.set(dir.path, forKey: ShotScribeModel.folderKey)
+        suite.set(true, forKey: ShotScribeModel.watchingKey)
+        ShotScribeModel.titlerOverride = FailingTitler()
+
+        let model = ShotScribeModel()
+        XCTAssertTrue(model.watching, "precondition: launched with watching already on")
+
+        await waitUntilGone(raw)
+        try await Task.sleep(nanoseconds: 2_500_000_000)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: raw.path),
+                       "a titler failure must not leave the interrupted capture sitting under its raw name")
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        XCTAssertEqual(remaining.count, 1, "still renamed, under Renamer's own fallback label: \(remaining)")
     }
 }

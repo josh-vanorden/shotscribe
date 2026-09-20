@@ -904,6 +904,13 @@ public final class ShotScribeModel: ObservableObject {
     /// for the same reason (`WatchStartRetryTests`, 2026-09-20).
     static var otherInstanceRunningOverride: Bool?
 
+    /// Tests point this at a stub so a retried capture's titler can be proven
+    /// without a real AI provider — `ShotScribeDefaults.aiProvider()` names a
+    /// closed set of real providers (Claude, Codex, Ollama…), none of which a
+    /// test can safely point at a witness. Same seam, same reason, as
+    /// `otherInstanceRunningOverride` (`WatchStartRetryTests`, 2026-09-20).
+    static var titlerOverride: Titler?
+
     private static let appBundleID = "com.joshvanorden.shotscribe"
     private var runningAppsObservation: NSKeyValueObservation?
 
@@ -1010,21 +1017,26 @@ public final class ShotScribeModel: ObservableObject {
     /// Fired off, not awaited. `startWatcher()` is synchronous and must return
     /// immediately, but the retry itself (OCR, then a title) takes real time.
     ///
-    /// **A retried capture gets an offline name, not the AI one** (2026-09-20).
-    /// The `Renamer` here matches the one `rename(_:)` builds, but that is only
-    /// half the path: `rename(_:)` composes OCR and the AI title itself and
-    /// hands the result down as a label, and `Renamer`'s own `KeywordTitler` is
-    /// just the fallback for when that label is nil. `Backlog.retryInFlight`
-    /// renames without a label, so the fallback is what titles it. Closing that
-    /// means letting `retryInFlight` take a titler the way `Backlog.propose`
-    /// already does, which is a change to `Backlog` and not to this file.
+    /// **A retried capture is named by the titler the operator configured**
+    /// (2026-09-20). `Backlog.retryInFlight` calls `renamer.rename(fileAt:)`
+    /// with no label, so whichever titler the `Renamer` it is handed carries
+    /// is the one that names the capture — unlike `rename(_:)` and
+    /// `startBacklog()`, which compose OCR and the AI title themselves and
+    /// hand the result down as an explicit label, making `Renamer`'s own
+    /// titler only their fallback. There is no proposal or progress step here
+    /// to compose that label from, so this builds the `Renamer` the way the
+    /// CLI's retry already does (`main.swift`): with `titler` — the same
+    /// computed property `rename(_:)` reads below, which resolves the AI
+    /// tab's configured provider at the moment of use. If that titler throws
+    /// or is unavailable, `Renamer.rename` still renames the capture, under
+    /// its own plain "Screenshot" fallback — never left raw.
     ///
     /// The renamed output can land back in the watcher's own scan a moment
     /// later, the same thing that already happens for every ordinary capture
     /// (see the comment on `Naming.isRawCapture` above), and that guard is
     /// what already keeps it harmless; nothing here needs to repeat it.
     private func retryInterrupted() {
-        let renamer = Renamer(titler: KeywordTitler(), template: nameTemplate,
+        let renamer = Renamer(titler: titler, template: nameTemplate,
                               vocabulary: taggingEnabled ? vocabulary : [])
         let watchedFolder = folder
         Task { [weak self] in
@@ -1050,8 +1062,9 @@ public final class ShotScribeModel: ObservableObject {
 
     private var titler: Titler {
         // The AI tab's choice, read from the stored setting at the moment of
-        // use so the CLI and the app agree even mid-session.
-        ShotScribeDefaults.aiProvider().makeTitler() ?? KeywordTitler()
+        // use so the CLI and the app agree even mid-session. `titlerOverride`
+        // wins when a test has set one.
+        Self.titlerOverride ?? ShotScribeDefaults.aiProvider().makeTitler() ?? KeywordTitler()
     }
 
     public func rename(_ url: URL) async {
