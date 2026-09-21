@@ -4,8 +4,8 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-20
-**Phase:** Ship
+**Last session:** 2026-09-21
+**Phase:** Ship — 1.7.1 is public (the interrupted-rename retry and the panel removal), notarized under `shotscribe-notary`, marked latest; repo, DMG and the local app were audited level on 2026-09-21.
 **Next action:** Sign `claude` in, then run `shotscribe eval --limit 25` with Claude and tune the titler until precision reaches 80%. That is the open gate item and the goal card's own success target; the wide release and the GitHub Pages page both wait on it.
 
 **Open loops**
@@ -19,8 +19,8 @@
 - Arming the watcher *after* the retry, to control output order: `FolderWatcher.start()` seeds `seen` from the folder, so anything landing during the retry is treated as old and never renamed. Measured 2026-09-20 with 40 in-flight records.
 - Isolating a live run with a scratch `HOME`: `FileManager.homeDirectoryForCurrentUser` and `NSHomeDirectory()` both ignore `$HOME` on this Mac, confirmed with a compiled binary. Tests use `InFlight.storeOverride` instead.
 
-**Working tree:** 3 files — Index.md, Obsidian.md, Skills.md (hook-refreshed)
-**Unpushed commits:** 6, the whole retry feature, now on main
+**Working tree:** clean
+**Unpushed commits:** none
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at

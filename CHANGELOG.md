@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## Unreleased
+## 1.7.1 — 2026-09-21
 
 - **An interrupted rename is retried.** A rename now records itself as in
   flight before the slow part — reading the picture, asking for a title — and

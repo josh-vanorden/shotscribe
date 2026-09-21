@@ -274,3 +274,14 @@ widget, Josh's call.
 - **Open, Josh's call:** the ISO evidence list for the stamp; the
   GitHub About box and turning Pages on for `docs/` (both public, both wait
   for a yes); auto-stamping every capture.
+
+## 2026-09-21 — 1.7.1 shipped: the repo, the DMG and the local app match
+Phase stays **Ship**. 1.7.1 carries the interrupted-rename retry (built Sunday
+through `/plan` and `/ship`) and the removal of the old menu bar panel. The open
+gate item is unchanged — sign `claude` in, `shotscribe eval --limit 25`, tune
+the titler to 80% precision; the wide release and the Pages site wait on it.
+- **Sub-issue, fixed:** universal packaging left `.build/release` on x86_64, so
+  the MCP server Claude Code is registered against went missing; the host's
+  slice is built last now.
+- **Sub-issue, fixed:** a feature can reach History and miss the changelog — the
+  audit is the check; `/save` should treat CHANGELOG as part of the spine.

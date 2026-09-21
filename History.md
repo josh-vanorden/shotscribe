@@ -1254,3 +1254,22 @@ Built through claude-kit's `/plan` then `/ship`: six commits, `edf272b` to
 Also 2026-09-20: `settings-pane` was promoted to `main` and retired, along with
 the fully merged `security/20260913-1829`. This repo is single-branch now.
 
+## 2026-09-21 — the landscape audited, and 1.7.1 shipped
+Josh asked that the weekend's work be captured and that the repo, the DMG and
+his local deployment all match. Read-only first:
+- **Repo:** clean, `main == origin/main`, single-branch since Sunday, 250 tests
+  green at HEAD. The retry feature was in History, Context and Phase but **not
+  in the changelog** — added.
+- **DMG:** GitHub's `ShotScribe-1.7.0.dmg` and the local one share a SHA-256, so
+  the download was exactly what was built — and six code commits behind `main`
+  (Friday's panel removal, Sunday's retry work).
+- **Local deployment:** the running app was Friday 16:34's build, older than the
+  retry commits. And Claude Code's registered MCP server did not exist:
+  Friday's universal packaging built x86_64 last, so `.build/release` pointed at
+  the Intel folder, which has no `shotscribe-mcp`; the arm64 CLI and MCP
+  binaries dated from 16 September. `package-app.sh` now builds the host's
+  slice last. Everything rebuilt from HEAD and relaunched.
+On his word, **1.7.1**: `serverInfo`, CHANGELOG dated, tagged, notarized under
+`shotscribe-notary`, published. The research-driven work that ".1" had been
+reserved for is now 1.7.2 (`roadmap.md`). The release's verification and link
+are in the commit after this one.

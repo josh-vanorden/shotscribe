@@ -41,6 +41,10 @@ the app between light and dark. First launch opens the window on the folder it
 is watching with the inspector open, so the settings are found. A folder with
 nothing named yet shows the welcome instead of an empty grid.
 
+A rename that was interrupted — ShotScribe quit while it was still reading the
+picture or waiting on a title — is picked up and finished the next time
+watching starts, by the titler you chose.
+
 Activity logs to `~/Library/Logs/ShotScribe.log`.
 
 ```bash
