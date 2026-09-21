@@ -24,8 +24,15 @@ fi
 # an Intel Mac that macOS 13 still supports — and nothing said so (2026-09-18).
 # Two plain builds rather than both --arch flags at once: that form hands the
 # build to XCBuild and moves the products out of .build/<triple>/release.
+# The host's slice is built last: each --arch build repoints .build/release, and
+# everything that runs from there — the CLI, and the MCP server Claude Code is
+# registered against — has to find the host's products afterwards. Built the
+# other way round, packaging left .build/release on x86_64 with no
+# shotscribe-mcp in it, and the registered server stopped existing (2026-09-21).
+HOST_ARCH="$(uname -m)"; [ "$HOST_ARCH" = "arm64" ] || HOST_ARCH="x86_64"
+OTHER_ARCH="$([ "$HOST_ARCH" = "arm64" ] && echo x86_64 || echo arm64)"
 SLICES=()
-for ARCH in arm64 x86_64; do
+for ARCH in "$OTHER_ARCH" "$HOST_ARCH"; do
     echo "==> swift build -c release --arch $ARCH (shotscribe-menubar)"
     swift build -c release --product shotscribe-menubar --arch "$ARCH"
     SLICES+=("$(swift build -c release --arch "$ARCH" --show-bin-path)/shotscribe-menubar")

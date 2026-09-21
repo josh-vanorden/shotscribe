@@ -4,6 +4,21 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## Unreleased
 
+- **An interrupted rename is retried.** A rename now records itself as in
+  flight before the slow part — reading the picture, asking for a title — and
+  clears the record on every outcome. If ShotScribe quits mid-rename, the
+  capture used to join the backlog silently; now it is picked up and named the
+  next time watching starts, in the app and in `shotscribe watch` alike, ahead
+  of the backlog sweep, and by the titler you chose rather than the offline one.
+- **Fixed before it shipped: `shotscribe watch` would have crashed at startup.**
+  The retry was first written as a bare top-level `await`, which traps at
+  `dispatchMain()`; it runs in a task now, and the watcher arms *before* the
+  retry so a capture landing meanwhile is not lost.
+- **The titler presets say which are verified.** `docs/titlers.md` states, for
+  each preset, a real run on this Mac or an honest "unverified".
+- **Packaging leaves the CLI and the MCP server findable.** The universal build
+  now builds the host's slice last, so `.build/release` still holds
+  `shotscribe` and `shotscribe-mcp` afterwards.
 - **Removed: the menu bar popover in `ShotScribeUI`.** `ShotScribeChrome.menuBar`
   — the 340pt panel the menu bar item opened through 1.6.6 — and
   `ShotScribeView`'s `onOpenWindow:` are gone; 1.7.0 replaced the panel with a
