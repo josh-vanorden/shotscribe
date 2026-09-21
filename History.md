@@ -1273,3 +1273,16 @@ On his word, **1.7.1**: `serverInfo`, CHANGELOG dated, tagged, notarized under
 `shotscribe-notary`, published. The research-driven work that ".1" had been
 reserved for is now 1.7.2 (`roadmap.md`). The release's verification and link
 are in the commit after this one.
+
+## 2026-09-21, later — 1.7.1 is public, and the three match
+Tagged `v1.7.1` at `e759b7e`, notarized under `shotscribe-notary` (Apple:
+Accepted, app and DMG), verified four ways plus the two that the universal
+build added — the app inside the DMG answers `x86_64 arm64` and reads 1.7.1 —
+and published as latest: https://github.com/josh-vanorden/shotscribe/releases/tag/v1.7.1
+(7.2 MB). The packaging fix held on its first real run: after both slices were
+built, `.build/release` still pointed at the host and `shotscribe-mcp` was
+still in it. The local CLI and MCP server were rebuilt after the bump and the
+server answers 1.7.1; the running app is the notarized 1.7.1 out of `dist/`.
+Toolbelt's pin raised to 1.7.1, built against the tag, committed there
+(`7994e97`, shotscribe hunk only); eight pin commits unpushed there, Josh's.
+250 tests.
