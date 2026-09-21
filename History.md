@@ -1217,3 +1217,40 @@ the `chrome:` parameter stay, with one case, so a host's
 `ShotScribeSurface(chrome: .hosted)` reads the same. An API removal, so it is
 in the changelog under Unreleased as Removed. 238 tests; the Library renders
 as before.
+
+## 2026-09-20 — interrupted renames are retried, and named properly
+
+Built through claude-kit's `/plan` then `/ship`: six commits, `edf272b` to
+`995ef6b`, suite 242 to 250, green throughout.
+
+- **A rename records itself as in flight** (`Sources/ShotScribeCore/InFlight.swift`,
+  `Renamer.swift`). `InFlight.begin` before the slow OCR-and-title work,
+  cleared in a `defer` on every outcome, so a capture the app was still
+  renaming when it quit leaves a trail rather than silently joining the backlog.
+- **Both watch starts retry it.** `Backlog.retryInFlight` existed after the
+  first pass and **nothing called it** — `grep` found only its own definition.
+  The app now calls it when `startWatcher()` arms (both doors into watching go
+  through that one function) and the CLI calls it in `case "watch"`.
+- **The CLI nearly shipped crashing.** A bare top-level `await` in
+  `Sources/shotscribe/main.swift` makes the top level suspend, after which the
+  trailing `dispatchMain()` traps: `shotscribe watch` died at startup on every
+  run while `swift build` and `swift test` stayed green, because nothing tests
+  that file. The retry runs inside a `Task` instead, and the watcher still arms
+  **before** it: `FolderWatcher.start()` seeds `seen` from the folder, so
+  arming afterwards silently loses any capture that lands during the retry
+  (measured with 40 in-flight records — the dropped capture was never mentioned
+  across 75 seconds).
+- **A retried capture is named by the configured titler.** It was landing with
+  the offline keyword name: `rename(_:)` composes the AI title itself and hands
+  it down as a *label*, and `Renamer`'s own `KeywordTitler` is only the fallback
+  for when that label is nil — which is exactly how `retryInFlight` calls it. A
+  `titlerOverride` seam lets a test prove which titler named the file.
+- **Titler presets say which are verified.** `docs/titlers.md` now states, per
+  preset, a real run or an honest unverified note. Codex is **not installed on
+  this Mac** despite Homebrew listing it: `/opt/homebrew/bin/codex` exists and
+  its symlink target is gone. Gemini CLI and Cursor Agent are absent too.
+- **Verified:** 250 tests, 0 failures, on the exact commit promoted to `main`.
+
+Also 2026-09-20: `settings-pane` was promoted to `main` and retired, along with
+the fully merged `security/20260913-1829`. This repo is single-branch now.
+

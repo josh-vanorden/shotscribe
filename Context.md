@@ -4,26 +4,23 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-18
-**Phase:** Ship — 1.7.0 is public (https://github.com/josh-vanorden/shotscribe/releases/tag/v1.7.0, notarized under `shotscribe-notary`, marked latest, the first universal arm64 + Intel build): Dock / menu bar presence, the real menu, the capsules, the /simplify pass.
-**Next action:** Josh's calls, none blocking: (1) remove the now-unused `.menuBar` panel from `ShotScribeUI` or keep it for hosts — it is public API; (2) turn GitHub Pages on for `main` `/docs` and set the About box; (3) the ISO evidence list for the stamp, then `shotscribe digest <file>`.
+**Last session:** 2026-09-20
+**Phase:** Ship
+**Next action:** Sign `claude` in, then run `shotscribe eval --limit 25` with Claude and tune the titler until precision reaches 80%. That is the open gate item and the goal card's own success target; the wide release and the GitHub Pages page both wait on it.
 
 **Open loops**
-- The widget (gate to *maintain*); auto-stamping every capture at capture time (asked, not built).
-- Toolbelt's pin at `from: "1.7.0"`; seven pin commits unpushed there beside Josh's own uncommitted files.
-- `main` now moves on its own (another session commits docs there); `settings-pane` merges it in. Promote with `git branch -f main HEAD` only after `git merge-base --is-ancestor main HEAD`.
-- `/security-team` over the editor's and the presence code's file handling; the dead `shotscribe` MCP entry in `~/.claude.json`; the announcement.
-- `forge auto` right before `gh release create`, every release.
+- `Backlog.retryInFlight` is wired into both watch starts, but a retried capture is only as good as the configured titler — and that titler is the thing the eval gate is about.
+- Codex is **not installed on this Mac**: Homebrew lists `codex 0.118.0` and `/opt/homebrew/bin/codex` exists, but its symlink target is gone. Gemini CLI and Cursor Agent are absent too. `docs/titlers.md` records which presets ran for real.
+- `shotscribe watch --dry-run` would rename for real on the retry path: the watcher closure honours `dryRun`, and `Backlog.retryInFlight` calls `rename(fileAt:)` with defaults. Undocumented flag combination, not yet fixed.
+- The three chrisop doc files (`Index.md`, `Obsidian.md`, `Skills.md`) are rewritten by this repo's own hooks on most sessions; commit them by name rather than expecting a clean tree.
 
 **Ruled out**
-- Starting as a Dock app and removing the icon — it flashes on every menu-bar-only launch; `LSUIElement` + promote is the only no-flash order (cost: no launch bounce).
-- A SwiftUI `Window` scene for the Library — it opens itself at launch and only from inside a view.
-- Finding the menu bar icon from outside the process — macOS 26 hosts it in Control Center.
-- A rich `Menu` label (dot, spinner) — macOS keeps only text; one concatenated `Text`.
-- A drawn signature as the audit option; a file-bytes hash; five fixed size stops; a grey Save.
+- A bare top-level `await` in `Sources/shotscribe/main.swift`: the file ends in `dispatchMain()`, which then traps (SIGTRAP) and kills `shotscribe watch` at startup. Async work goes inside a `Task`; `nm .build/debug/shotscribe | grep async_Main` returning nothing is the check.
+- Arming the watcher *after* the retry, to control output order: `FolderWatcher.start()` seeds `seen` from the folder, so anything landing during the retry is treated as old and never renamed. Measured 2026-09-20 with 40 in-flight records.
+- Isolating a live run with a scratch `HOME`: `FileManager.homeDirectoryForCurrentUser` and `NSHomeDirectory()` both ignore `$HOME` on this Mac, confirmed with a compiled binary. Tests use `InFlight.storeOverride` instead.
 
-**Working tree:** clean
-**Unpushed commits:** none
+**Working tree:** 3 files — Index.md, Obsidian.md, Skills.md (hook-refreshed)
+**Unpushed commits:** 6, the whole retry feature, now on main
 <!-- /markerblock:you-are-here -->
 
 ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
