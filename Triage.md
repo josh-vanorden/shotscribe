@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-22 09:45 — A wide org chart was titled "Screenshot"
+- **Bug/Issue:** Josh: "The attached renamed image for the first time defaulted to Screenshot... This is an Org Chart." The capture is 2030 × 621 with names set at about five pixels.
+- **RCA:** `OCR.recognizeLines` runs Vision at `.fast`, which gives up on tiny type: the log shows `ocr=75 chars` and the text was noise ("fattBluNb•r KT PF…"), so the titler had nothing and returned the fallback word. The two captures before it, at normal type sizes, were titled correctly; `claude` was signed in.
+- **Evidence:** `ShotScribe.log` 09:30:26–32; a probe on the same file: `.fast` 75 chars, `.accurate` 868 chars in 0.2 s, `.fast` at 2x 1,031 chars.
+- **Fix/Repair:** a sparse-result fallback in the engine — below 200 characters from a picture of at least 800 × 500, the frame is re-read at `.accurate` and the fuller reading kept. The chart now titles as "Company Org Chart" (tags diagram, browser). Test: `SmallPrintTests` draws a 2,000-pixel chart with nine-pixel labels and requires the words to reach the titler. Unreleased.
+- **Related PR:** none — on `main`
+
 ### 2026-09-22 09:10 — Send to Claude sent a path into a chat that cannot see the disk
 - **Bug/Issue:** Josh, after a night of building: Send to Claude "passed a /screenshot command with a local Mac path into a claude.ai chat, which runs in a cloud container and can't see your disk, so nothing arrived."
 - **RCA:** The hand-off was one destination, designed for Claude Code on this Mac, where `/screenshot "<path>"` makes the skill read the file. claude.ai and the Claude desktop app run their chats in a container; a local path there is a question about a file that does not exist. The gesture did not say which kind of session it was for.

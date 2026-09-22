@@ -16,19 +16,43 @@ public enum OCR {
 
     /// The fast pass, with positions kept. One Vision call serves both the
     /// title and `Chrome.app`, which reads the menu bar or title bar off it.
+    ///
+    /// **Sparse means small, not empty.** `.fast` gives up on tiny type — an
+    /// org chart 2,000 pixels wide with 5-pixel names came back as 75
+    /// characters of noise and was titled "Screenshot" (2026-09-22). When the
+    /// fast pass reads next to nothing from a picture big enough to hold more,
+    /// the same frame is read again at `.accurate` — 0.2 s on that chart, 868
+    /// real characters — and the fuller reading is kept.
     public static func recognizeLines(atPath path: String) -> [TextLine] {
         var lines: [TextLine] = []
         for cg in frames(atPath: path) {
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .fast        // a label doesn't need .accurate
-            request.usesLanguageCorrection = false
-            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
-            guard (try? handler.perform([request])) != nil else { continue }
-            lines += (request.results ?? []).compactMap { obs in
-                obs.topCandidates(1).first.map { TextLine(text: $0.string, box: obs.boundingBox) }
+            let fast = recognize(cg, level: .fast)
+            let sparse = text(of: fast).count < sparseChars && cg.width * cg.height >= sparseArea
+            if sparse {
+                let accurate = recognize(cg, level: .accurate)
+                lines += text(of: accurate).count > text(of: fast).count ? accurate : fast
+            } else {
+                lines += fast
             }
         }
         return lines
+    }
+
+    /// Below this many characters from a picture at least this big, the fast
+    /// pass is not believed. A 2,000-pixel-wide chart with five words read is
+    /// small print, not an empty picture.
+    static let sparseChars = 200
+    static let sparseArea = 800 * 500
+
+    private static func recognize(_ cg: CGImage, level: VNRequestTextRecognitionLevel) -> [TextLine] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = level
+        request.usesLanguageCorrection = false
+        let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+        guard (try? handler.perform([request])) != nil else { return [] }
+        return (request.results ?? []).compactMap { obs in
+            obs.topCandidates(1).first.map { TextLine(text: $0.string, box: obs.boundingBox) }
+        }
     }
 
     /// What the titlers read: the lines joined, trimmed, capped.

@@ -2,6 +2,15 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## Unreleased
+
+- **Small print gets read.** A wide org chart with five-pixel names came back
+  from the fast text pass as 75 characters of noise and was titled
+  "Screenshot". When the fast pass reads next to nothing from a picture big
+  enough to hold more, the same picture is read again at the accurate level
+  — 0.2 s on that chart, 868 real characters, and a title of "Company Org
+  Chart". Ordinary captures never take the second pass.
+
 ## 1.7.2 — 2026-09-22
 
 - **Send the picture to a chat.** "Send to Claude" copied a `/screenshot

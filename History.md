@@ -1321,3 +1321,12 @@ the running app is the notarized 1.7.2 out of `dist/`; `.build/release` still
 holds `shotscribe-mcp` after packaging, so the 2026-09-21 fix holds. Toolbelt's
 pin raised to 1.7.2, built against the tag, committed there (`30d2688`,
 shotscribe hunk only); nine pin commits unpushed there, Josh's. 251 tests.
+
+## 2026-09-22, mid-morning — small print
+Josh's org chart came back "Screenshot". Not the titler and not the sign-in:
+the fast OCR pass read 75 characters of noise off five-pixel names, and a probe
+on the same file showed `.accurate` reading 868 real characters in 0.2 s. The
+engine now falls back to the accurate level when the fast pass reads next to
+nothing from a picture big enough to hold more (`OCR.sparseChars`,
+`OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
+"Company Org Chart". 253 tests; Triage has the entry.
