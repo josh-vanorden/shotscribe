@@ -1330,3 +1330,23 @@ engine now falls back to the accurate level when the fast pass reads next to
 nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
+
+## 2026-09-22, afternoon — the words findable in Spotlight at once
+The Gap run's one add-now, built directly on Josh's word ("build it now, off by
+default"). First the mechanism, checked live before any code: `kMDItemKeywords`
+written as a metadata xattr onto a copy of the org chart in a throwaway folder
+under Documents was in Spotlight within five seconds, matched by a plain query,
+while Apple's own `kMDItemTextContent` was still empty; a dot-prefixed probe
+folder had shown nothing, because Spotlight skips hidden folders. Then
+`Spotlight.swift`: `keywords(title:tags:text:)` distils the title's words, the
+tags, then the distinct significant words of the OCR (three letters or more,
+no stopwords, capped at 60); `write`/`read`/`remove` through `Xattr`;
+`ShotScribeDefaults.spotlightKeywords`, off by default. `Renamer.rename` takes
+the OCR text it or the caller already has (the app passes its own read; the MCP
+door pays one fast read only when the switch is on) and writes the list after
+the move, beside the Finder tags — so every door writes it. The File tab's
+switch back-fills every indexed shot from the index's own text on the way on and
+strips them on the way off. Live: the CLI renamed a copy of the chart with the
+switch on and Spotlight found it by "muhlenberg" in six seconds; "accounting"
+did not match because the five-pixel type had read as "Accauntino" — a reading
+limit, said so. 257 tests.

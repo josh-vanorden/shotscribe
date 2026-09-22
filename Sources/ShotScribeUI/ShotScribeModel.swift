@@ -326,6 +326,33 @@ public final class ShotScribeModel: ObservableObject {
     /// and stops new renames being tagged; tags already on files stay.
     @Published public private(set) var taggingEnabled: Bool = ShotScribeDefaults.taggingEnabled()
 
+    /// The words of every shot as Spotlight keywords — off by default, since
+    /// they travel with the file. Switching on writes them to every indexed
+    /// shot from the text the index already holds; switching off takes them
+    /// off again, so nothing lingers on a file after the choice changes.
+    @Published public private(set) var spotlightKeywords: Bool = ShotScribeDefaults.spotlightKeywords()
+    @Published public private(set) var spotlightBusy = false
+
+    public func setSpotlightKeywords(_ on: Bool) {
+        ShotScribeDefaults.setSpotlightKeywords(on)
+        spotlightKeywords = on
+        let shots = indexCache
+        spotlightBusy = true
+        Task.detached(priority: .utility) { [weak self] in
+            var n = 0
+            for shot in shots where !Capture.isMovie(shot.url) {
+                if on {
+                    let words = Spotlight.keywords(title: shot.name, tags: shot.tags ?? [], text: shot.text)
+                    if Spotlight.write(words, to: shot.url) { n += 1 }
+                } else {
+                    Spotlight.remove(from: shot.url); n += 1
+                }
+            }
+            Log.write("spotlight keywords \(on ? "written to" : "removed from") \(n) shot(s)")
+            await MainActor.run { self?.spotlightBusy = false }
+        }
+    }
+
     public func setTaggingEnabled(_ on: Bool) {
         ShotScribeDefaults.setTaggingEnabled(on)
         taggingEnabled = on
@@ -1127,7 +1154,7 @@ public final class ShotScribeModel: ObservableObject {
             // label == nil → Renamer falls back to its own titler (offline).
             let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate,
                                             vocabulary: taggingEnabled ? vocabulary : [])
-                .rename(fileAt: url, label: label, tags: tags)
+                .rename(fileAt: url, label: label, tags: tags, text: ocr)
             Log.write("outcome: \(outcome)")
             if case .renamed(let from, let to) = outcome {
                 record(from: from.lastPathComponent, to: to.lastPathComponent)

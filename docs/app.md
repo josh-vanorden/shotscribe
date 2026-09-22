@@ -41,6 +41,13 @@ the app between light and dark. First launch opens the window on the folder it
 is watching with the inspector open, so the settings are found. A folder with
 nothing named yet shows the welcome instead of an empty grid.
 
+The File tab also has **Make the words findable in Spotlight**, off by
+default: on, each capture's significant words are written into its file
+metadata as Spotlight keywords — for every shot in the library at once, and
+for each new one — so a plain Spotlight search for what a shot showed finds
+it within seconds. The words travel with the file when it is shared, which is
+why it is a switch.
+
 A rename that was interrupted — ShotScribe quit while it was still reading the
 picture or waiting on a title — is picked up and finished the next time
 watching starts, by the titler you chose.

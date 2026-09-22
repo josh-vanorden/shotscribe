@@ -4,6 +4,14 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## Unreleased
 
+- **The words in a shot, findable in Spotlight at once.** A switch in the File
+  tab writes each capture's significant words — the title's, the tags, then the
+  distinct words the text read — into the file's Spotlight keywords, so a plain
+  Spotlight search for what a shot showed finds it within seconds instead of
+  the hours or days Apple's own image-text pass takes. **Off by default**: the
+  words travel with the file on AirDrop and in an archive. Switching on writes
+  them to every shot in the library from the text the index already holds;
+  switching off takes them off again.
 - **Small print gets read.** A wide org chart with five-pixel names came back
   from the fast text pass as 75 characters of noise and was titled
   "Screenshot". When the fast pass reads next to nothing from a picture big

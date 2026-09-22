@@ -1345,6 +1345,19 @@ public struct ShotScribeView: View {
                 }
             }
             .toggleStyle(.switch).controlSize(.small)
+            Toggle(isOn: Binding(get: { model.spotlightKeywords }, set: { model.setSpotlightKeywords($0) })) {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text("Make the words findable in Spotlight")
+                        if model.spotlightBusy { ProgressView().controlSize(.mini) }
+                    }
+                    Text("Writes each capture's significant words into its file metadata, so a Spotlight search for what a shot showed finds it at once. The words travel with the file when it is shared.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch).controlSize(.small)
+            .help("Off by default. On: written to every shot in the library now and to each new one; off: taken off them all.")
             FlowLayout(spacing: 6) {
                 ForEach(model.vocabulary, id: \.self) { tag in
                     HStack(spacing: 5) {

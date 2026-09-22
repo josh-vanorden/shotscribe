@@ -65,9 +65,14 @@ public struct Renamer: Sendable {
     /// asking our own titler would be a wasteful nested LLM call), we clean it
     /// and use it directly.
     @discardableResult
+    ///
+    /// `text` is the shot's OCR text when the caller already read it (the app
+    /// composes the title itself); it feeds the Spotlight keywords, when that
+    /// is switched on, without a second read.
     public func rename(fileAt url: URL, label explicitLabel: String? = nil,
                        app explicitApp: String? = nil,
                        tags explicitTags: [String] = [],
+                       text explicitText: String? = nil,
                        force: Bool = false, dryRun: Bool = false) async throws -> RenameOutcome {
         guard fileManager.fileExists(atPath: url.path) else { return .fileMissing(url) }
         // `force` waives the raw-name rule, never the kind of file: ShotScribe
@@ -91,18 +96,25 @@ public struct Renamer: Sendable {
 
         let label: String
         var app = explicitApp
+        var text = explicitText
         var tags = Tagging.accepted(explicitTags, vocabulary: vocabulary.isEmpty
                                     ? Tagging.defaultVocabulary : vocabulary)
         if let explicitLabel, !explicitLabel.trimmingCharacters(in: .whitespaces).isEmpty {
             label = LabelCleaner.clean(explicitLabel)
         } else {
             let lines = OCR.recognizeLines(atPath: url.path)
-            let labelling = (try? await titler.labelling(forOCRText: OCR.text(of: Chrome.body(of: lines)), vocabulary: vocabulary))
+            let body = OCR.text(of: Chrome.body(of: lines))
+            let labelling = (try? await titler.labelling(forOCRText: body, vocabulary: vocabulary))
                 ?? Labelling(title: "Screenshot")
             label = LabelCleaner.clean(labelling.title)
             if tags.isEmpty { tags = labelling.tags }
             if app == nil { app = Chrome.app(in: lines) }
+            if text == nil { text = body }
         }
+        // The words for Spotlight, only when asked for: a caller that brought
+        // its own title and no text (the MCP door) pays one fast read here.
+        let spotlight = ShotScribeDefaults.spotlightKeywords()
+        if spotlight, text == nil, !dryRun { text = OCR.recognizeText(atPath: url.path) }
         // A caller that brought its own title skipped the read; do it only when
         // the template actually spells the app.
         if app == nil, template.layout.contains("{app}") {
@@ -126,6 +138,7 @@ public struct Renamer: Sendable {
         // After the move, and never fatal: a Finder tag is a nicety, a rename is
         // the job. Tags the user put on by hand are kept.
         if !tags.isEmpty { Tagging.add(tags, to: target) }
+        if spotlight { Spotlight.write(Spotlight.keywords(title: label, tags: tags, text: text ?? ""), to: target) }
         return .renamed(from: url, to: target)
     }
 
