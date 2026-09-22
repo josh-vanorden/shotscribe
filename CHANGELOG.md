@@ -12,12 +12,16 @@ Dates are release dates. The narrative behind each line is in `History.md`.
   words travel with the file on AirDrop and in an archive. Switching on writes
   them to every shot in the library from the text the index already holds;
   switching off takes them off again.
-- **Small print gets read.** A wide org chart with five-pixel names came back
-  from the fast text pass as 75 characters of noise and was titled
-  "Screenshot". When the fast pass reads next to nothing from a picture big
-  enough to hold more, the same picture is read again at the accurate level
-  — 0.2 s on that chart, 868 real characters, and a title of "Company Org
-  Chart". Ordinary captures never take the second pass.
+- **Every capture is read at the accurate level, and a small one is doubled
+  first.** Two kinds of shot came back titled "Screenshot" from the fast text
+  pass in one day: a wide org chart with five-pixel names (75 characters of
+  noise), then five small captures of slides, 280 pixels wide with the title
+  in plain sight (0 to 36 characters). The fast pass is gone. Every picture is
+  read at Vision's accurate level — 40 to 200 ms on real captures, against a
+  titler that takes seconds — and a picture under 1,000 pixels on its longer
+  side is read at twice its size, which turned 171 characters of the wrong
+  alphabet into 797 clean ones on one of the slides. The chart titles as
+  "Company Org Chart"; the slides as what they say.
 
 ## 1.7.2 — 2026-09-22
 

@@ -11,12 +11,12 @@ import Vision
 ///
 /// ## Why this OCRs again rather than reusing the label's text
 ///
-/// `OCR.recognizeText` is tuned for *labelling*: `.fast` recognition, no
-/// language correction, capped at 900 characters. Right for a title, wrong for
-/// search — 900 characters stops partway down most screenshots, and `.fast`
-/// misreads precisely the strings you would search for (`i-0a3f`, `NXDOMAIN`,
-/// `PROJ-4821`). The index pays for an accurate pass once per file. It is local
-/// Vision, so the cost is time on your own machine, not money or privacy.
+/// `OCR.recognizeText` is tuned for *labelling*: capped at 900 characters,
+/// which is right for a title and wrong for search — 900 characters stops
+/// partway down most screenshots, and the strings you would search for
+/// (`i-0a3f`, `NXDOMAIN`, `PROJ-4821`) are as likely below the cut as above
+/// it. The index pays for its own full pass once per file. It is local Vision,
+/// so the cost is time on your own machine, not money or privacy.
 ///
 /// ## Where it lives, and why that matters
 ///

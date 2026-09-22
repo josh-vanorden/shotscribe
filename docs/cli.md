@@ -70,11 +70,10 @@ searchable history.
 
 Two deliberate choices:
 
-- **The index OCRs again rather than reusing the label's text.** Labelling uses
-  `.fast` recognition capped at 900 characters — right for a title, wrong for
-  search, since 900 characters stops partway down most screenshots and `.fast`
-  misreads exactly the strings you would search for (`i-0a3f`, `NXDOMAIN`,
-  `PROJ-4821`).
+- **The index OCRs again rather than reusing the label's text.** Labelling is
+  capped at 900 characters — right for a title, wrong for search, since 900
+  characters stops partway down most screenshots and the strings you would
+  search for (`i-0a3f`, `NXDOMAIN`, `PROJ-4821`) are as likely below the cut.
 - **It indexes the folder, not the rename history.** That history is capped and
   holds no paths, so a search built on it would only ever see the last handful.
 

@@ -54,10 +54,10 @@ final class ChromeTests: XCTestCase {
         let size = NSSize(width: 1200, height: 700)
         // Drawn at 2x, because a real capture is: a 15pt menu-bar label lands on
         // ~30 device pixels on a Retina screen, and `OCR.recognizeLines` reads
-        // with `.fast` and no language correction. At 1x the same label is ~15px
-        // — right at that reader's threshold, where "Terminal" comes back as
-        // "Terniinal" and the test fails for a reason that is nothing to do with
-        // `Chrome.app`. `lockFocus` took its scale from whichever display was
+        // with no language correction. At 1x the same label is ~15px — near the
+        // reader's threshold, where "Terminal" came back as "Terniinal" and the
+        // test failed for a reason that is nothing to do with `Chrome.app`.
+        // `lockFocus` took its scale from whichever display was
         // attached, so the fixture changed when the operator changed monitors
         // (2026-09-14: two 1x externals, and this went red on every commit).
         let rep2x = NSBitmapImageRep(bitmapDataPlanes: nil,

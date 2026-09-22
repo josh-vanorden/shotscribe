@@ -1331,6 +1331,29 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-22, late afternoon — accurate, always
+The morning's fix had a gate in it, and the gate was the next bug. Josh took
+ten captures of numbered slides two minutes apart; the five at about 550 × 720
+were named, the five at about 280 × 370 all came out "Screenshot", and the log
+showed why: `ocr=0`, `3`, `22`, `0`, `36 chars`. The sparse re-read only ran
+for a picture of at least 800 × 500, on the theory that a big picture with
+little text read is small print — and a small picture is where `.fast` fails
+hardest. A probe on the five files settled the design rather than the
+threshold: `.fast` 0–36 characters, `.accurate` 171–317 with four titles of
+five (the fifth read a wrong alphabet), `.accurate` on the picture doubled
+700–820 with every title clean in about 90 ms; on the largest capture in the
+folder, `.accurate` took 197 ms. Against a titler that takes seconds, a fast
+pass that saves a tenth of a second and names a shot "Screenshot" is not a
+saving. So `OCR.recognizeLines` now reads every frame at `.accurate`, and a
+picture under 1,000 pixels on its longer side is doubled first
+(`OCR.doubledBelow`, `OCR.enlarged`); `recognizeLayout` reads the same way,
+with the file's own size and boxes in percent of it. The `.fast` mentions in
+`SearchIndex`, `ChromeTests` and `docs/cli.md` are gone with it.
+`SmallPrintTests` draws the 280-pixel slide and requires its title; the test
+that had pinned the size gate is replaced by one that pins what is doubled.
+258 tests. Rebuilt, packaged and relaunched; `shotscribe label` on the five
+files and the morning's chart named all six. Triage has the entry.
+
 ## 2026-09-22, afternoon — the words findable in Spotlight at once
 The Gap run's one add-now, built directly on Josh's word ("build it now, off by
 default"). First the mechanism, checked live before any code: `kMDItemKeywords`

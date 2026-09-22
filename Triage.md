@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-22 16:15 — Five small captures of slides were all titled "Screenshot"
+- **Bug/Issue:** Josh: "The OCR is failing on the rename that is the main purpose of the app… this is a real bug and getting annoying quick." Ten captures of numbered slides in two minutes: the first five (about 550 × 720) were named correctly, the next five (about 280 × 370) all came out "Screenshot".
+- **RCA:** The morning's fix re-read a sparse picture at `.accurate` only when it was at least 800 × 500. These were under that gate, so the `.fast` reading — 0, 3, 22, 0 and 36 characters — stood as the answer. `.fast` is at its worst on small pictures, which is exactly where the gate switched the rescue off. Not the titler and not the sign-in: "Evals for Agents", the one of the five whose fast pass caught its title, was named correctly.
+- **Evidence:** `ShotScribe.log` 16:03:22–16:05:38 (`ocr=0`, `3`, `22`, `0`, `36 chars`); a probe on the five files: `.fast` 0–36 chars, `.accurate` 171–317 (four titles of five; the fifth read a wrong alphabet), `.accurate` on the picture doubled 700–820 with every title clean, 82–112 ms; `.accurate` on the largest capture in the folder (2704 × 1532) 197 ms.
+- **Fix/Repair:** The fast pass and the gate are gone. `OCR.recognizeLines` reads every frame at `.accurate`, and a picture whose longer side is under 1,000 pixels is doubled first (`OCR.doubledBelow`, `OCR.enlarged`); `recognizeLayout` reads the same way and reports the file's own size. `SmallPrintTests` draws a 280-pixel slide and requires its title and subtitle; a third test pins that only a small picture is doubled. `shotscribe label` on the five: "Agent Orchestration Patterns", "Agent Guardrails Slide", "Human Oversight Slide", "Agent Observability Diagram", "Agent Evals Infographic". 258 tests. Unreleased.
+- **Related PR:** none — on `main`
+
 ### 2026-09-22 09:45 — A wide org chart was titled "Screenshot"
 - **Bug/Issue:** Josh: "The attached renamed image for the first time defaulted to Screenshot... This is an Org Chart." The capture is 2030 × 621 with names set at about five pixels.
 - **RCA:** `OCR.recognizeLines` runs Vision at `.fast`, which gives up on tiny type: the log shows `ocr=75 chars` and the text was noise ("fattBluNb•r KT PF…"), so the titler had nothing and returned the fallback word. The two captures before it, at normal type sizes, were titled correctly; `claude` was signed in.
