@@ -1310,3 +1310,14 @@ notes drawn from it, tagged, notarized under `shotscribe-notary`, published,
 Toolbelt's pin raised. `main` had not moved since 1.7.1, so the push is a plain
 fast-forward — checked with `merge-base --is-ancestor` first, as the 2026-09-18
 memory says to. Verification and the release link are in the commit after this.
+
+## 2026-09-22, later — 1.7.2 is public
+Tagged `v1.7.2` at `d5d9ee8`, notarized under `shotscribe-notary` (Apple:
+Accepted, app and DMG), verified four ways plus the universal check (the app
+inside the DMG is `x86_64 arm64`, version 1.7.2), and published as latest:
+https://github.com/josh-vanorden/shotscribe/releases/tag/v1.7.2 (7.2 MB). The
+local CLI and MCP server rebuilt after the bump and the server answers 1.7.2;
+the running app is the notarized 1.7.2 out of `dist/`; `.build/release` still
+holds `shotscribe-mcp` after packaging, so the 2026-09-21 fix holds. Toolbelt's
+pin raised to 1.7.2, built against the tag, committed there (`30d2688`,
+shotscribe hunk only); nine pin commits unpushed there, Josh's. 251 tests.
