@@ -1301,3 +1301,12 @@ against a copy of a capture and reading the general pasteboard back (his
 clipboard saved and restored around it): the path form carries text only; the
 picture form carries `public.png` at the capture's size, `public.file-url`,
 and `src.png` as the text. 251 tests. Triage has the entry.
+
+## 2026-09-22, morning — 1.7.2 shipped; the Gap run on the 1.7.3 candidates
+On Josh's word: the roster approved (six competitors, four lenses, the five
+research candidates as proposed decisions) and the four collection agents
+dispatched in parallel; `serverInfo` → 1.7.2, CHANGELOG dated, the release
+notes drawn from it, tagged, notarized under `shotscribe-notary`, published,
+Toolbelt's pin raised. `main` had not moved since 1.7.1, so the push is a plain
+fast-forward — checked with `merge-base --is-ancestor` first, as the 2026-09-18
+memory says to. Verification and the release link are in the commit after this.

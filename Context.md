@@ -4,11 +4,12 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-21
-**Phase:** Ship — 1.7.1 is public (the interrupted-rename retry and the panel removal), notarized under `shotscribe-notary`, marked latest; repo, DMG and the local app were audited level on 2026-09-21.
+**Last session:** 2026-09-22
+**Phase:** Ship — 1.7.2 is being released this save (Send the picture to a chat); a Gap run on the five 1.7.3 candidates is collecting (run 20260921-201608-product), its decision table is the next input for the build direction.
 **Next action:** Sign `claude` in, then run `shotscribe eval --limit 25` with Claude and tune the titler until precision reaches 80%. That is the open gate item and the goal card's own success target; the wide release and the GitHub Pages page both wait on it.
 
 **Open loops**
+- The Gap run on the 1.7.3 candidates: four lenses collecting; judge and report when they land (`.buildkit/runs/20260921-201608-product/report.md`).
 - `Backlog.retryInFlight` is wired into both watch starts, but a retried capture is only as good as the configured titler — and that titler is the thing the eval gate is about.
 - Codex is **not installed on this Mac**: Homebrew lists `codex 0.118.0` and `/opt/homebrew/bin/codex` exists, but its symlink target is gone. Gemini CLI and Cursor Agent are absent too. `docs/titlers.md` records which presets ran for real.
 - `shotscribe watch --dry-run` would rename for real on the retry path: the watcher closure honours `dryRun`, and `Backlog.retryInFlight` calls `rename(fileAt:)` with defaults. Undocumented flag combination, not yet fixed.

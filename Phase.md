@@ -285,3 +285,12 @@ the titler to 80% precision; the wide release and the Pages site wait on it.
   slice is built last now.
 - **Sub-issue, fixed:** a feature can reach History and miss the changelog — the
   audit is the check; `/save` should treat CHANGELOG as part of the spine.
+
+## 2026-09-22 — 1.7.2: the picture goes to the chat
+Phase stays **Ship**. 1.7.2 fixes the one hand-off that could not work — a local
+path pasted into a chat whose container has never seen the disk — with a second
+destination that sends the image. The gate item is unchanged (sign `claude` in,
+`shotscribe eval --limit 25`, 80% precision). The 1.7.3 candidates are under a
+Gap run whose decision table is the next input.
+- **Sub-issue, fixed:** Send to Claude assumed every Claude was on this Mac
+  (Triage 2026-09-22 09:10).

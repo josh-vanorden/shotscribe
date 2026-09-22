@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## Unreleased
+## 1.7.2 — 2026-09-22
 
 - **Send the picture to a chat.** "Send to Claude" copied a `/screenshot
   "<path>"` line, which is right for a Claude Code session on this Mac and
