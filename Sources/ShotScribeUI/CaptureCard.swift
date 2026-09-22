@@ -165,7 +165,7 @@ public struct CaptureCard: View {
                     // reaches is a setting, and the setting is on its own
                     // right-click — the same gesture the landing zone uses to
                     // set what a plain click does.
-                    CardButton("Send to \(model.assistantName)",
+                    CardButton(model.title(of: .sendToAssistant),
                                art: AppIcons.icon(for: model.aiProvider.kind),
                                fallback: "paperplane.fill", hint: $hint) {
                         if let shot { model.sendToAssistant(shot) }
@@ -177,8 +177,12 @@ public struct CaptureCard: View {
                     // the same *destination*, so one mark carries both rather
                     // than two marks competing for the same corner.
                     .contextMenu {
-                        Button("Send to \(model.assistantName)") {
+                        Button(model.title(of: .sendToAssistant)) {
                             if let shot { model.sendToAssistant(shot) }
+                            dismiss()
+                        }
+                        Button(model.title(of: .sendPicture)) {
+                            if let shot { model.sendPicture(shot) }
                             dismiss()
                         }
                         Button("Rebuild as code") {

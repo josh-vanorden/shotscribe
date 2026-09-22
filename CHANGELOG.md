@@ -2,6 +2,18 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
+## Unreleased
+
+- **Send the picture to a chat.** "Send to Claude" copied a `/screenshot
+  "<path>"` line, which is right for a Claude Code session on this Mac and
+  useless in claude.ai or the Claude app — their chats run in a container that
+  has never seen your disk, so nothing arrived. There are two destinations now,
+  named by what they can see: **Send to Claude Code** copies the line as
+  before; **Send the picture to a chat** copies the image itself (with the
+  file's name, never its path), so ⌘V in any chat attaches it. Both are on the
+  landing zone's Send tile, the capture card and every shot's right-click, and
+  either can be the click default.
+
 ## 1.7.1 — 2026-09-21
 
 - **An interrupted rename is retried.** A rename now records itself as in

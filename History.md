@@ -1286,3 +1286,18 @@ server answers 1.7.1; the running app is the notarized 1.7.1 out of `dist/`.
 Toolbelt's pin raised to 1.7.1, built against the tag, committed there
 (`7994e97`, shotscribe hunk only); eight pin commits unpushed there, Josh's.
 250 tests.
+
+## 2026-09-22 — the picture goes to the chat, the path stays on the Mac
+Josh's note from a night of building: Send to Claude put a `/screenshot
+"<path>"` line into a claude.ai chat, whose container has never seen his disk,
+so nothing arrived. Two destinations now, named by what they can see: **Send to
+Claude Code** (the line, for a session on this Mac) and **Send the picture to a
+chat** (`SendToClaude.picture`: PNG data, the file URL, the file's name — never
+its path — on one pasteboard item, so ⌘V in claude.ai, the Claude app or any
+web chat attaches the image). Offered wherever Send to is: the landing zone's
+tile and its click-default menu, the capture card, every shot's right-click. A
+recording says so rather than pretending. Verified by driving the real model
+against a copy of a capture and reading the general pasteboard back (his
+clipboard saved and restored around it): the path form carries text only; the
+picture form carries `public.png` at the capture's size, `public.file-url`,
+and `src.png` as the text. 251 tests. Triage has the entry.

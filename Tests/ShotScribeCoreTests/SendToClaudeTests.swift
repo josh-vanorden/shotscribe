@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import ShotScribeCore
 
 /// "Send to Claude": the line the app copies must be a form the `/screenshot`
@@ -12,6 +13,31 @@ final class SendToClaudeTests: XCTestCase {
                        "a quote in the path stays inside the quotes")
         XCTAssertEqual(SendToClaude.line(forImageAt: "/a/back\\slash.png"), "/screenshot \"/a/back\\\\slash.png\"",
                        "a backslash is escaped too, so a path ending in one cannot eat the closing quote")
+    }
+
+    /// For a chat that cannot see this Mac, the pasteboard carries the picture:
+    /// PNG data a web composer attaches, the file for apps that take one, and
+    /// the file's name — never its path — as the text.
+    func testThePictureItemCarriesTheImageAndTheNameButNeverThePath() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("send-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: 120, height: 80, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(srgbRed: 0.1, green: 0.5, blue: 0.9, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: 120, height: 80))
+        let url = dir.appendingPathComponent("2026-09-22 0912 Command Result.png")
+        try ImageEditor.save(try XCTUnwrap(ctx.makeImage()), over: url)
+
+        let item = try XCTUnwrap(SendToClaude.picture(forImageAt: url))
+        XCTAssertEqual(Set(item.types), [.png, .fileURL, .string])
+        let png = try XCTUnwrap(item.data(forType: .png))
+        let back = try XCTUnwrap(CGImageSourceCreateWithData(png as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+        XCTAssertEqual(back.width, 120); XCTAssertEqual(back.height, 80)
+        XCTAssertEqual(item.string(forType: .fileURL), url.absoluteString)
+        XCTAssertEqual(item.string(forType: .string), "2026-09-22 0912 Command Result.png", "the name, for a text-only field")
+        XCTAssertFalse(try XCTUnwrap(item.string(forType: .string)).contains("/"), "and never the path")
+        XCTAssertNil(SendToClaude.picture(forImageAt: dir.appendingPathComponent("missing.png")))
     }
 
     func testTheSkillDocumentsThePathArgumentTheAppCopies() throws {

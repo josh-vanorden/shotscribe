@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-22 09:10 — Send to Claude sent a path into a chat that cannot see the disk
+- **Bug/Issue:** Josh, after a night of building: Send to Claude "passed a /screenshot command with a local Mac path into a claude.ai chat, which runs in a cloud container and can't see your disk, so nothing arrived."
+- **RCA:** The hand-off was one destination, designed for Claude Code on this Mac, where `/screenshot "<path>"` makes the skill read the file. claude.ai and the Claude desktop app run their chats in a container; a local path there is a question about a file that does not exist. The gesture did not say which kind of session it was for.
+- **Evidence:** `ShotScribeModel.sendToAssistant` wrote only `public.utf8-plain-text` with the slash line; confirmed by reading the pasteboard after driving the model.
+- **Fix/Repair:** Two destinations named by what they can see. `SendToClaude.picture(forImageAt:)` builds a pasteboard item with the PNG, the file URL and the file's *name*; `model.sendPicture` puts it up with a note saying where to paste; `ShotAction.sendPicture` sits beside the path form on the Send tile, the card and the shot menu, and can be the click default. The path form's note now says it is for a session on this Mac. Test: the item carries the image and the name and never the path. Unreleased.
+- **Related PR:** none — on `main`
+
 ### 2026-09-16 13:44 — The watermark logo never appeared in the preview
 - **Bug/Issue:** Josh: "Logo showed up, but we have no watermark preview so any adjustments are made blindly." The saved file carried the logo; the canvas showed nothing while he adjusted it.
 - **RCA:** The `onChange` that decodes the chosen logo for the canvas was attached to the Frame panel's background row — a view that only exists while the Frame panel is open. Picked from the Watermark panel, the change fired on nothing; the canvas drew a watermark whose picture it did not have, and Save loaded the file itself.

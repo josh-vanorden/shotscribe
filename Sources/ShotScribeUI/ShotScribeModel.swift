@@ -368,19 +368,43 @@ public final class ShotScribeModel: ObservableObject {
         let kind = aiProvider.kind
         let where_: String
         switch kind {
-        case .claude:                       where_ = "any Claude Code session; /screenshot reads this shot there"
-        case .codex, .gemini, .cursor:      where_ = "a \(kind.assistant) chat"
+        case .claude:                       where_ = "a Claude Code session on this Mac; /screenshot reads this shot there. For claude.ai or the Claude app, send the picture instead"
+        case .codex, .gemini, .cursor:      where_ = "a \(kind.assistant) session on this Mac. For a chat in a browser, send the picture instead"
         case .ollama:                       where_ = "Ollama’s chat (a vision model can also take the image dragged in)"
-        case .offline, .command, .endpoint: where_ = "any assistant’s chat"
+        case .offline, .command, .endpoint: where_ = "any assistant’s chat on this Mac"
         }
         handOver(SendToClaude.line(forImageAt: shot.path, kind: kind), saying: HandoffNote(
             text: "Copied. Paste into \(where_).", symbol: "paperplane"))
     }
 
+    /// The shot itself, for a chat that cannot see this Mac — claude.ai, the
+    /// Claude app, any web chat. A ⌘V there attaches the picture; the path
+    /// never leaves this Mac. A recording has no still to send.
+    public func sendPicture(_ shot: IndexedShot) {
+        note(.sendTo)
+        guard !Capture.isMovie(shot.url) else {
+            show(HandoffNote(text: "A recording can’t be pasted as a picture — drag the file into the chat instead.", symbol: "film"))
+            return
+        }
+        guard let item = SendToClaude.picture(forImageAt: shot.url) else {
+            show(HandoffNote(text: "Couldn’t read \(shot.url.lastPathComponent) to copy it.", symbol: "exclamationmark.triangle"))
+            return
+        }
+        handOver([item], saying: HandoffNote(
+            text: "Copied the picture. Paste into claude.ai, the Claude app, or any chat — it arrives as the image, not a path.",
+            symbol: "photo.on.rectangle"))
+    }
+
     private func handOver(_ text: String, saying note: HandoffNote) {
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        handOver([item], saying: note)
+    }
+
+    private func handOver(_ items: [NSPasteboardItem], saying note: HandoffNote) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        pasteboard.writeObjects(items)
         let generation = show(note)
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 9_000_000_000)
@@ -1221,12 +1245,13 @@ public final class ShotScribeModel: ObservableObject {
     /// right-click a tile, "Set as the click action". Reveal in Finder is the
     /// default, as it always was.
     public enum ShotAction: String, CaseIterable, Codable, Sendable {
-        case reveal, markUp, sendToAssistant, rebuildAsCode
+        case reveal, markUp, sendToAssistant, sendPicture, rebuildAsCode
         public var symbol: String {
             switch self {
             case .reveal:          return "arrow.up.forward.square"
             case .markUp:          return "pencil.tip"
             case .sendToAssistant: return "paperplane"
+            case .sendPicture:     return "photo.on.rectangle"
             case .rebuildAsCode:   return "hammer"
             }
         }
@@ -1343,7 +1368,10 @@ public final class ShotScribeModel: ObservableObject {
         // value stays `markUp`, so a click default set before keeps working
         // and now lands in ShotScribe's own editor.
         case .markUp:          return "Edit with ShotScribe"
-        case .sendToAssistant: return "Send to \(assistantName)"
+        // Two destinations, named by what they can see: a local session takes
+        // a path; a chat in the cloud takes the picture (2026-09-22).
+        case .sendToAssistant: return aiProvider.kind == .claude ? "Send to Claude Code" : "Send to \(assistantName)"
+        case .sendPicture:     return "Send the picture to a chat"
         case .rebuildAsCode:   return "Rebuild as code"
         }
     }
@@ -1353,6 +1381,7 @@ public final class ShotScribeModel: ObservableObject {
         case .reveal:          reveal(shot)
         case .markUp:          markUp(shot)
         case .sendToAssistant: sendToAssistant(shot)
+        case .sendPicture:     sendPicture(shot)
         case .rebuildAsCode:   copyCodeBrief(for: shot)
         }
     }

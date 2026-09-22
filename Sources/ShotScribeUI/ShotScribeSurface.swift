@@ -918,7 +918,8 @@ public struct ShotScribeView: View {
         // brief. They reach the same assistant, so they share a mark rather
         // than taking two places in the row (2026-09-15).
         if tile == .sendTo {
-            Button("Send to \(model.assistantName)") { heroShot.map(model.sendToAssistant) }
+            Button(model.title(of: .sendToAssistant)) { heroShot.map(model.sendToAssistant) }
+            Button(model.title(of: .sendPicture)) { heroShot.map(model.sendPicture) }
             Button("Rebuild as code") { heroShot.map { model.copyCodeBrief(for: $0) } }
             Divider()
             Menu("Assistant") {
@@ -930,8 +931,12 @@ public struct ShotScribeView: View {
             }
             Menu("A click does") {
                 Button(model.defaultAction == .sendToAssistant
-                       ? "Send to \(model.assistantName)  ✓" : "Send to \(model.assistantName)") {
+                       ? "\(model.title(of: .sendToAssistant))  ✓" : model.title(of: .sendToAssistant)) {
                     model.defaultAction = .sendToAssistant
+                }
+                Button(model.defaultAction == .sendPicture
+                       ? "\(model.title(of: .sendPicture))  ✓" : model.title(of: .sendPicture)) {
+                    model.defaultAction = .sendPicture
                 }
                 Button(model.defaultAction == .rebuildAsCode
                        ? "Rebuild as code  ✓" : "Rebuild as code") {
@@ -2111,6 +2116,7 @@ private struct ShotMenu: View {
     var body: some View {
         Button(title(.markUp) + "…") { model.markUp(shot) }
         Button(title(.sendToAssistant)) { model.sendToAssistant(shot) }
+        Button(title(.sendPicture)) { model.sendPicture(shot) }
         Button(title(.rebuildAsCode)) { model.copyCodeBrief(for: shot) }
         if model.taggingEnabled {
             Menu("Tag") {
