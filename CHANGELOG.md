@@ -2,8 +2,18 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## Unreleased
+## 1.7.3 — unreleased
 
+- **The capture card: naming you can see, a name in colour, a tile you can
+  drag.** While the title is being written the card moves — pulsing dots on
+  the badge, a shimmer where the name will go — instead of a still
+  "Naming…". When the name lands it fades in, in green; a shot that got the
+  generic word because nothing could be read is set in grey, under a badge
+  that says so. The tile keeps its picture through the rename (it used to
+  blank for a beat when the file's path changed under it) and is a drag
+  source: drag it into Finder, Slack, a browser's upload field or Jira and
+  the renamed file on disk arrives, never a bag of pixels. Draggable once
+  named, and the card stays put for as long as a drag lasts.
 - **The words in a shot, findable in Spotlight at once.** A switch in the File
   tab writes each capture's significant words — the title's, the tags, then the
   distinct words the text read — into the file's Spotlight keywords, so a plain

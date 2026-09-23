@@ -54,7 +54,7 @@ public struct Renamer: Sendable {
             if let offline = try? await KeywordTitler().labelling(forOCRText: ocr, vocabulary: vocabulary),
                !offline.title.isEmpty { return offline }
         }
-        return Labelling(title: "Screenshot")
+        return Labelling(title: LabelCleaner.generic)
     }
 
     /// Rename `url` in place. `force` renames even files the user named
@@ -105,7 +105,7 @@ public struct Renamer: Sendable {
             let lines = OCR.recognizeLines(atPath: url.path)
             let body = OCR.text(of: Chrome.body(of: lines))
             let labelling = (try? await titler.labelling(forOCRText: body, vocabulary: vocabulary))
-                ?? Labelling(title: "Screenshot")
+                ?? Labelling(title: LabelCleaner.generic)
             label = LabelCleaner.clean(labelling.title)
             if tags.isEmpty { tags = labelling.tags }
             if app == nil { app = Chrome.app(in: lines) }

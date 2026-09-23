@@ -28,13 +28,13 @@ public struct CommandTitler: Titler {
 
     public func title(forOCRText text: String) async throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= TitlerPrompt.minOCRChars else { return "Screenshot" }
+        guard trimmed.count >= TitlerPrompt.minOCRChars else { return LabelCleaner.generic }
         return LabelCleaner.clean(try await complete(system: TitlerPrompt.system, text: trimmed))
     }
 
     public func labelling(forOCRText text: String, vocabulary: [String]) async throws -> Labelling {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= TitlerPrompt.minOCRChars else { return Labelling(title: "Screenshot") }
+        guard trimmed.count >= TitlerPrompt.minOCRChars else { return Labelling(title: LabelCleaner.generic) }
         guard !vocabulary.isEmpty else { return Labelling(title: try await title(forOCRText: trimmed)) }
         let raw = try await complete(system: TitlerPrompt.system(taggedFrom: vocabulary), text: trimmed)
         return ClaudeTitler.parseLabelling(raw, vocabulary: vocabulary)

@@ -22,7 +22,7 @@ public struct KeywordTitler: Titler {
 
     public func title(forOCRText text: String) async throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= TitlerPrompt.minOCRChars else { return "Screenshot" }
+        guard trimmed.count >= TitlerPrompt.minOCRChars else { return LabelCleaner.generic }
 
         // Tokenize to alphanumeric words, keep order of first appearance while
         // counting frequency.
@@ -35,7 +35,7 @@ public struct KeywordTitler: Titler {
             if counts[w] == nil { order.append(w) }
             counts[w, default: 0] += 1
         }
-        guard !order.isEmpty else { return "Screenshot" }
+        guard !order.isEmpty else { return LabelCleaner.generic }
 
         // Rank by frequency, tie-broken by first appearance (stable).
         let ranked = order.sorted { (counts[$0] ?? 0) > (counts[$1] ?? 0) }

@@ -14,9 +14,12 @@ public struct NamedCapture: Equatable {
     public let from: String
     public let to: String
     public let at: Date
+    /// The name is the generic word — nothing was read off the picture, or
+    /// what was read made no title — rather than one the shot earned.
+    public let generic: Bool
 
-    public init(url: URL, from: String, to: String, at: Date) {
-        self.url = url; self.from = from; self.to = to; self.at = at
+    public init(url: URL, from: String, to: String, at: Date, generic: Bool = false) {
+        self.url = url; self.from = from; self.to = to; self.at = at; self.generic = generic
     }
 }
 
@@ -1141,17 +1144,28 @@ public final class ShotScribeModel: ObservableObject {
             Log.write("new capture \(url.lastPathComponent): ocr=\(ocr.count) chars")
             var label: String?
             var tags: [String] = []
+            var titled = false
             do {
                 let proposed = try await titler.labelling(forOCRText: ocr,
                                                           vocabulary: taggingEnabled ? vocabulary : [])
                 label = proposed.title
                 tags = proposed.tags
+                titled = true
                 Log.write("title: \(label ?? "nil")  tags: \(tags.joined(separator: ", "))")
             } catch {
                 Log.write("titler FAILED: \(error)")
                 lastError = "Titling failed — used the offline label. (\(error.localizedDescription))"
+                // The offline label, from the text already read — here rather
+                // than left to `Renamer`, which would read the picture again
+                // to get it, and so the card can be told whether the name it
+                // is about to show is the generic word.
+                if let offline = try? await KeywordTitler().labelling(forOCRText: ocr,
+                                                                       vocabulary: taggingEnabled ? vocabulary : []) {
+                    label = offline.title
+                    tags = offline.tags
+                }
             }
-            // label == nil → Renamer falls back to its own titler (offline).
+            let generic = LabelCleaner.clean(label ?? "") == LabelCleaner.generic
             let outcome = try await Renamer(titler: KeywordTitler(), template: nameTemplate,
                                             vocabulary: taggingEnabled ? vocabulary : [])
                 .rename(fileAt: url, label: label, tags: tags, text: ocr)
@@ -1162,7 +1176,7 @@ public final class ShotScribeModel: ObservableObject {
                 // the only listener today and it is the app's to start — a
                 // library must not put a panel on someone's screen by itself.
                 justNamed = NamedCapture(url: to, from: from.lastPathComponent,
-                                         to: to.lastPathComponent, at: Date())
+                                         to: to.lastPathComponent, at: Date(), generic: generic)
                 // Index it now, not at the next sweep: a screenshot you just
                 // took is exactly the one you are about to go looking for. The
                 // old path is dropped so a rename does not leave a second,
@@ -1175,7 +1189,7 @@ public final class ShotScribeModel: ObservableObject {
                     ShotIndex.record(to, original: from.lastPathComponent)
                     await MainActor.run { self?.loadIndex(); self?.runSearch() }
                 }
-                if label != nil { lastError = nil }
+                if titled { lastError = nil }
             }
         } catch {
             Log.write("rename FAILED: \(error)")

@@ -5,6 +5,11 @@ import Foundation
 /// quotes/punctuation, capped to three words. Never empty — falls back to
 /// "Screenshot".
 public enum LabelCleaner {
+    /// The word a shot gets when nothing could be read off it, or what was
+    /// read made no title. Every titler falls back to this one, so a name
+    /// can be told generic from earned by this one word.
+    public static let generic = "Screenshot"
+
     public static func clean(_ raw: String) -> String {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         // first line only
@@ -23,6 +28,6 @@ public enum LabelCleaner {
         let words = s.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
         let capped = words.prefix(3).joined(separator: " ")
         let clean = capped.trimmingCharacters(in: .whitespacesAndNewlines)
-        return clean.isEmpty ? "Screenshot" : clean
+        return clean.isEmpty ? generic : clean
     }
 }

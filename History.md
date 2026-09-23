@@ -1331,6 +1331,54 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-23 — the capture card: naming you can see, a name in colour, a tile you can drag
+Josh's spec for 1.7.3, four changes to the card that slides up after a
+capture. (1) While the title is being written the card moves: three dots
+breathe on the badge and a band of light crosses the place the name will take
+(`PulsingDots`, `Shimmer`), instead of a still "Naming…". (2) When the name
+lands it fades in, in green — `ShotPalette.named`, a step darker than the
+system's in light so it holds on glass, a step lighter in dark. A shot that
+got the generic word is set in grey under a badge that says "Nothing to
+read". For that the model now says which is which: `NamedCapture.generic`,
+computed from the label it passed; on a titler failure the model takes the
+offline label itself from the text it already read (`KeywordTitler`), rather
+than leaving `Renamer` to read the picture a second time to get it, and the
+one word every titler falls back to is one constant, `LabelCleaner.generic`,
+in place of seven literals. (3) The tile keeps its picture through the
+rename: `CaptureCardState.image` is loaded once when the capture lands and
+never reloaded by path — `AspectThumbnail` keyed on the path went blank for a
+beat when the path changed under it. (4) The tile is a drag source: `DragTile`,
+a real `NSView` with a real `NSDraggingSource`, puts the file URL on the
+pasteboard (`NSURL`, so Finder copies it and a browser's upload field, Slack
+and Jira take the file — never the pixels), shows the tile itself as the drag
+image, is copy-only so a Finder drop cannot move the file out of the folder,
+and reports the drag's start and end to the presenter, which holds both the
+linger and the forty-second ceiling for as long as the drag lasts. Draggable
+only once the name has landed, with an open-hand cursor to say so; a drag
+begun before the rename would deliver a path about to stop existing.
+
+Chosen from renders, not by taste: `scripts/render-card.swift` hosts the real
+card off-screen in both appearances and its three states over a busy desktop,
+with a row of candidates on the card's glass. Green and gold both read in
+both modes; green is the one signal with the green "Named" badge, gold a
+second accent saying the same thing. One harness gotcha worth its comment:
+`.ultraThinMaterial` does not blur in `cacheDisplay`, so the harness paints
+the blurred, tinted patch the material would.
+
+Nine tests in `CaptureCardTests`: the generic word is the one every titler
+falls back to; a real title is not generic, the generic word is flagged, a
+failing titler gets the offline name and keeps the error; the tile writes a
+file URL and no PNG to the pasteboard; not draggable until named; a press
+becomes a drag only once it has moved; the state keeps its picture through
+the rename; and, driven through the watcher, only the raw capture is
+announced as landed — ShotScribe's own output never puts up a card. One
+lesson on the way: every test that constructs a `ShotScribeModel` must use
+the same settings suite name, because `ShotScribeModel.defaults` is a
+`static let` bound to the first suite it sees per process; a second name left
+the watcher tests reading a suite nobody wrote to and watching the real
+Screenshots folder. 267 tests. `serverInfo` and the changelog at 1.7.3,
+unreleased.
+
 ## 2026-09-22, late afternoon — accurate, always
 The morning's fix had a gate in it, and the gate was the next bug. Josh took
 ten captures of numbered slides two minutes apart; the five at about 550 × 720

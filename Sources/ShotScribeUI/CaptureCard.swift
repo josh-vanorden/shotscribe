@@ -13,11 +13,18 @@ public final class CaptureCardState: ObservableObject {
     @Published public var from: String
     /// nil while the titler is still thinking.
     @Published public var to: String?
+    /// The name it got is the generic word, not one read off the picture.
+    @Published public var generic = false
+    /// The picture, read once when the capture lands and kept. The file's
+    /// name changes under the card; its pixels do not, and a tile that
+    /// reloaded by path went blank at the very moment the name arrived.
+    @Published public var image: NSImage?
 
     public init(url: URL, from: String, to: String? = nil) {
         self.url = url; self.from = from; self.to = to
     }
 
+    var named: Bool { to != nil }
     var title: String { (to.map { ($0 as NSString).deletingPathExtension }) ?? "Naming…" }
     var subtitle: String { "was \((from as NSString).deletingPathExtension)" }
 }
@@ -49,6 +56,9 @@ public struct CaptureCard: View {
     /// second ceiling (Josh, 2026-09-15: "the shot remained open for a really
     /// long time"). Anything done *from* a menu says so here instead.
     let renew: () -> Void
+    /// A drag from the tile has begun, or ended. The card must not leave in
+    /// the middle of one, however long the drop takes to find.
+    let dragging: (Bool) -> Void
 
     @State private var hovered = false
     /// What the cursor is on, said on the card itself rather than left to a
@@ -59,42 +69,63 @@ public struct CaptureCard: View {
 
     public init(state: CaptureCardState, model: ShotScribeModel,
                 open: @escaping () -> Void, dismiss: @escaping () -> Void,
-                hovering: @escaping (Bool) -> Void, renew: @escaping () -> Void = {}) {
+                hovering: @escaping (Bool) -> Void, renew: @escaping () -> Void = {},
+                dragging: @escaping (Bool) -> Void = { _ in }) {
         self.state = state; self.model = model
         self.open = open; self.dismiss = dismiss
-        self.hovering = hovering; self.renew = renew
+        self.hovering = hovering; self.renew = renew; self.dragging = dragging
     }
 
     private var shot: IndexedShot? { model.shot(atPath: state.url.path) }
 
     public var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Button {
-                if let shot { model.click(shot) } else { revealDirectly() }
-                dismiss()
-            } label: {
-                AspectThumbnail(path: state.url.path, aspect: 16.0 / 10.0, pixels: 380)
-                    .frame(width: 116, height: 73)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(.separator, lineWidth: 1))
-                    .contentShape(Rectangle())
+            // The picture is the state's own, loaded once; the tile never
+            // reloads by path, so it is there before the name and stays
+            // after it. On top, the drag source: a real `NSView`, because a
+            // drop into Finder or Slack wants the file on disk, not pixels.
+            ZStack {
+                if let image = state.image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else {
+                    Rectangle().fill(.quaternary)
+                        .overlay(Image(systemName: "photo")
+                            .foregroundStyle(.secondary).font(.system(size: 18)))
+                }
+                DragTile(image: state.image, url: state.named ? state.url : nil,
+                         click: {
+                             if let shot { model.click(shot) } else { revealDirectly() }
+                             dismiss()
+                         },
+                         hover: { inside in
+                             hint = inside ? tileHint : nil
+                             // The tile is a platform view; make sure the card
+                             // knows it is being looked at while the cursor is
+                             // on it, whatever the root's own hover reports.
+                             if inside { hovered = true; hovering(true) }
+                         },
+                         dragging: dragging)
             }
-            .buttonStyle(.plain)
-            .onHover { hint = $0 ? (shot.map { _ in model.title(of: model.defaultAction) } ?? "Reveal in Finder") : nil }
+            .frame(width: 116, height: 73)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 1))
+            .opacity(state.named ? 1 : 0.88)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     // A filled badge, not coloured text: the card floats over
                     // whatever happens to be on screen, and green words on
                     // glass over a bright desktop wash out to nothing.
-                    Text(state.to == nil ? "Naming…" : "Named")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 7).padding(.vertical, 2)
-                        .background(Capsule().fill(state.to == nil
-                                                   ? AnyShapeStyle(Color.secondary)
-                                                   : AnyShapeStyle(ShotPalette.chosen)))
+                    HStack(spacing: 4) {
+                        Text(badge).font(.system(size: 10, weight: .bold))
+                        if !state.named { PulsingDots() }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(Capsule().fill(state.named && !state.generic
+                                               ? AnyShapeStyle(ShotPalette.chosen)
+                                               : AnyShapeStyle(Color.secondary)))
                     // Clicking a chip takes the tag off. Filing from here has
                     // to be as easy to undo as it was to do.
                     ForEach(tags, id: \.self) { tag in
@@ -147,10 +178,21 @@ public struct CaptureCard: View {
                     }
                 }
 
-                Text(state.title)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(state.to == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                    .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                // Green for a name the shot earned, grey for the generic word:
+                // the colour says at a glance whether there is anything to
+                // read here, before the word does.
+                if state.named {
+                    Text(state.title)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(state.generic ? AnyShapeStyle(.secondary)
+                                                       : AnyShapeStyle(ShotPalette.named))
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                        .transition(.opacity)
+                } else {
+                    Shimmer()
+                        .frame(width: 150, height: 15)
+                        .transition(.opacity)
+                }
 
                 Text(hint ?? state.subtitle)
                     .font(.caption2)
@@ -240,7 +282,7 @@ public struct CaptureCard: View {
                 .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .animation(.easeOut(duration: 0.18), value: state.to)
+            .animation(.easeOut(duration: 0.3), value: state.to)
         }
         .padding(.leading, 12).padding(.trailing, 14)
         .padding(.vertical, 12)
@@ -276,6 +318,19 @@ public struct CaptureCard: View {
 
     private var tags: [String] { Array((shot?.tags ?? []).prefix(3)) }
 
+    private var badge: String {
+        guard state.named else { return "Naming" }
+        return state.generic ? "Nothing to read" : "Named"
+    }
+
+    /// What the tile does, said on the card: a click, and — once there is a
+    /// name to deliver — a drag.
+    private var tileHint: String {
+        guard state.named else { return "Naming — drag it once it has a name" }
+        let click = shot.map { _ in model.title(of: model.defaultAction) } ?? "Reveal in Finder"
+        return "\(click) · or drag it into any app"
+    }
+
     /// Tall enough for a badge line, the name, what it was, and the row of
     /// actions underneath it.
     public static let height: CGFloat = 132
@@ -299,6 +354,165 @@ public struct CaptureCard: View {
         NSWorkspace.shared.activateFileViewerSelecting([state.url])
     }
 
+}
+
+/// Three dots that breathe in turn: the badge's sign that something is
+/// happening, on a card that used to say "Naming…" and then sit still.
+private struct PulsingDots: View {
+    @State private var lit = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle().frame(width: 3, height: 3)
+                    .opacity(lit ? 1 : 0.3)
+                    .animation(.easeInOut(duration: 0.45).repeatForever().delay(Double(i) * 0.15), value: lit)
+            }
+        }
+        .onAppear { lit = true }
+    }
+}
+
+/// A band of light crossing the place the name will take.
+private struct Shimmer: View {
+    @State private var phase: CGFloat = -1
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(Color.primary.opacity(0.09))
+            .overlay {
+                GeometryReader { geo in
+                    LinearGradient(colors: [.clear, Color.primary.opacity(0.22), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: geo.size.width * 0.55)
+                        .offset(x: phase * geo.size.width)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
+            .onAppear {
+                withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) { phase = 1.2 }
+            }
+    }
+}
+
+/// The tile as a drag source, and as the click it always was.
+///
+/// A real `NSView` with a real `NSDraggingSource`, not `onDrag`: the drop has
+/// to receive the **file on disk** under the name it was just given — Finder
+/// copies it, a browser's upload field takes it, Slack and Jira attach it —
+/// and the card has to know when the drag ends so it does not leave in the
+/// middle of one. `url` is nil until the name lands; a drag that began before
+/// the rename would deliver a file that no longer exists.
+struct DragTile: NSViewRepresentable {
+    var image: NSImage?
+    var url: URL?
+    var click: () -> Void
+    var hover: (Bool) -> Void
+    var dragging: (Bool) -> Void
+
+    func makeNSView(context: Context) -> DragTileView { DragTileView() }
+
+    func updateNSView(_ view: DragTileView, context: Context) {
+        view.image = image
+        view.url = url
+        view.click = click
+        view.hover = hover
+        view.dragging = dragging
+    }
+}
+
+final class DragTileView: NSView, NSDraggingSource {
+    var image: NSImage?
+    /// The file a drag delivers. nil means not yet: the name has not landed.
+    var url: URL? {
+        didSet { if (url == nil) != (oldValue == nil) { window?.invalidateCursorRects(for: self) } }
+    }
+    var click: () -> Void = {}
+    var hover: (Bool) -> Void = { _ in }
+    var dragging: (Bool) -> Void = { _ in }
+    private var pressedAt: NSPoint?
+    private var tracking: NSTrackingArea?
+
+    var canDrag: Bool { url != nil }
+
+    /// Past this, a press has become a drag. Under it, it is a click that has
+    /// not finished yet.
+    static func isDrag(from a: NSPoint, to b: NSPoint) -> Bool { hypot(a.x - b.x, a.y - b.y) >= 4 }
+
+    /// What goes on the pasteboard: the URL as a file URL, which is what
+    /// every receiver that takes files reads, and what the pasteboard also
+    /// offers to older receivers as a filename list.
+    static func writer(for url: URL) -> NSPasteboardWriting { url as NSURL }
+
+    // The card floats in a non-activating panel; the first click must count.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        tracking = area
+    }
+
+    override func resetCursorRects() {
+        if canDrag { addCursorRect(bounds, cursor: .openHand) }
+    }
+
+    override func mouseEntered(with event: NSEvent) { hover(true) }
+    override func mouseExited(with event: NSEvent) { hover(false) }
+
+    override func mouseDown(with event: NSEvent) {
+        pressedAt = convert(event.locationInWindow, from: nil)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let start = pressedAt, let url else { return }
+        let now = convert(event.locationInWindow, from: nil)
+        guard Self.isDrag(from: start, to: now) else { return }
+        pressedAt = nil
+        let item = NSDraggingItem(pasteboardWriter: Self.writer(for: url))
+        item.setDraggingFrame(bounds, contents: dragImage())
+        dragging(true)
+        beginDraggingSession(with: [item], event: event, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard pressedAt != nil else { return }
+        pressedAt = nil
+        click()
+    }
+
+    /// The tile as it looks — the picture filling its rounded frame — so what
+    /// travels under the cursor is the thing that was picked up.
+    private func dragImage() -> NSImage {
+        let picture = image
+        return NSImage(size: bounds.size, flipped: false) { rect in
+            NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).addClip()
+            guard let picture, picture.size.width > 0, picture.size.height > 0 else {
+                NSColor.quaternaryLabelColor.setFill(); rect.fill(); return true
+            }
+            let scale = max(rect.width / picture.size.width, rect.height / picture.size.height)
+            let w = picture.size.width * scale, h = picture.size.height * scale
+            picture.draw(in: NSRect(x: rect.midX - w / 2, y: rect.midY - h / 2, width: w, height: h))
+            return true
+        }
+    }
+
+    // MARK: NSDraggingSource
+
+    /// Copy, and only copy. `.generic` would let Finder *move* the file out
+    /// of the Screenshots folder on a drop to the same volume.
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .outsideApplication ? .copy : []
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        dragging(false)
+    }
+
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
 }
 
 private struct CardButton: View {
@@ -435,6 +649,8 @@ public final class CaptureCardPresenter {
     private var landed: AnyCancellable?
     private var named: AnyCancellable?
     private var held = false
+    /// A drag from the tile is under way: no timer, no ceiling, until it ends.
+    private var dragging = false
 
     /// Long enough to read a name and reach for it, short enough not to sit in
     /// the way. The timer stops while the cursor is on the card, and it starts
@@ -476,6 +692,12 @@ public final class CaptureCardPresenter {
         guard let screen = NSScreen.main else { return }
         let state = CaptureCardState(url: url, from: url.lastPathComponent)
         self.state = state
+        // The picture, once. The name will change the path under this card;
+        // the pixels it shows must not follow the path and go blank.
+        Task { @MainActor [weak self] in
+            let image = await ThumbnailCache.shared.load(url.path, size: CGSize(width: 380, height: 238), scale: 2)
+            if let self, self.state === state { state.image = image }
+        }
 
         let size = CGSize(width: CaptureCard.width(for: state.title), height: CaptureCard.height)
         let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -504,6 +726,18 @@ public final class CaptureCardPresenter {
         }, renew: { [weak self] in
             self?.held = false
             self?.armTimer()
+        }, dragging: { [weak self] inDrag in
+            guard let self else { return }
+            self.dragging = inDrag
+            if inDrag {
+                self.cancelTimer()
+                self.ceiling?.cancel()
+                self.ceiling = nil
+            } else {
+                self.held = false
+                self.armTimer()
+                self.armCeiling()
+            }
         })
         panel.contentView = FirstClickHostingView(rootView: view)
 
@@ -533,6 +767,7 @@ public final class CaptureCardPresenter {
             show(url: capture.url)
             self.state?.from = capture.from
             self.state?.to = capture.to
+            self.state?.generic = capture.generic
             if let p = self.panel, let screen = NSScreen.main, let s = self.state {
                 p.setFrame(rect(in: screen.visibleFrame, width: CaptureCard.width(for: s.title)),
                            display: true)
@@ -542,6 +777,7 @@ public final class CaptureCardPresenter {
         }
         state.url = capture.url
         state.to = capture.to
+        state.generic = capture.generic
         guard let screen = NSScreen.main else { return }
         let width = CaptureCard.width(for: state.title)
         NSAnimationContext.runAnimationGroup { ctx in
@@ -566,7 +802,7 @@ public final class CaptureCardPresenter {
         // linger, the card left, and the name arrived to an empty screen —
         // which then put up a second card with the new name in both lines.)
         guard state?.to != nil else { return }
-        guard !held else { return }
+        guard !held, !dragging else { return }
         let work = DispatchWorkItem { [weak self] in self?.hide(animated: true) }
         dismissAt = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.linger, execute: work)
@@ -589,6 +825,7 @@ public final class CaptureCardPresenter {
         ceiling?.cancel()
         ceiling = nil
         held = false
+        dragging = false
         state = nil
         guard let panel else { return }
         self.panel = nil

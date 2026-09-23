@@ -23,4 +23,14 @@ public enum ShotPalette {
     /// at a glance, in light and dark alike, and the accent is what everything
     /// else already wears.
     public static let chosen = Color(nsColor: .systemGreen)
+
+    /// The name on the capture card the moment it lands. Green, a step
+    /// darker than the system's in light mode so it holds on glass over a
+    /// bright desktop, a step lighter in dark so it is not the badge's fill
+    /// again. The generic word is never set in it.
+    public static let named = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(srgbRed: 0.33, green: 0.87, blue: 0.43, alpha: 1)   // #54DE6E
+            : NSColor(srgbRed: 0.09, green: 0.49, blue: 0.24, alpha: 1)   // #177D3D
+    })
 }
