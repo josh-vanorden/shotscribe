@@ -215,9 +215,10 @@ case "eval":
     var failures: [String] = []   // a titler that cannot run is not a titler that named badly
     for (i, c) in cases.enumerated() {
         FileHandle.standardError.write(Data("  \(i + 1)/\(cases.count)\r".utf8))
-        let ocr = OCR.recognizeText(atPath: c.url.path)
+        // The same read the app makes: the chrome off, the positions kept.
+        let lines = Chrome.body(of: OCR.recognizeLines(atPath: c.url.path))
         let got: Labelling
-        do { got = try await titler.labelling(forOCRText: ocr, vocabulary: renamer.vocabulary) }
+        do { got = try await titler.labelling(for: lines, vocabulary: renamer.vocabulary) }
         catch { failures.append(error.localizedDescription); got = Labelling(title: LabelCleaner.generic) }
         let s = Evals.score(got, against: c)
         scores.append(s)

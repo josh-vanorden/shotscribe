@@ -4,6 +4,26 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.7.3 — unreleased
 
+- **The same screen gets the same name.** The titler's instructions now say
+  how to choose, not just how long: prefer the words the screen uses for
+  itself, name the subject rather than the app or a person on it, no "Slide",
+  "Diagram" or "Screen" unless the screen says so, no slide numbers, and the
+  plainest reading wins. An ampersand becomes the word "and" before the name
+  is cut, so "Guardrails & Permissions" and "Guardrails And Permissions" are
+  one name. Measured on the same 25 captures twice over: the old instructions
+  agreed with themselves on 16 titles, the new on 20.
+- **Offline, the headline is the title.** Without an AI connected, a capture
+  with one line set clearly bigger than the rest near the top — a slide's
+  title, a dialog's heading, a page's h1 — is named from that line, read off
+  the positions the text pass already has, with a slide's number dropped.
+  Pictures of one size of text, a terminal or a chat, keep the keyword
+  titles. A small slide's title had also been mistaken for a menu bar and
+  stripped as chrome; the bar rules now ask where the line starts and how
+  tall it is.
+- **The capture card stays through a drag, whatever lands meanwhile.** A name
+  arriving mid-drag re-armed the card's hard forty-second stop, so a drag
+  held long enough saw the card leave under the cursor. Found by a Codex
+  read-only review of the day's commits.
 - **A title the model gave is never thrown away for an exit code.** Twice in
   three days `claude` printed a good answer and exited non-zero, and the app
   took the exit code as the verdict, logged the answer as the failure's

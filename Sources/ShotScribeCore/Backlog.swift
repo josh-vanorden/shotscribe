@@ -50,9 +50,8 @@ public enum Backlog {
     public static func propose(_ url: URL, renamer: Renamer, titler: Titler,
                                vocabulary: [String]) async -> Proposal? {
         let lines = OCR.recognizeLines(atPath: url.path)
-        let labelling = (try? await titler.labelling(
-            forOCRText: OCR.text(of: Chrome.body(of: lines)), vocabulary: vocabulary))
-            ?? Labelling(title: "Screenshot")
+        let labelling = (try? await titler.labelling(for: Chrome.body(of: lines), vocabulary: vocabulary))
+            ?? Labelling(title: LabelCleaner.generic)
         let label = LabelCleaner.clean(labelling.title)
         let tags = Tagging.accepted(labelling.tags, vocabulary: vocabulary)
         guard let outcome = try? await renamer.rename(

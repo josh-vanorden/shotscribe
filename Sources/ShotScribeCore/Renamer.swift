@@ -45,13 +45,13 @@ public struct Renamer: Sendable {
 
     /// OCR + title + the filing this renamer would give it. Touches nothing.
     public func labelling(fileAt url: URL) async -> Labelling {
-        let ocr = OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: url.path)))
+        let lines = Chrome.body(of: OCR.recognizeLines(atPath: url.path))
         do {
-            let proposed = try await titler.labelling(forOCRText: ocr, vocabulary: vocabulary)
+            let proposed = try await titler.labelling(for: lines, vocabulary: vocabulary)
             if !proposed.title.isEmpty { return proposed }
         } catch {
             onTitlerError?(error)
-            if let offline = try? await KeywordTitler().labelling(forOCRText: ocr, vocabulary: vocabulary),
+            if let offline = try? await KeywordTitler().labelling(for: lines, vocabulary: vocabulary),
                !offline.title.isEmpty { return offline }
         }
         return Labelling(title: LabelCleaner.generic)
@@ -103,8 +103,9 @@ public struct Renamer: Sendable {
             label = LabelCleaner.clean(explicitLabel)
         } else {
             let lines = OCR.recognizeLines(atPath: url.path)
-            let body = OCR.text(of: Chrome.body(of: lines))
-            let labelling = (try? await titler.labelling(forOCRText: body, vocabulary: vocabulary))
+            let bodyLines = Chrome.body(of: lines)
+            let body = OCR.text(of: bodyLines)
+            let labelling = (try? await titler.labelling(for: bodyLines, vocabulary: vocabulary))
                 ?? Labelling(title: LabelCleaner.generic)
             label = LabelCleaner.clean(labelling.title)
             if tags.isEmpty { tags = labelling.tags }

@@ -209,7 +209,7 @@ func runOCRScreenshot(_ args: [String: Any]) async -> [String: Any] {
     guard !text.isEmpty else {
         return textResult("No text recognized (image-only screenshot). Suggested title: \"Screenshot\".")
     }
-    let suggested = (try? await KeywordTitler().title(forOCRText: text)) ?? "Screenshot"
+    let suggested = (try? await KeywordTitler().title(forOCRText: text)) ?? LabelCleaner.generic
     return textResult("Suggested title (offline): \(suggested)\n\nOCR text:\n\(text)")
 }
 

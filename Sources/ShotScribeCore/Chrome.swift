@@ -34,8 +34,13 @@ public enum Chrome {
         // Vision may hand the whole bar back as one line or one per menu.
         // Fast recognition draws generous boxes: a 28px bar on a 700px shot is
         // 4% tall on paper and nearer 6% as Vision reports it.
+        // The app's name is the first thing after the Apple mark, so it starts
+        // within the leftmost tenth of the screen on any display. A line that
+        // starts further in is not the bar: a small slide's title, 5% tall
+        // and starting at 19%, was read as the app "Human-in-the-Loop Design"
+        // and then stripped from the body as chrome (2026-09-23).
         let bar = lines.filter { $0.top < 5 && $0.height < 6.5 }.sorted { $0.left < $1.left }
-        for line in bar where line.left < 25 {
+        for line in bar where line.left < 12 {
             var words: [String] = []
             for raw in line.text.split(separator: " ") {
                 let word = String(raw.drop(while: { !$0.isLetter && !$0.isNumber }))
@@ -49,8 +54,9 @@ public enum Chrome {
             let name = Naming.sanitize(words.joined(separator: " "), maxChars: 30)
             if name.count >= 2 { return name }
         }
-        // The title bar: the topmost line that sits roughly centred.
-        let centred = lines.filter { $0.top < 9 && $0.left > 15 && $0.left + $0.width < 85 }
+        // The title bar: the topmost line that sits roughly centred, in the
+        // small type a title bar is set in — a heading up top is not a bar.
+        let centred = lines.filter { $0.top < 9 && $0.height < 6.5 && $0.left > 15 && $0.left + $0.width < 85 }
         if let title = centred.min(by: { $0.top < $1.top }) {
             let head = title.text.components(separatedBy: [" — ", " – ", " - ", " | ", " · "].first { title.text.contains($0) } ?? "\u{0}").first ?? title.text
             let name = Naming.sanitize(head.split(separator: " ").prefix(3).joined(separator: " "), maxChars: 30)

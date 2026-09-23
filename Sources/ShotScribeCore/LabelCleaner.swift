@@ -23,6 +23,11 @@ public enum LabelCleaner {
         if let colon = s.firstIndex(of: ":"), s[..<colon].count <= 10 {
             s = String(s[s.index(after: colon)...])
         }
+        // An ampersand is a word here, not a mark: "Guardrails & Permissions"
+        // and "Guardrails And Permissions" came back for one screen on two
+        // runs (2026-09-23), and a name should not depend on which the model
+        // felt like. Before the cap, so the word counts.
+        s = s.replacingOccurrences(of: "&", with: " and ")
         // strip surrounding quotes / stray punctuation
         s = s.trimmingCharacters(in: CharacterSet(charactersIn: " \t\"'`.,;:—-–()[]{}"))
         let words = s.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)

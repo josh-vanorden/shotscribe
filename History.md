@@ -1331,6 +1331,48 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-23, afternoon — the consistency pass, the headline rule, and the ceiling
+Josh: "do the consistency pass and the headline rule", plus a timer bug
+another session had Codex find. Three pieces, one measured.
+
+**The prompt.** `TitlerPrompt.rules`, shared by the plain and the tagged
+prompts: prefer the screen's own words, name the subject rather than the app
+or a person, no kind-of-picture words unless on screen, no slide numbers, the
+plainest reading wins. The first draft said "never a synonym" and "put the
+app first", and the measurement caught both: "Suspicious Login Alert" became
+"Google Workspace Suspicious", so "app first" went; "Slack Channel Rename"
+became "Ksenia Kampf", so literalism was softened to "when the screen names
+nothing, say what it shows". `LabelCleaner` turns "&" into "and" before the
+word cap. **Measured as self-agreement**, the same 25 captures run twice,
+because the eval's other number is confounded: the kept names are the old
+prompt's own phrasing ("Agent … Slide"), so any change of style loses
+against them by construction — the old prompt scores 60% recall against
+them, the new 45–47%. Run to run, old prompt 16 of 25 identical titles, new
+20 (case-insensitive, as the eval compares). The five that still vary are
+screens with no name of their own: a Slack rename, a ticket board, an org
+chart, a maps app menu, a tmux pane.
+
+**The headline rule.** `Titler.labelling(for lines:vocabulary:)`, a protocol
+requirement with a default (the static-dispatch trap again), so the offline
+titler can see where the words sit. `KeywordTitler.headline(in:)`: the
+tallest line with letters in the top 60% of the picture, clearly taller than
+the median of the rest of the page, joined with the rest of its row, a
+leading number dropped, title-cased with short acronyms kept. Every door
+with lines in hand passes them — `Renamer`, the model, `Backlog`, the eval.
+Offline recall against kept names 30% → 37%; the numbered slides go from
+"Goal Agent Max" to "Loop Engineering". Two flaws surfaced on the way and
+are in Triage: a slide's number rode into the title, and one slide's title
+was being stripped as a menu bar by `Chrome.app` (a 5%-tall line starting at
+19% fit the bar rule; the app's name starts within the leftmost tenth, so
+`left < 12`, and a title-bar line must be bar-sized). `HeadlineTests`, nine
+cases, including the existential dispatch and the chrome case.
+
+**The ceiling.** `armCeiling` returns while a drag is under way, so a name
+landing mid-drag cannot start the forty-second stop; the drag's end arms it
+again. Triage has the entry, with the open question about a hidden card's
+drop left open on purpose. 282 tests. App rebuilt and relaunched with all of
+it; the old-prompt baseline was built from the last commit in a worktree.
+
 ## 2026-09-23, midday — the eval, and a title thrown away for an exit code
 Josh: "run the eval… can it work better if the user connects AI, of course."
 `shotscribe eval --limit 25` twice against the 25 newest kept names in the

@@ -130,13 +130,13 @@ public final class ShotScribeModel: ObservableObject {
                     < ((try? b.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast)
             }
             guard let newest else { self?.aiTrial = "No capture in \(folder.lastPathComponent) to try on."; return }
-            let ocr = await Task.detached(priority: .userInitiated) {
-                OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: newest.path)))
+            let lines = await Task.detached(priority: .userInitiated) {
+                Chrome.body(of: OCR.recognizeLines(atPath: newest.path))
             }.value
             let titler: Titler = provider.makeTitler() ?? KeywordTitler()
             let started = Date()
             do {
-                let got = try await titler.labelling(forOCRText: ocr, vocabulary: vocabulary)
+                let got = try await titler.labelling(for: lines, vocabulary: vocabulary)
                 let secs = String(format: "%.1f s", Date().timeIntervalSince(started))
                 let tags = got.tags.isEmpty ? "" : " · " + got.tags.joined(separator: ", ")
                 self?.aiTrial = "\(newest.lastPathComponent) → “\(got.title)”\(tags) · \(secs)"
@@ -1138,15 +1138,16 @@ public final class ShotScribeModel: ObservableObject {
             // failure is VISIBLE — logged and shown in the panel — instead of
             // silently falling back to the generic label.
             let path = url.path
-            let ocr = await Task.detached(priority: .utility) {
-                OCR.text(of: Chrome.body(of: OCR.recognizeLines(atPath: path)))
+            let lines = await Task.detached(priority: .utility) {
+                Chrome.body(of: OCR.recognizeLines(atPath: path))
             }.value
+            let ocr = OCR.text(of: lines)
             Log.write("new capture \(url.lastPathComponent): ocr=\(ocr.count) chars")
             var label: String?
             var tags: [String] = []
             var titled = false
             do {
-                let proposed = try await titler.labelling(forOCRText: ocr,
+                let proposed = try await titler.labelling(for: lines,
                                                           vocabulary: taggingEnabled ? vocabulary : [])
                 label = proposed.title
                 tags = proposed.tags
@@ -1159,7 +1160,7 @@ public final class ShotScribeModel: ObservableObject {
                 // than left to `Renamer`, which would read the picture again
                 // to get it, and so the card can be told whether the name it
                 // is about to show is the generic word.
-                if let offline = try? await KeywordTitler().labelling(forOCRText: ocr,
+                if let offline = try? await KeywordTitler().labelling(for: lines,
                                                                        vocabulary: taggingEnabled ? vocabulary : []) {
                     label = offline.title
                     tags = offline.tags
