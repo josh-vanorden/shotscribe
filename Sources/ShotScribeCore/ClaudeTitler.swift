@@ -89,18 +89,43 @@ public struct ClaudeTitler: Titler {
 
     private func complete(prompt: String, system: String) async throws -> String {
         guard let bin = Self.resolveBinary() else { throw CLIError.notFound }
-        var args = ["-p", prompt, "--output-format", "text"]
+        var args = ["-p", prompt, "--output-format", "json"]
         if let model, !model.isEmpty { args += ["--model", model] }
         if !system.isEmpty { args += ["--append-system-prompt", system] }
         args += ["--strict-mcp-config", "--disallowedTools", Self.deniedTools]
         let run = try await CommandRunner.run(bin, args, timeout: timeout)
-        if run.status == 0 && !run.out.isEmpty { return run.out }
+        return try Self.answer(out: run.out, err: run.err, status: run.status)
+    }
+
+    /// The answer in what the CLI printed, or the reason there is none.
+    ///
+    /// **The exit status is not the verdict.** Twice in three days the CLI
+    /// printed a good answer — "IT Support Tickets | ticket, dashboard" — and
+    /// exited non-zero, and the app threw the answer away as the failure's
+    /// reason and used the offline name (2026-09-21, 2026-09-23). So the
+    /// reply is asked for as JSON and read from its envelope: `result` is the
+    /// answer when `is_error` is false, whatever the process then exited with.
+    /// A reply that is not the envelope — a CLI that ignores the flag, or the
+    /// plain "Failed to authenticate: OAuth session expired" the CLI prints on
+    /// stdout with exit 1 — is judged the old way: text with exit 0 is the
+    /// answer, anything else is the reason.
+    static func answer(out: String, err: String, status: Int32) throws -> String {
+        if let data = out.data(using: .utf8),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           object["type"] as? String == "result" {
+            let result = (object["result"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let isError = object["is_error"] as? Bool ?? false
+            if !isError, !result.isEmpty { return result }
+            let reason = CommandRunner.printable(String(result.prefix(200))).trimmingCharacters(in: .whitespaces)
+            throw reason.isEmpty ? CLIError.empty : CLIError.failed(reason)
+        }
+        if status == 0 && !out.isEmpty { return out }
         // The reason can be on EITHER stream: the CLI reports "Failed to
         // authenticate: OAuth session expired" on stdout with exit 1, so
         // reading only stderr made every expired session look like `.empty`.
         // Printable before it is thrown: this string reaches the terminal, the
         // panel and the log, and the CLI's streams are not trusted with them.
-        let reason = CommandRunner.printable(String((run.err.isEmpty ? run.out : run.err).prefix(200)))
+        let reason = CommandRunner.printable(String((err.isEmpty ? out : err).prefix(200)))
             .trimmingCharacters(in: .whitespaces)
         throw reason.isEmpty ? CLIError.empty : CLIError.failed(reason)
     }

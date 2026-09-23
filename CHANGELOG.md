@@ -4,6 +4,12 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.7.3 — unreleased
 
+- **A title the model gave is never thrown away for an exit code.** Twice in
+  three days `claude` printed a good answer and exited non-zero, and the app
+  took the exit code as the verdict, logged the answer as the failure's
+  reason, and used the offline name. The reply is now read from the CLI's own
+  result envelope: the answer is the answer whatever the process exited with,
+  and an expired session or a rate limit is still reported in its own words.
 - **The capture card: naming you can see, a name in colour, a tile you can
   drag.** While the title is being written the card moves — pulsing dots on
   the badge, a shimmer where the name will go — instead of a still

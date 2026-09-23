@@ -1331,6 +1331,34 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-23, midday — the eval, and a title thrown away for an exit code
+Josh: "run the eval… can it work better if the user connects AI, of course."
+`shotscribe eval --limit 25` twice against the 25 newest kept names in the
+folder, Claude signed in: with Claude, exact 36%, title recall 60%, tag
+precision 66%, tag recall 81%, in 3:58 (about 9.5 s a shot); offline, exact
+8%, title recall 30%, tag precision 33%, tag recall 17%, in 3 s. So yes:
+connected, the names are twice as close and the filing four times, and the
+offline titler's misses are word salad ("Chief Director Contracto", "Green
+Over Gold") where Claude's are alternative phrasings ("Harness Engineering
+Diagram" for "Harness Engineering Slide"). The goal card's gate is 80%; the
+kept names are mostly the titler's own earlier answers, so exact-match
+measures self-consistency as much as quality — read the recall.
+
+The log beside the eval had the finding that matters: two renames in three
+days took the offline name although Claude had answered. `titler FAILED:
+failed("IT Support Tickets | ticket, dashboard")` — the failure's reason was
+the answer. `ClaudeTitler.complete` took a non-zero exit as the verdict and,
+with stderr empty, threw stdout as the reason. The CLI prints its reply and
+then, now and then, exits non-zero; a plain run exits 0, so the cause is
+downstream of the answer and not the app's. The reply is now asked for as
+JSON and read from the envelope (`ClaudeTitler.answer(out:err:status:)`):
+`result` when `is_error` is false, whatever the exit status; an error
+envelope fails in its own words; anything that is not the envelope — a CLI
+that ignores the flag, the plain "Failed to authenticate" on stdout with
+exit 1 — is judged the old way. `ClaudeTitlerTests` pins the five cases; the
+eval's own fallback literal is `LabelCleaner.generic` now too. Triage has the
+entry.
+
 ## 2026-09-23 — the capture card: naming you can see, a name in colour, a tile you can drag
 Josh's spec for 1.7.3, four changes to the card that slides up after a
 capture. (1) While the title is being written the card moves: three dots

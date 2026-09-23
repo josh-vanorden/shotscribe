@@ -218,7 +218,7 @@ case "eval":
         let ocr = OCR.recognizeText(atPath: c.url.path)
         let got: Labelling
         do { got = try await titler.labelling(forOCRText: ocr, vocabulary: renamer.vocabulary) }
-        catch { failures.append(error.localizedDescription); got = Labelling(title: "Screenshot") }
+        catch { failures.append(error.localizedDescription); got = Labelling(title: LabelCleaner.generic) }
         let s = Evals.score(got, against: c)
         scores.append(s)
         let mark = s.exact ? "=" : s.recall >= 0.5 ? "~" : " "

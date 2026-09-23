@@ -6,6 +6,13 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-23 13:05 — A good title was thrown away as a titler failure
+- **Bug/Issue:** Found while running the eval Josh asked for. Two renames in three days took the offline name although Claude had answered: the log reads `titler FAILED: failed("IT Support Tickets | ticket, dashboard")` (2026-09-21 13:19) and `titler FAILED: failed("Slack Cert Discussion | chat")` (2026-09-23 11:38). The offline names were "Bug Tickets Hold" and "Mail Sync Josh".
+- **RCA:** `ClaudeTitler.complete` took a non-zero exit status as the verdict: with stderr empty it threw `CLIError.failed(stdout)`, and stdout was the answer. The CLI had printed the reply and then exited non-zero — intermittent, not reproducible on demand (a plain run exits 0 with a clean stderr); the cause is downstream of the answer, a hook or the CLI's own tail end, and not the app's to fix.
+- **Evidence:** `ShotScribe.log` lines 1710 and 1770; 401 titler failures in the log overall, all the rest of the recent ones the OAuth-expired kind on 2026-09-15. `claude -p … --output-format json` prints `{"type":"result","is_error":false,"result":"…"}`.
+- **Fix/Repair:** The reply is asked for as JSON and read from the envelope (`ClaudeTitler.answer(out:err:status:)`): `result` is the answer when `is_error` is false, whatever the exit status; an error envelope fails in its own words; a reply that is not the envelope is judged the old way, so a CLI that ignores the flag and the plain-text "Failed to authenticate" both still behave. `ClaudeTitlerTests` pins all five cases. Unreleased (1.7.3).
+- **Related PR:** none — on `main`
+
 ### 2026-09-22 16:15 — Five small captures of slides were all titled "Screenshot"
 - **Bug/Issue:** Josh: "The OCR is failing on the rename that is the main purpose of the app… this is a real bug and getting annoying quick." Ten captures of numbered slides in two minutes: the first five (about 550 × 720) were named correctly, the next five (about 280 × 370) all came out "Screenshot".
 - **RCA:** The morning's fix re-read a sparse picture at `.accurate` only when it was at least 800 × 500. These were under that gate, so the `.fast` reading — 0, 3, 22, 0 and 36 characters — stood as the answer. `.fast` is at its worst on small pictures, which is exactly where the gate switched the rescue off. Not the titler and not the sign-in: "Evals for Agents", the one of the five whose fast pass caught its title, was named correctly.
