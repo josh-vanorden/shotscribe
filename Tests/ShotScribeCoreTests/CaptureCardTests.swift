@@ -127,23 +127,37 @@ final class CaptureCardTests: XCTestCase {
     /// a browser's upload field, Slack and Jira all read — not the pixels.
     func testTheTileHandsOverTheFileOnDisk() throws {
         let file = try capture("2026-08-11 1541 AWS Billing Console.png")
+        let tile = DragTileView()
+        tile.url = file
         let board = NSPasteboard(name: NSPasteboard.Name("shotscribe-test-\(UUID().uuidString)"))
         defer { board.releaseGlobally() }
         board.clearContents()
-        XCTAssertTrue(board.writeObjects([DragTileView.writer(for: file)]))
+        XCTAssertTrue(board.writeObjects([tile.pasteboardItem()]))
         XCTAssertTrue(board.types?.contains(.fileURL) == true, "\(board.types ?? [])")
         let read = board.readObjects(forClasses: [NSURL.self], options: nil) as? [URL]
         XCTAssertEqual(read?.first?.standardizedFileURL, file.standardizedFileURL)
         XCTAssertNil(board.data(forType: .png), "the picture travels as the file, not as pixels")
     }
 
-    /// Until the name lands there is nothing to deliver: a drag begun before
-    /// the rename would hand over a path that is about to stop existing.
-    func testTheTileIsNotDraggableUntilTheNameLands() {
+    /// Draggable before the name lands — naming takes seconds and a drag
+    /// that had to wait fired the click instead — and the drop reads the file
+    /// as it is *then*: picked up raw, delivered renamed.
+    func testADragPickedUpWhileNamingDeliversTheRenamedFile() throws {
+        let raw = try capture()
         let tile = DragTileView()
-        XCTAssertFalse(tile.canDrag)
-        tile.url = URL(fileURLWithPath: "/tmp/2026-08-11 1541 AWS Billing Console.png")
-        XCTAssertTrue(tile.canDrag)
+        tile.url = raw
+        let board = NSPasteboard(name: NSPasteboard.Name("shotscribe-test-\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        board.clearContents()
+        XCTAssertTrue(board.writeObjects([tile.pasteboardItem()]), "picked up while still naming")
+
+        let renamed = dir.appendingPathComponent("2026-08-11 1541 AWS Billing Console.png")
+        try FileManager.default.moveItem(at: raw, to: renamed)
+        tile.url = renamed   // the name lands mid-drag
+
+        let read = board.readObjects(forClasses: [NSURL.self], options: nil) as? [URL]
+        XCTAssertEqual(read?.first?.standardizedFileURL, renamed.standardizedFileURL,
+                       "the drop reads the file's name at that moment, not at pick-up")
     }
 
     func testAPressBecomesADragOnlyOnceItHasMoved() {

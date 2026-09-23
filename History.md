@@ -1353,9 +1353,15 @@ pasteboard (`NSURL`, so Finder copies it and a browser's upload field, Slack
 and Jira take the file — never the pixels), shows the tile itself as the drag
 image, is copy-only so a Finder drop cannot move the file out of the folder,
 and reports the drag's start and end to the presenter, which holds both the
-linger and the forty-second ceiling for as long as the drag lasts. Draggable
-only once the name has landed, with an open-hand cursor to say so; a drag
-begun before the rename would deliver a path about to stop existing.
+linger and the forty-second ceiling for as long as the drag lasts. First
+built draggable only once the name had landed; Josh dragged while it was
+still naming, the tile refused, and the release fired the click instead
+("clicking the tile opens preview… it does not allow me to drag"). With
+naming at five to sixteen seconds that is the common case, so the tile now
+drags from the moment the card appears and the file URL is *provided when
+the drop reads it* (`NSPasteboardItemDataProvider`), from the URL as it is at
+that moment: picked up raw, delivered renamed if the name landed first. The
+log says when a drag began and where it went.
 
 Chosen from renders, not by taste: `scripts/render-card.swift` hosts the real
 card off-screen in both appearances and its three states over a busy desktop,

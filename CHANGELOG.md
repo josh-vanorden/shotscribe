@@ -12,8 +12,10 @@ Dates are release dates. The narrative behind each line is in `History.md`.
   that says so. The tile keeps its picture through the rename (it used to
   blank for a beat when the file's path changed under it) and is a drag
   source: drag it into Finder, Slack, a browser's upload field or Jira and
-  the renamed file on disk arrives, never a bag of pixels. Draggable once
-  named, and the card stays put for as long as a drag lasts.
+  the file on disk arrives, never a bag of pixels. Draggable from the moment
+  the card appears — the drop reads the file's name as it is then, so a drag
+  that outlasts the naming delivers the renamed file — and the card stays
+  put for as long as a drag lasts.
 - **The words in a shot, findable in Spotlight at once.** A switch in the File
   tab writes each capture's significant words — the title's, the tags, then the
   distinct words the text read — into the file's Spotlight keywords, so a plain

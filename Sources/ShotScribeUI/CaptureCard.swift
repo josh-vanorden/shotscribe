@@ -92,7 +92,7 @@ public struct CaptureCard: View {
                         .overlay(Image(systemName: "photo")
                             .foregroundStyle(.secondary).font(.system(size: 18)))
                 }
-                DragTile(image: state.image, url: state.named ? state.url : nil,
+                DragTile(image: state.image, url: state.url,
                          click: {
                              if let shot { model.click(shot) } else { revealDirectly() }
                              dismiss()
@@ -110,7 +110,6 @@ public struct CaptureCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(.separator, lineWidth: 1))
-            .opacity(state.named ? 1 : 0.88)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
@@ -323,10 +322,8 @@ public struct CaptureCard: View {
         return state.generic ? "Nothing to read" : "Named"
     }
 
-    /// What the tile does, said on the card: a click, and — once there is a
-    /// name to deliver — a drag.
+    /// What the tile does, said on the card: a click, or a drag.
     private var tileHint: String {
-        guard state.named else { return "Naming — drag it once it has a name" }
         let click = shot.map { _ in model.title(of: model.defaultAction) } ?? "Reveal in Finder"
         return "\(click) · or drag it into any app"
     }
@@ -401,8 +398,14 @@ private struct Shimmer: View {
 /// to receive the **file on disk** under the name it was just given — Finder
 /// copies it, a browser's upload field takes it, Slack and Jira attach it —
 /// and the card has to know when the drag ends so it does not leave in the
-/// middle of one. `url` is nil until the name lands; a drag that began before
-/// the rename would deliver a file that no longer exists.
+/// middle of one.
+///
+/// Draggable from the moment the card appears. Naming takes seconds, and a
+/// drag that has to wait for it is a drag that fires the click instead (Josh,
+/// 2026-09-23: "clicking the tile opens preview… it does not allow me to drag").
+/// So the file URL is not written when the tile is picked up; it is
+/// **provided when the drop reads it**, from `url` as it is at that moment.
+/// A drag that outlasts the naming delivers the renamed file.
 struct DragTile: NSViewRepresentable {
     var image: NSImage?
     var url: URL?
@@ -421,28 +424,35 @@ struct DragTile: NSViewRepresentable {
     }
 }
 
-final class DragTileView: NSView, NSDraggingSource {
+final class DragTileView: NSView, NSDraggingSource, NSPasteboardItemDataProvider {
     var image: NSImage?
-    /// The file a drag delivers. nil means not yet: the name has not landed.
-    var url: URL? {
-        didSet { if (url == nil) != (oldValue == nil) { window?.invalidateCursorRects(for: self) } }
-    }
+    /// The file as it is right now: the raw capture until the name lands, the
+    /// renamed file after. Read at drop time, not at pick-up.
+    var url: URL?
     var click: () -> Void = {}
     var hover: (Bool) -> Void = { _ in }
     var dragging: (Bool) -> Void = { _ in }
     private var pressedAt: NSPoint?
     private var tracking: NSTrackingArea?
 
-    var canDrag: Bool { url != nil }
-
     /// Past this, a press has become a drag. Under it, it is a click that has
     /// not finished yet.
     static func isDrag(from a: NSPoint, to b: NSPoint) -> Bool { hypot(a.x - b.x, a.y - b.y) >= 4 }
 
-    /// What goes on the pasteboard: the URL as a file URL, which is what
-    /// every receiver that takes files reads, and what the pasteboard also
-    /// offers to older receivers as a filename list.
-    static func writer(for url: URL) -> NSPasteboardWriting { url as NSURL }
+    /// What goes on the pasteboard: a file URL — what every receiver that
+    /// takes files reads, and what the pasteboard also offers to older
+    /// receivers as a filename list — promised now, written when read, so the
+    /// name it carries is the name the file has when the drop happens.
+    func pasteboardItem() -> NSPasteboardItem {
+        let item = NSPasteboardItem()
+        item.setDataProvider(self, forTypes: [.fileURL])
+        return item
+    }
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        guard type == .fileURL, let url else { return }
+        item.setString(url.absoluteString, forType: .fileURL)
+    }
 
     // The card floats in a non-activating panel; the first click must count.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -457,7 +467,7 @@ final class DragTileView: NSView, NSDraggingSource {
     }
 
     override func resetCursorRects() {
-        if canDrag { addCursorRect(bounds, cursor: .openHand) }
+        addCursorRect(bounds, cursor: .openHand)
     }
 
     override func mouseEntered(with event: NSEvent) { hover(true) }
@@ -468,13 +478,14 @@ final class DragTileView: NSView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let start = pressedAt, let url else { return }
+        guard let start = pressedAt, url != nil else { return }
         let now = convert(event.locationInWindow, from: nil)
         guard Self.isDrag(from: start, to: now) else { return }
         pressedAt = nil
-        let item = NSDraggingItem(pasteboardWriter: Self.writer(for: url))
+        let item = NSDraggingItem(pasteboardWriter: pasteboardItem())
         item.setDraggingFrame(bounds, contents: dragImage())
         dragging(true)
+        Log.write("card: drag began (\(url?.lastPathComponent ?? "?"))")
         beginDraggingSession(with: [item], event: event, source: self)
     }
 
@@ -509,6 +520,7 @@ final class DragTileView: NSView, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        Log.write("card: drag ended, \(operation == [] ? "nowhere" : "delivered \(url?.lastPathComponent ?? "?")")")
         dragging(false)
     }
 
