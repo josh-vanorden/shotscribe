@@ -6,6 +6,20 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-23 16:30 — The card could leave mid-drag once the name landed
+- **Bug/Issue:** From a Codex read-only review of the unpushed commits (run `~/bridge/runs/shotscribe/20260923-125518-review/verdict.json`, rated "major" there): grab the tile while the card still says "Naming", keep holding after the name appears, and the card fades out under the cursor forty seconds on.
+- **RCA:** Two dismiss timers. The linger (`armTimer`, 8 s) was guarded against a drag; the ceiling (`armCeiling`, 40 s) was not. A drag's start cancels both and its end re-arms both, correctly — but `name(_:)` re-arms both unconditionally when the name lands, so a name arriving mid-drag started a fresh ceiling that a long-held drag would run into. Introduced with the draggable tile (`37e77e0`, `1ee368a`). Claude's read: minor — it needs the name to land mid-drag *and* a drag held past forty seconds — but real.
+- **Evidence:** The code paths, read: `name(_:)` → `armTimer(); armCeiling()` with no drag check on the second; `dragging(false)` sets `dragging = false` before re-arming, so the guard below does not starve it. No test covers the presenter's timers (a test would put a panel on the operator's screen). The manual repro with the ceiling shortened to 5 s is Josh's to run; the log lines `card: drag began` / `card: drag ended` bracket it.
+- **Fix/Repair:** The guard lives in the timer, so every caller gets it: `armCeiling` returns while `dragging`, and the drag's end arms it again. Open question, reported not chased: if the card did hide mid-drag, the tile view stays retained by the pasteboard item as its data provider, so the drop would most likely still deliver the file. Unreleased (1.7.3).
+- **Related PR:** none — on `main`
+
+### 2026-09-23 16:00 — A small slide's title was stripped as chrome
+- **Bug/Issue:** With the offline headline rule in place, "Human-in-the-Loop Design" still titled from its subtitle ("Better Decisions With"); the title line was missing from the body the titler reads.
+- **RCA:** `Chrome.app`'s menu-bar rule took any line in the top 5% under 6.5% tall that starts left of 25% as the bar, read the slide's title as the app "Human-in-the-Loop Design", and `Chrome.body` then dropped the top 5% as chrome. A 280-pixel capture's title is 5% tall and starts at 19%.
+- **Evidence:** A probe over the body lines of the capture: 41 lines, tallest the subtitle at 3.3%; the MCP layout of the same file shows the title at top 4.6, height 5.1, left 19.5.
+- **Fix/Repair:** The menu bar's app name starts within the leftmost tenth on any display, so the rule reads `left < 12`; the title-bar rule requires bar-sized type (`height < 6.5`) too. `HeadlineTests.testAHeadingUpTopIsNotChrome` pins both, with a real menu bar still read. Unreleased (1.7.3).
+- **Related PR:** none — on `main`
+
 ### 2026-09-23 13:05 — A good title was thrown away as a titler failure
 - **Bug/Issue:** Found while running the eval Josh asked for. Two renames in three days took the offline name although Claude had answered: the log reads `titler FAILED: failed("IT Support Tickets | ticket, dashboard")` (2026-09-21 13:19) and `titler FAILED: failed("Slack Cert Discussion | chat")` (2026-09-23 11:38). The offline names were "Bug Tickets Hold" and "Mail Sync Josh".
 - **RCA:** `ClaudeTitler.complete` took a non-zero exit status as the verdict: with stderr empty it threw `CLIError.failed(stdout)`, and stdout was the answer. The CLI had printed the reply and then exited non-zero — intermittent, not reproducible on demand (a plain run exits 0 with a clean stderr); the cause is downstream of the answer, a hook or the CLI's own tail end, and not the app's to fix.

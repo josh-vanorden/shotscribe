@@ -822,6 +822,11 @@ public final class CaptureCardPresenter {
 
     private func armCeiling() {
         ceiling?.cancel()
+        // Not during a drag. The name landing mid-drag re-arms the timers,
+        // and a ceiling started then took the card out from under the cursor
+        // forty seconds on (a Codex read-only review, 2026-09-23). The drag's
+        // end arms it again; `dragging` is cleared there before this runs.
+        guard !dragging else { return }
         let cap = DispatchWorkItem { [weak self] in self?.hide(animated: true) }
         ceiling = cap
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.ceilingAfter, execute: cap)
