@@ -4,21 +4,25 @@
 ## You are here
 <!-- Written by /save. Overwritten each time — narrative lives in History.md. -->
 
-**Last session:** 2026-09-22
-**Phase:** Ship — 1.7.2 is being released this save (Send the picture to a chat); a Gap run on the five 1.7.3 candidates is collecting (run 20260921-201608-product), its decision table is the next input for the build direction.
-**Next action:** Sign `claude` in, then run `shotscribe eval --limit 25` with Claude and tune the titler until precision reaches 80%. That is the open gate item and the goal card's own success target; the wide release and the GitHub Pages page both wait on it.
+**Last session:** 2026-09-24
+**Phase:** Ship — 1.7.3 is public (naming in ~4 s, the capture card with a draggable tile, steadier titles). The gate to *maintain* is the eval, and the eval's own yardstick needs re-basing first.
+**Next action:** Josh chooses how to re-base the eval gate — names he keeps by hand from a start date, or a frozen golden set of ~25 captures with agreed names — then `shotscribe eval --limit 25` runs against it and the 80% target means something. Measure consistency as two runs on the same set.
 
 **Open loops**
-- The Gap run on the 1.7.3 candidates: four lenses collecting; judge and report when they land (`.buildkit/runs/20260921-201608-product/report.md`).
-- `Backlog.retryInFlight` is wired into both watch starts, but a retried capture is only as good as the configured titler — and that titler is the thing the eval gate is about.
-- Codex is **not installed on this Mac**: Homebrew lists `codex 0.118.0` and `/opt/homebrew/bin/codex` exists, but its symlink target is gone. Gemini CLI and Cursor Agent are absent too. `docs/titlers.md` records which presets ran for real.
-- `shotscribe watch --dry-run` would rename for real on the retry path: the watcher closure honours `dryRun`, and `Backlog.retryInFlight` calls `rename(fileAt:)` with defaults. Undocumented flag combination, not yet fixed.
-- The three chrisop doc files (`Index.md`, `Obsidian.md`, `Skills.md`) are rewritten by this repo's own hooks on most sessions; commit them by name rather than expecting a clean tree.
+- 457 old title transcripts holding screenshot text in `~/.claude/projects/-/` (2026-08-16 → 2026-09-24): Josh's to delete; no new ones are written.
+- The manual repro for the drag ceiling (ceiling shortened to 5 s, hold a drag past the name) — Josh's, it needs a hand on the mouse.
+- Toolbelt: ten pin commits (1.6.0 → 1.7.3) unpushed there, Josh's.
+- The 1.5 s landing wait before a new capture is read could become a file-stopped-growing check (~1 s saved).
+- `shotscribe watch --dry-run` would rename for real on the retry path (`Backlog.retryInFlight` ignores `dryRun`). Undocumented combination, not yet fixed.
+- `Index.md`, `Obsidian.md`, `Skills.md` are rewritten by hooks most sessions; commit them by name.
 
 **Ruled out**
-- A bare top-level `await` in `Sources/shotscribe/main.swift`: the file ends in `dispatchMain()`, which then traps (SIGTRAP) and kills `shotscribe watch` at startup. Async work goes inside a `Task`; `nm .build/debug/shotscribe | grep async_Main` returning nothing is the check.
-- Arming the watcher *after* the retry, to control output order: `FolderWatcher.start()` seeds `seen` from the folder, so anything landing during the retry is treated as old and never renamed. Measured 2026-09-20 with 40 in-flight records.
-- Isolating a live run with a scratch `HOME`: `FileManager.homeDirectoryForCurrentUser` and `NSHomeDirectory()` both ignore `$HOME` on this Mac, confirmed with a compiled binary. Tests use `InFlight.storeOverride` instead.
+- Haiku as the titling model: slowest on the day, 8–20 s of model time; Sonnet and Opus answered in 1–2 s. The wait was the user's hooks, not the model.
+- `claude --bare` (needs an API key, refuses OAuth) and `--setting-sources project` (drops settings-held auth for other users). Hooks off plus no session is the fix.
+- A `.fast` OCR pass with a size-gated re-read: the gate failed small captures. Accurate always, small pictures doubled.
+- Prompt rules "never a synonym" and "put the app first": the first named a Slack rename after a person, the second put "Google Workspace" before "Suspicious Login Alert".
+- Judging a prompt change by recall against kept names: they are the old prompt's own phrasing.
+- A bare top-level `await` in `Sources/shotscribe/main.swift` (traps under `dispatchMain()`); arming the watcher after the retry (`seen` swallows new captures); a scratch `HOME` (ignored on this Mac).
 
 **Working tree:** clean
 **Unpushed commits:** none

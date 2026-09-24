@@ -1331,6 +1331,18 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-24, later — 1.7.3 is public
+Tagged `v1.7.3` at `b8e1ac5`; notarized under `shotscribe-notary` (app and DMG
+Accepted, stapled); a quarantined copy out of the DMG passes Gatekeeper as
+Notarized Developer ID, universal (x86_64 arm64), reports 1.7.3. Pushed with the
+tag after an ancestor check; released as latest with the changelog section as
+notes, and the downloaded DMG hashes the same as the local one
+(`ee1a0eaf9086706a…`). Toolbelt's pin raised to 1.7.3, built against the tag,
+committed there (`b85b7f4`, shotscribe hunk of `Package.resolved` only) —
+unpushed, Josh's. The running app is the notarized build from `dist/`. This
+release was also the first cut from the new `/release` skill's steps
+(`~/.claude/skills/release/SKILL.md`): save, bump, DMG, push, publish, pin.
+
 ## 2026-09-24 — naming in four seconds: hooks off, no session saved
 Josh: "the OCR rename takes quite a bit of time." Measured before touching
 anything, the titler's exact call on one real capture, sent from `/` as the
