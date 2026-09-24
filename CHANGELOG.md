@@ -2,7 +2,7 @@
 
 Dates are release dates. The narrative behind each line is in `History.md`.
 
-## 1.7.3 — unreleased
+## 1.7.3 — 2026-09-24
 
 - **Naming takes seconds, not tens of seconds.** Each title was a whole
   Claude Code session: every hook the user has set up ran on every call, and

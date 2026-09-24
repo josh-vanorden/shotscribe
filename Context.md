@@ -28,7 +28,47 @@ ShotScribe turns raw macOS screenshot filenames ("Screenshot 2026-08-11 at
 3.41.07 PM.png") into dated, findable titles ("2026-08-11 1541 AWS Billing
 Console.png") — on-device OCR (Apple Vision) plus a swappable Titler seam.
 
-## Current state (2026-09-18 — 1.7.0 public)
+## Current state (2026-09-24 — 1.7.3)
+
+**Reading a capture.** `OCR.recognizeLines` reads every frame at Vision's
+`.accurate` level; a picture under 1,000 px on its longer side is doubled first
+(`OCR.enlarged`, `doubledBelow`). The old `.fast` pass and its size-gated
+re-read are gone — the gate was the bug twice in one day. Cost: 0.2–0.45 s.
+
+**Naming it.** Every door hands the titler the positioned lines
+(`Titler.labelling(for:vocabulary:)`, a protocol requirement with a text
+default). With a model: `TitlerPrompt.rules` — the screen's own words, the
+subject not the app, no kind-of-picture words, no slide numbers, plainest
+reading wins. Offline: `KeywordTitler.headline(in:)` takes the biggest type
+near the top when it clearly stands out, else keywords. `Chrome.app` reads a
+menu bar only from a line starting in the leftmost tenth, and a title bar only
+in bar-sized type. `LabelCleaner.generic` is the one fallback word; "&" is
+"and". `ClaudeTitler` asks for JSON and reads the envelope (the exit status is
+not the verdict), and runs with hooks off and no session saved
+(`quietFlags`, plain retry on "unknown option") — about 4 s from capture to
+name, the model ~2 s of it.
+
+**The capture card.** Pulsing dots and a shimmer while naming; the name fades
+in green (`ShotPalette.named`), the generic word in grey under "Nothing to
+read" (`NamedCapture.generic`). The picture is loaded once into
+`CaptureCardState.image`. The tile is `DragTile`, an `NSDraggingSource` that
+promises a file URL at pick-up and writes it at drop time, copy-only; the
+presenter holds both timers through a drag, and `armCeiling` refuses to arm
+during one.
+
+**Spotlight keywords** (File tab, off by default): title, tags and distinct
+OCR words written as `kMDItemKeywords`; back-filled and stripped library-wide.
+
+**Measuring names.** `shotscribe eval` scores against kept names, which are
+mostly the titler's own past answers, so a change of style scores lower by
+construction. Consistency is measured as the same 25 files run twice (old
+prompt 16/25 identical, new 20/25). The goal card's 80% gate needs re-basing —
+Josh's call. `scripts/render-card.swift` renders the card off-screen in both
+appearances.
+
+Everything in the 2026-09-18 section below still holds.
+
+## Earlier state (2026-09-18 — 1.7.0 public)
 
 **Where the app lives.** `Presence` (Core): `dock` and `menuBar`, never both
 off, stored as `shotscribe.showInDock` / `shotscribe.showInMenuBar` with an

@@ -6,6 +6,20 @@ The bug record: one entry per issue, newest first, six fields (schema in `~/.cla
 
 ## Log
 
+### 2026-09-24 11:40 — Naming took ten to forty-eight seconds, and left the screenshot's text behind
+- **Bug/Issue:** Josh: "the OCR rename takes quite a bit of time." The log showed capture to title at 7–48 s; the card said Naming for most of it.
+- **RCA:** Not OCR (0.2–0.45 s) and not the model (~2 s). Each title ran `claude -p` as a full Claude Code session, so every hook in the user's settings ran on every call. The same calls saved a session each, so a transcript holding the screenshot's text was left in `~/.claude/projects/-/` per title.
+- **Evidence:** The titler's exact call timed from `/`: as shipped, 8.6–27 s wall against 1.9–2.4 s of model time; `--setting-sources project` alone 2.9–3.0 s; `disableAllHooks` with settings kept 4.0–4.4 s; same answer throughout. 457 transcripts in that folder carrying the titler's prompt, the oldest 2026-08-16.
+- **Fix/Repair:** `ClaudeTitler.quietFlags` — `--settings {"disableAllHooks":true}` and `--no-session-persistence` — with a plain retry when an older CLI answers "unknown option". User settings otherwise kept, so settings-held auth and a chosen model still apply. `ClaudeTitlerTests` (three new). Live: the running app named a raw copy in 4 s against 12 s the day before; no new transcript. The old 457 are left for Josh. Shipped in 1.7.3.
+- **Related PR:** none — on `main`
+
+### 2026-09-23 12:40 — Dragging the card's tile opened Preview instead
+- **Bug/Issue:** Josh: "clicking the tile opens preview link directly it does not allow me to drag and drop from the tile."
+- **RCA:** The tile was built to start a drag only once the name had landed. Josh dragged during naming, which takes seconds; the view refused the drag, and the mouse-up fired the click, whose default action is Open in Preview.
+- **Evidence:** `DragTileView.mouseDragged` guarded on `url != nil`, and the card passed `nil` until `state.named`; the default action on this Mac is Preview.
+- **Fix/Repair:** Draggable from the moment the card appears; the file URL is promised at pick-up and written when the drop reads it (`NSPasteboardItemDataProvider`), so a drag outlasting the naming delivers the renamed file. `CaptureCardTests.testADragPickedUpWhileNamingDeliversTheRenamedFile`. Josh confirmed drag works. Shipped in 1.7.3.
+- **Related PR:** none — on `main`
+
 ### 2026-09-23 16:30 — The card could leave mid-drag once the name landed
 - **Bug/Issue:** From a Codex read-only review of the unpushed commits (run `~/bridge/runs/shotscribe/20260923-125518-review/verdict.json`, rated "major" there): grab the tile while the card still says "Naming", keep holding after the name appears, and the card fades out under the cursor forty seconds on.
 - **RCA:** Two dismiss timers. The linger (`armTimer`, 8 s) was guarded against a drag; the ceiling (`armCeiling`, 40 s) was not. A drag's start cancels both and its end re-arms both, correctly — but `name(_:)` re-arms both unconditionally when the name lands, so a name arriving mid-drag started a fresh ceiling that a long-held drag would run into. Introduced with the draggable tile (`37e77e0`, `1ee368a`). Claude's read: minor — it needs the name to land mid-drag *and* a drag held past forty seconds — but real.

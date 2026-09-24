@@ -16,7 +16,7 @@ Vault linkage for shotscribe.
   with the user before creating one.
 
 <!-- markerblock:obsidian-links -->
-## What points here — read on 2026-09-22
+## What points here — read on 2026-09-24
 
 ### Infrastructure vault — notes naming `shotscribe`
 
@@ -24,7 +24,7 @@ _None._ The vault models the work estate; a personal repo is not expected here.
 
 ### Memory — `~/.claude/projects/-Users-vanorden-git-personal-active-shotscribe/memory`
 
-23 facts, newest 2026-09-18:
+25 facts, newest 2026-09-24:
 - [Toolbelt pins shotscribe from GitHub](toolbelt-pins-shotscribe-from-github.md) — local work is invisible in Toolbelt until pushed, tagged and the pin bumped
 - [Preview port band](preview-port-band.md) — when Josh names a port outside the bands, lead with the real URL or he loses the page
 - [Josh's UI taste](josh-ui-taste.md) — "if Apple shipped it on macOS 26": glass idiom, image-first, tabbed inspector, no warning boxes; every visible control must answer "then what?"

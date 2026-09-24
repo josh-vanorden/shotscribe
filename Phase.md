@@ -294,3 +294,27 @@ destination that sends the image. The gate item is unchanged (sign `claude` in,
 Gap run whose decision table is the next input.
 - **Sub-issue, fixed:** Send to Claude assumed every Claude was on this Mac
   (Triage 2026-09-22 09:10).
+
+## 2026-09-24 — 1.7.3: naming you can trust, in four seconds
+Phase stays **Ship**. 1.7.3 carries accurate-always OCR with small pictures
+doubled, Spotlight keywords, the capture card (motion while naming, the name in
+green, a draggable tile), the consistency pass and the offline headline rule,
+the JSON-envelope reading of `claude`'s reply, and title calls with hooks off
+and no session saved (12 s → 4 s on the same shot).
+- [x] **The eval gate, run** — 2026-09-23, Claude signed in:
+      `shotscribe eval --limit 25`. Claude 36% exact / 60% recall, offline
+      8% / 30%. Connected AI doubles name quality and quadruples filing.
+- [ ] **The gate itself needs re-basing — Josh's call.** The eval scores
+      against kept names, mostly the titler's own past phrasing, so the
+      consistency pass (16 → 20 of 25 identical run to run) *lowered* it to
+      45%. Re-base on names Josh keeps by hand from a date, or a frozen
+      golden set, before 80% can mean anything.
+- **Sub-issues, fixed:** small captures sat under the sparse-read gate
+  (Triage 2026-09-22 16:15); a good title thrown away for an exit code
+  (2026-09-23 13:05); a slide's title stripped as a menu bar (2026-09-23
+  16:00); the card could leave mid-drag (2026-09-23 16:30); a drag refused
+  while naming fired the click (2026-09-23 12:40); hooks made naming slow and
+  left transcripts of screenshot text (2026-09-24 11:40).
+- **Open, Josh's:** 457 old title transcripts in `~/.claude/projects/-/`
+  (his to delete); the manual 5-second-ceiling drag repro.
+
