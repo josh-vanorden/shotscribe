@@ -4,6 +4,15 @@ Dates are release dates. The narrative behind each line is in `History.md`.
 
 ## 1.7.3 — unreleased
 
+- **Naming takes seconds, not tens of seconds.** Each title was a whole
+  Claude Code session: every hook the user has set up ran on every call, and
+  the model's two seconds sat inside eight to twenty-seven. Title calls now run
+  with hooks off and save no session. On this Mac, capture to name went from
+  12 seconds to 4 for the same shot. Two side effects, both wanted: a hook is
+  no longer handed the text of every screenshot, and no transcript of that
+  text is left in the Claude projects folder any more. A user's sign-in and
+  chosen model still apply, and a `claude` too old for either flag is asked
+  the old way.
 - **The same screen gets the same name.** The titler's instructions now say
   how to choose, not just how long: prefer the words the screen uses for
   itself, name the subject rather than the app or a person on it, no "Slide",

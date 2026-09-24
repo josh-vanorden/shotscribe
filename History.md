@@ -1331,6 +1331,29 @@ nothing from a picture big enough to hold more (`OCR.sparseChars`,
 `OCR.sparseArea`); the fuller reading is kept. `shotscribe label` on the chart:
 "Company Org Chart". 253 tests; Triage has the entry.
 
+## 2026-09-24 — naming in four seconds: hooks off, no session saved
+Josh: "the OCR rename takes quite a bit of time." Measured before touching
+anything, the titler's exact call on one real capture, sent from `/` as the
+app sends it: as it was, 8.6–27 s wall with the model answering in 1.9–2.4 s;
+with the user's hooks off, 4.0–4.4 s; with user settings skipped entirely,
+2.9–4.9 s. Same title every run. Flag by flag, `--setting-sources project`
+alone did it, and `disableAllHooks` alone did nearly as well — the hooks were
+the wait, not the model, and not Claude Code's own prompt. Skipping user
+settings was rejected: some users keep their auth there. Haiku was ruled out
+on the numbers, the slowest model that day at 8–20 s of model time; Sonnet and
+Opus answered in 1–2 s. `--bare` needs an API key, so it is out for OAuth.
+
+`ClaudeTitler.arguments(prompt:system:model:quiet:)` now adds
+`--settings {"disableAllHooks":true}` and `--no-session-persistence`; a CLI
+that answers "unknown option '--…'" is asked again without them
+(`rejectedAFlag`), never on a reply in the result envelope. The second flag
+answered a finding: 457 transcripts in `~/.claude/projects/-/`, one per title
+since 2026-08-16, each holding a screenshot's text — left in place, Josh's to
+delete. Three tests in `ClaudeTitlerTests`; 285 in all. Live: the CLI titled
+three captures in 4.5–4.8 s end to end with no new transcript; the running
+app read a raw-named copy of yesterday's alert at 11:49:44 and named it at
+11:49:48, against 12 s for the same shot the day before. Copy removed.
+
 ## 2026-09-23, afternoon — the consistency pass, the headline rule, and the ceiling
 Josh: "do the consistency pass and the headline rule", plus a timer bug
 another session had Codex find. Three pieces, one measured.

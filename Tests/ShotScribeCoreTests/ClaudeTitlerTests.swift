@@ -41,6 +41,42 @@ final class ClaudeTitlerTests: XCTestCase {
         }
     }
 
+    // MARK: - The call itself
+
+    /// A title call runs no hooks and saves no session, and still denies
+    /// every tool: the quiet flags add to the boundary, never replace it.
+    func testATitleCallRunsNoHooksAndSavesNoSession() throws {
+        let args = ClaudeTitler.arguments(prompt: "OCR text:\nx\n\nLabel:", system: "sys", model: nil, quiet: true)
+        XCTAssertTrue(args.contains("--no-session-persistence"))
+        let settings = try XCTUnwrap(args.firstIndex(of: "--settings").map { args[$0 + 1] })
+        let parsed = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(settings.utf8)) as? [String: Any])
+        XCTAssertEqual(parsed["disableAllHooks"] as? Bool, true)
+        XCTAssertTrue(args.contains("--strict-mcp-config"))
+        let denied = try XCTUnwrap(args.firstIndex(of: "--disallowedTools").map { args[$0 + 1] })
+        for tool in ["Bash", "Read", "Write", "Edit", "WebFetch"] { XCTAssertTrue(denied.contains(tool), tool) }
+        XCTAssertEqual(args[args.firstIndex(of: "--output-format")! + 1], "json")
+    }
+
+    func testTheFallbackCallIsTheOldOneAndAModelIsPassedEitherWay() {
+        let quiet = ClaudeTitler.arguments(prompt: "p", system: "s", model: "sonnet", quiet: true)
+        let plain = ClaudeTitler.arguments(prompt: "p", system: "s", model: "sonnet", quiet: false)
+        XCTAssertFalse(plain.contains("--no-session-persistence"))
+        XCTAssertFalse(plain.contains("--settings"))
+        XCTAssertEqual(Array(quiet.prefix(plain.count)), plain, "quiet is the old call plus the two flags")
+        XCTAssertTrue(plain.contains("--strict-mcp-config"))
+        XCTAssertEqual(plain[plain.firstIndex(of: "--model")! + 1], "sonnet")
+    }
+
+    /// An older `claude` refuses the call over a flag it does not know; that,
+    /// and only that, is asked again the old way.
+    func testOnlyARefusedFlagIsAskedAgain() {
+        XCTAssertTrue(ClaudeTitler.rejectedAFlag(out: "error: unknown option '--no-session-persistence'", err: ""))
+        XCTAssertTrue(ClaudeTitler.rejectedAFlag(out: "", err: "Error: unknown option '--settings'"))
+        XCTAssertFalse(ClaudeTitler.rejectedAFlag(out: envelope("Unknown Option Dialog | error"), err: ""),
+                       "an answer is never a refusal, whatever it says")
+        XCTAssertFalse(ClaudeTitler.rejectedAFlag(out: "Failed to authenticate: OAuth session expired", err: ""))
+    }
+
     func testNothingPrintedIsEmpty() {
         XCTAssertThrowsError(try ClaudeTitler.answer(out: "", err: "", status: 1)) { error in
             guard case ClaudeTitler.CLIError.empty = error else { return XCTFail("\(error)") }

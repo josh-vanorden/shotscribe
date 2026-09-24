@@ -89,12 +89,44 @@ public struct ClaudeTitler: Titler {
 
     private func complete(prompt: String, system: String) async throws -> String {
         guard let bin = Self.resolveBinary() else { throw CLIError.notFound }
+        var run = try await CommandRunner.run(
+            bin, Self.arguments(prompt: prompt, system: system, model: model, quiet: true), timeout: timeout)
+        // A `claude` older than one of the quiet flags refuses the whole call.
+        // Titles matter more than speed: ask again the way it was always asked.
+        if Self.rejectedAFlag(out: run.out, err: run.err) {
+            run = try await CommandRunner.run(
+                bin, Self.arguments(prompt: prompt, system: system, model: model, quiet: false), timeout: timeout)
+        }
+        return try Self.answer(out: run.out, err: run.err, status: run.status)
+    }
+
+    /// Two flags that keep a title call from being a whole Claude Code
+    /// session. **Hooks off**: every call ran the user's own hooks — measured
+    /// 2026-09-24, a call took 8.6–27 s of which the model answered in about
+    /// 2, and with hooks off 4.0–4.4 s with the same answer. It is also the
+    /// untrusted-text boundary again: a hook is code, and it was being handed
+    /// the text of every screenshot. **No session saved**: each call left a
+    /// transcript holding the screenshot's text in the user's Claude projects
+    /// folder — 457 of them on this Mac by then, a second copy of what was on
+    /// screen that nobody asked for. The user's settings are otherwise kept,
+    /// so a sign-in or a model chosen there still applies.
+    static let quietFlags = ["--settings", #"{"disableAllHooks":true}"#, "--no-session-persistence"]
+
+    static func arguments(prompt: String, system: String, model: String?, quiet: Bool) -> [String] {
         var args = ["-p", prompt, "--output-format", "json"]
         if let model, !model.isEmpty { args += ["--model", model] }
         if !system.isEmpty { args += ["--append-system-prompt", system] }
-        args += ["--strict-mcp-config", "--disallowedTools", Self.deniedTools]
-        let run = try await CommandRunner.run(bin, args, timeout: timeout)
-        return try Self.answer(out: run.out, err: run.err, status: run.status)
+        args += ["--strict-mcp-config", "--disallowedTools", deniedTools]
+        if quiet { args += quietFlags }
+        return args
+    }
+
+    /// The CLI refused a flag it does not know ("error: unknown option
+    /// '--no-session-persistence'"), rather than answering. Never true of a
+    /// reply: an answer arrives in the result envelope.
+    static func rejectedAFlag(out: String, err: String) -> Bool {
+        guard !out.contains(#""type":"result""#) else { return false }
+        return (err + "\n" + out).localizedCaseInsensitiveContains("unknown option '--")
     }
 
     /// The answer in what the CLI printed, or the reason there is none.
